@@ -33,21 +33,22 @@ def load_presentation_content(pres_id: str) -> str:
     path = get_presentation_path(pres_id)
     return path.read_text()
 
-def create_presentation(data: PresentationCreate) -> PresentationResponse:
-    pres_id = generate_id()
-    now = datetime.now()
-
-    save_presentation_file(pres_id, data.content)
-    metadata = {
+def build_metadata(pres_id: str, title: str, theme_id: str | None, now: datetime) -> dict:
+    return {
         "id": pres_id,
-        "title": data.title,
-        "theme_id": data.theme_id,
+        "title": title,
+        "theme_id": theme_id,
         "created_at": now,
         "updated_at": now
     }
+
+def create_presentation(data: PresentationCreate) -> PresentationResponse:
+    pres_id = generate_id()
+    now = datetime.now()
+    save_presentation_file(pres_id, data.content)
+    metadata = build_metadata(pres_id, data.title, data.theme_id, now)
     save_metadata(pres_id, metadata)
     logger.info(f"Created presentation: {pres_id}")
-
     return PresentationResponse(**metadata, content=data.content)
 
 def get_presentation(pres_id: str) -> PresentationResponse | None:
@@ -67,24 +68,23 @@ def list_presentations() -> list[PresentationResponse]:
             presentations.append(pres)
     return presentations
 
-def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
-    pres = get_presentation(pres_id)
-    if not pres:
-        return None
-
-    if data.content:
-        save_presentation_file(pres_id, data.content)
-
-    metadata = load_metadata(pres_id)
+def apply_updates_to_metadata(metadata: dict, data: PresentationUpdate) -> dict:
     if data.title:
         metadata["title"] = data.title
     if data.theme_id:
         metadata["theme_id"] = data.theme_id
     metadata["updated_at"] = datetime.now()
+    return metadata
 
+def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
+    pres = get_presentation(pres_id)
+    if not pres:
+        return None
+    if data.content:
+        save_presentation_file(pres_id, data.content)
+    metadata = apply_updates_to_metadata(load_metadata(pres_id), data)
     save_metadata(pres_id, metadata)
     logger.info(f"Updated presentation: {pres_id}")
-
     content = data.content or load_presentation_content(pres_id)
     return PresentationResponse(**metadata, content=content)
 
