@@ -35,6 +35,20 @@ def test_create_presentation_validation():
     })
     assert response.status_code == 422
 
+def test_create_presentation_empty_content():
+    response = client.post("/api/presentations", json={
+        "title": "Test",
+        "content": ""
+    })
+    assert response.status_code == 422
+
+def test_create_presentation_whitespace_content():
+    response = client.post("/api/presentations", json={
+        "title": "Test",
+        "content": "   \n   \t   "
+    })
+    assert response.status_code == 422
+
 def test_list_presentations():
     create_test_presentation()
     response = client.get("/api/presentations")
