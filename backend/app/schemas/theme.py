@@ -12,3 +12,4 @@ class ThemeResponse(ThemeBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    is_builtin: bool = False

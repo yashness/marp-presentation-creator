@@ -1,10 +1,14 @@
 from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import FileResponse
+from pathlib import Path
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
 from app.services import presentation_service as service
 from app.services import marp_service
 from app.core.logger import logger
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
+EXPORTS_DIR = Path("data/exports")
+EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("", response_model=PresentationResponse)
 def create_presentation(data: PresentationCreate):
@@ -48,3 +52,42 @@ def preview_presentation(presentation_id: str):
     except Exception as e:
         logger.error(f"Preview failed: {e}")
         raise HTTPException(500, f"Preview failed: {str(e)}")
+
+def get_export_path(pres_id: str, format: str) -> Path:
+    return EXPORTS_DIR / f"{pres_id}.{format}"
+
+def get_media_type(format: str) -> str:
+    media_types = {
+        "pdf": "application/pdf",
+        "html": "text/html",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    }
+    return media_types.get(format, "application/octet-stream")
+
+def export_to_format(pres: PresentationResponse, format: str) -> Path:
+    output_path = get_export_path(pres.id, format)
+    if format == "pdf":
+        marp_service.render_to_pdf(pres.content, output_path, pres.theme_id)
+    elif format == "html":
+        marp_service.render_to_html_file(pres.content, output_path, pres.theme_id)
+    elif format == "pptx":
+        marp_service.render_to_pptx(pres.content, output_path, pres.theme_id)
+    return output_path
+
+@router.post("/{presentation_id}/export")
+def export_presentation(presentation_id: str, format: str = "pdf"):
+    valid_formats = ["pdf", "html", "pptx"]
+    if format not in valid_formats:
+        raise HTTPException(400, f"Invalid format. Must be one of: {valid_formats}")
+
+    pres = service.get_presentation(presentation_id)
+    if not pres:
+        raise HTTPException(404, "Presentation not found")
+
+    try:
+        output_path = export_to_format(pres, format)
+        filename = f"{pres.title}.{format}"
+        return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
+    except Exception as e:
+        logger.error(f"Export failed: {e}")
+        raise HTTPException(500, f"Export failed: {str(e)}")

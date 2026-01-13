@@ -1,0 +1,36 @@
+/* @theme default */
+
+section {
+  background: #fff;
+  color: #333;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 28px;
+  padding: 60px;
+}
+
+h1 {
+  color: #2563eb;
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 30px;
+}
+
+h2 {
+  color: #1e40af;
+  font-size: 36px;
+  font-weight: 600;
+}
+
+code {
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+
+pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 20px;
+  border-radius: 8px;
+}

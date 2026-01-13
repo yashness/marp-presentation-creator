@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import presentations
+from app.api.routes import presentations, themes
 from app.core.config import settings, config
 from app.core.logger import logger
 
@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(presentations.router, prefix="/api")
+app.include_router(themes.router, prefix="/api")
 
 @app.get("/health")
 def health_check():

@@ -50,3 +50,8 @@ htmlcov/
 *.pyo
 *.pyd
 .eggs/
+
+# Data storage
+backend/data/
+frontend/data/
+cli/data/

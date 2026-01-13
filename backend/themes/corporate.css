@@ -1,0 +1,35 @@
+/* @theme corporate */
+
+section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-family: 'Arial', sans-serif;
+  font-size: 28px;
+  padding: 60px;
+}
+
+h1 {
+  color: #fff;
+  font-size: 52px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+h2 {
+  color: #f0f0f0;
+  font-size: 38px;
+  font-weight: 700;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  border-radius: 8px;
+}
