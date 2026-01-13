@@ -9,7 +9,7 @@ A modern, full-featured presentation builder combining Markdown simplicity (Marp
 - **Export**: Export to PDF, HTML, and PPTX formats
 - **Theme System**: 3 built-in themes (default, corporate, academic) with custom theme support
 - **CLI Tools**: Command-line interface for quick operations
-- **REST API**: FastAPI backend for presentation management with 20+ test coverage
+- **REST API**: FastAPI backend for presentation management with 99% test coverage
 - **Modern Frontend**: React + TypeScript + Tailwind CSS
 
 ## Technology Stack
