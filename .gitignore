@@ -1,0 +1,52 @@
+# Claude auto-restart logs
+.claude/auto-restart-logs/
+/tmp/claude-auto-restart-*.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.uv/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+
+# Frontend
+node_modules/
+dist/
+.vite/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+.eggs/
