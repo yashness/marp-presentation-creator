@@ -73,6 +73,23 @@ def test_update_presentation():
     assert response.status_code == 200
     assert response.json()["title"] == "Updated Title"
 
+def test_update_presentation_with_theme():
+    pres = create_test_presentation()
+    response = client.put(f"/api/presentations/{pres['id']}", json={
+        "theme_id": "corporate"
+    })
+    assert response.status_code == 200
+    assert response.json()["theme_id"] == "corporate"
+
+def test_update_presentation_with_content():
+    pres = create_test_presentation()
+    new_content = "---\nmarp: true\n---\n\n# Updated Content"
+    response = client.put(f"/api/presentations/{pres['id']}", json={
+        "content": new_content
+    })
+    assert response.status_code == 200
+    assert response.json()["content"] == new_content
+
 def test_delete_presentation():
     pres = create_test_presentation()
     response = client.delete(f"/api/presentations/{pres['id']}")
