@@ -1,12 +1,20 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import presentations
 from app.core.config import settings, config
 from app.core.logger import logger
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting Marp Builder API")
+    yield
+    logger.info("Shutting down Marp Builder API")
+
 app = FastAPI(
     title=config["app"]["name"],
-    version=config["app"]["version"]
+    version=config["app"]["version"],
+    lifespan=lifespan
 )
 
 cors_origins = settings.cors_origins.split(",")
@@ -23,7 +31,3 @@ app.include_router(presentations.router, prefix="/api")
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting Marp Builder API")
