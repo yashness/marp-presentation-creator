@@ -1,4 +1,5 @@
 import subprocess
+import tempfile
 from pathlib import Path
 from app.core.config import settings
 from app.core.logger import logger
@@ -10,7 +11,8 @@ def validate_markdown(content: str) -> bool:
     return bool(content and content.strip())
 
 def create_temp_file(content: str) -> Path:
-    temp_file = Path("/tmp/temp_presentation.md")
+    fd, temp_path = tempfile.mkstemp(suffix=".md", text=True)
+    temp_file = Path(temp_path)
     temp_file.write_text(content)
     return temp_file
 

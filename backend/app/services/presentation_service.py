@@ -11,10 +11,16 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 def generate_id() -> str:
     return str(uuid.uuid4())
 
+def validate_presentation_id(pres_id: str):
+    if "/" in pres_id or "\\" in pres_id or ".." in pres_id:
+        raise ValueError("Invalid presentation ID")
+
 def get_presentation_path(pres_id: str) -> Path:
+    validate_presentation_id(pres_id)
     return STORAGE_DIR / f"{pres_id}.md"
 
 def get_metadata_path(pres_id: str) -> Path:
+    validate_presentation_id(pres_id)
     return STORAGE_DIR / f"{pres_id}.json"
 
 def save_presentation_file(pres_id: str, content: str):
