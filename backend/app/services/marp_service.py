@@ -24,7 +24,7 @@ def build_marp_cmd(temp_file: Path, format_flag: str, output: str | None, theme_
         cmd.extend(["--theme", theme_id])
     return cmd
 
-def run_marp_command(cmd: list[str], temp_file: Path, operation: str):
+def run_marp_command(cmd: list[str], temp_file: Path, operation: str) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(cmd, capture_output=True, text=True)
     temp_file.unlink(missing_ok=True)
     if result.returncode != 0:
@@ -40,7 +40,7 @@ def render_to_html(content: str, theme_id: str | None = None) -> str:
     result = run_marp_command(cmd, temp_file, "Marp render")
     return result.stdout
 
-def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None):
+def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
     temp_file = create_temp_file(content)
@@ -48,7 +48,7 @@ def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None):
     run_marp_command(cmd, temp_file, "PDF export")
     logger.info(f"PDF exported: {output_path}")
 
-def render_to_html_file(content: str, output_path: Path, theme_id: str | None = None):
+def render_to_html_file(content: str, output_path: Path, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
     temp_file = create_temp_file(content)
@@ -56,7 +56,7 @@ def render_to_html_file(content: str, output_path: Path, theme_id: str | None = 
     run_marp_command(cmd, temp_file, "HTML export")
     logger.info(f"HTML exported: {output_path}")
 
-def render_to_pptx(content: str, output_path: Path, theme_id: str | None = None):
+def render_to_pptx(content: str, output_path: Path, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
     temp_file = create_temp_file(content)

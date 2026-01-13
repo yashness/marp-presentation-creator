@@ -12,37 +12,37 @@ EXPORTS_DIR = Path("data/exports")
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("", response_model=PresentationResponse)
-def create_presentation(data: PresentationCreate):
+def create_presentation(data: PresentationCreate) -> PresentationResponse:
     logger.info(f"Creating presentation: {data.title}")
     return service.create_presentation(data)
 
 @router.get("", response_model=list[PresentationResponse])
-def list_presentations():
+def list_presentations() -> list[PresentationResponse]:
     return service.list_presentations()
 
 @router.get("/{presentation_id}", response_model=PresentationResponse)
-def get_presentation(presentation_id: str):
+def get_presentation(presentation_id: str) -> PresentationResponse:
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
     return pres
 
 @router.put("/{presentation_id}", response_model=PresentationResponse)
-def update_presentation(presentation_id: str, data: PresentationUpdate):
+def update_presentation(presentation_id: str, data: PresentationUpdate) -> PresentationResponse:
     pres = service.update_presentation(presentation_id, data)
     if not pres:
         raise HTTPException(404, "Presentation not found")
     return pres
 
 @router.delete("/{presentation_id}")
-def delete_presentation(presentation_id: str):
+def delete_presentation(presentation_id: str) -> dict[str, str]:
     success = service.delete_presentation(presentation_id)
     if not success:
         raise HTTPException(404, "Presentation not found")
     return {"message": "Presentation deleted"}
 
 @router.get("/{presentation_id}/preview")
-def preview_presentation(presentation_id: str):
+def preview_presentation(presentation_id: str) -> Response:
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
@@ -76,7 +76,7 @@ def export_to_format(pres: PresentationResponse, format: str) -> Path:
     return output_path
 
 @router.post("/{presentation_id}/export")
-def export_presentation(presentation_id: str, format: str = "pdf"):
+def export_presentation(presentation_id: str, format: str = "pdf") -> FileResponse:
     if not validate_export_format(format):
         raise HTTPException(400, f"Invalid format. Must be one of: pdf, html, pptx")
 

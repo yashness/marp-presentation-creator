@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from typing import Any
 import uuid
 import json
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
@@ -11,7 +12,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 def generate_id() -> str:
     return str(uuid.uuid4())
 
-def validate_presentation_id(pres_id: str):
+def validate_presentation_id(pres_id: str) -> None:
     if "/" in pres_id or "\\" in pres_id or ".." in pres_id:
         raise ValueError("Invalid presentation ID")
 
@@ -23,15 +24,15 @@ def get_metadata_path(pres_id: str) -> Path:
     validate_presentation_id(pres_id)
     return STORAGE_DIR / f"{pres_id}.json"
 
-def save_presentation_file(pres_id: str, content: str):
+def save_presentation_file(pres_id: str, content: str) -> None:
     path = get_presentation_path(pres_id)
     path.write_text(content)
 
-def save_metadata(pres_id: str, metadata: dict):
+def save_metadata(pres_id: str, metadata: dict[str, Any]) -> None:
     path = get_metadata_path(pres_id)
     path.write_text(json.dumps(metadata, default=str))
 
-def load_metadata(pres_id: str) -> dict:
+def load_metadata(pres_id: str) -> dict[str, Any]:
     path = get_metadata_path(pres_id)
     return json.loads(path.read_text())
 
@@ -39,7 +40,7 @@ def load_presentation_content(pres_id: str) -> str:
     path = get_presentation_path(pres_id)
     return path.read_text()
 
-def build_metadata(pres_id: str, title: str, theme_id: str | None, now: datetime) -> dict:
+def build_metadata(pres_id: str, title: str, theme_id: str | None, now: datetime) -> dict[str, Any]:
     return {
         "id": pres_id,
         "title": title,
@@ -74,7 +75,7 @@ def list_presentations() -> list[PresentationResponse]:
             presentations.append(pres)
     return presentations
 
-def apply_updates_to_metadata(metadata: dict, data: PresentationUpdate) -> dict:
+def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate) -> dict[str, Any]:
     if data.title:
         metadata["title"] = data.title
     if data.theme_id:
