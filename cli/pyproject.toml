@@ -1,0 +1,14 @@
+[project]
+name = "marpify"
+version = "0.1.0"
+description = "Marp Presentation Builder CLI"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "rich>=14.2.0",
+    "typer>=0.21.1",
+]
+
+[project.scripts]
+marpify = "marpify.main:app"
