@@ -15,9 +15,11 @@ def test_validate_markdown_empty():
 def test_create_temp_file():
     content = "test content"
     temp_file = marp_service.create_temp_file(content)
-    assert temp_file.exists()
-    assert temp_file.read_text() == content
-    temp_file.unlink(missing_ok=True)
+    try:
+        assert temp_file.exists()
+        assert temp_file.read_text() == content
+    finally:
+        temp_file.unlink(missing_ok=True)
 
 def test_build_marp_cmd_basic():
     temp_file = Path("/tmp/test.md")
@@ -40,3 +42,64 @@ def test_build_marp_cmd_with_theme():
 def test_render_to_html_invalid_content():
     with pytest.raises(ValueError):
         marp_service.render_to_html("")
+
+def test_render_to_pdf_invalid_content():
+    with pytest.raises(ValueError):
+        marp_service.render_to_pdf("", Path("/tmp/test.pdf"))
+
+def test_render_to_html_file_invalid_content():
+    with pytest.raises(ValueError):
+        marp_service.render_to_html_file("", Path("/tmp/test.html"))
+
+def test_render_to_pptx_invalid_content():
+    with pytest.raises(ValueError):
+        marp_service.render_to_pptx("", Path("/tmp/test.pptx"))
+
+def test_run_marp_command_failure(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 1
+    mock_result.stderr = "Marp command failed"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    temp_file = Path("/tmp/test.md")
+    temp_file.write_text("content")
+    cmd = ["marp", str(temp_file)]
+
+    with pytest.raises(RuntimeError, match="failed"):
+        marp_service.run_marp_command(cmd, temp_file, "Test operation")
+
+def test_render_to_html_marp_failure(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 1
+    mock_result.stderr = "Marp render error"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    with pytest.raises(RuntimeError, match="Marp render failed"):
+        marp_service.render_to_html(get_valid_markdown())
+
+def test_render_to_pdf_marp_failure(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 1
+    mock_result.stderr = "PDF export error"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    with pytest.raises(RuntimeError, match="PDF export failed"):
+        marp_service.render_to_pdf(get_valid_markdown(), Path("/tmp/test.pdf"))
+
+def test_render_to_html_file_marp_failure(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 1
+    mock_result.stderr = "HTML export error"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    with pytest.raises(RuntimeError, match="HTML export failed"):
+        marp_service.render_to_html_file(get_valid_markdown(), Path("/tmp/test.html"))
+
+def test_render_to_pptx_marp_failure(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 1
+    mock_result.stderr = "PPTX export error"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    with pytest.raises(RuntimeError, match="PPTX export failed"):
+        marp_service.render_to_pptx(get_valid_markdown(), Path("/tmp/test.pptx"))
