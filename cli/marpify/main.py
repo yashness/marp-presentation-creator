@@ -8,9 +8,9 @@ app = typer.Typer(
 )
 console = Console()
 
-app.command()(init.init_project)
-app.command()(serve.serve_app)
-app.command()(export.export_presentation)
+app.command(name="init")(init.init_project)
+app.command(name="serve")(serve.serve_app)
+app.command(name="export")(export.export_presentation)
 
 if __name__ == "__main__":
     app()
