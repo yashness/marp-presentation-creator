@@ -6,10 +6,10 @@ A modern, full-featured presentation builder combining Markdown simplicity (Marp
 
 - **WYSIWYG Editor**: Split view with Markdown editor and live preview
 - **Marp Integration**: Full support for Marp presentation syntax
-- **Export**: Export to PDF, HTML, and PPTX
-- **Theme System**: Built-in themes and custom theme support
+- **Export**: Export to PDF, HTML, and PPTX formats
+- **Theme System**: 3 built-in themes (default, corporate, academic) with custom theme support
 - **CLI Tools**: Command-line interface for quick operations
-- **REST API**: FastAPI backend for presentation management
+- **REST API**: FastAPI backend for presentation management with 20+ test coverage
 - **Modern Frontend**: React + TypeScript + Tailwind CSS
 
 ## Technology Stack
@@ -147,6 +147,33 @@ curl http://localhost:8000/api/presentations/{id}
 
 ```bash
 curl http://localhost:8000/api/presentations/{id}/preview
+```
+
+#### Export Presentation
+
+```bash
+# Export to PDF (default)
+curl -X POST "http://localhost:8000/api/presentations/{id}/export?format=pdf" --output presentation.pdf
+
+# Export to HTML
+curl -X POST "http://localhost:8000/api/presentations/{id}/export?format=html" --output presentation.html
+
+# Export to PPTX
+curl -X POST "http://localhost:8000/api/presentations/{id}/export?format=pptx" --output presentation.pptx
+```
+
+#### List Available Themes
+
+```bash
+curl http://localhost:8000/api/themes
+```
+
+#### Get Theme Details
+
+```bash
+curl http://localhost:8000/api/themes/default
+curl http://localhost:8000/api/themes/corporate
+curl http://localhost:8000/api/themes/academic
 ```
 
 ### CLI Examples
