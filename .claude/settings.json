@@ -1,0 +1,15 @@
+{
+  "description": "Forever Claude - Auto-restart configuration for continuous execution",
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/auto-restart-session.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

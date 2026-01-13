@@ -1,0 +1,235 @@
+# Marp Presentation Builder
+
+A modern, full-featured presentation builder combining Markdown simplicity (Marp) with WYSIWYG editing capabilities, themes, and branding.
+
+## Features
+
+- **WYSIWYG Editor**: Split view with Markdown editor and live preview
+- **Marp Integration**: Full support for Marp presentation syntax
+- **Export**: Export to PDF, HTML, and PPTX
+- **Theme System**: Built-in themes and custom theme support
+- **CLI Tools**: Command-line interface for quick operations
+- **REST API**: FastAPI backend for presentation management
+- **Modern Frontend**: React + TypeScript + Tailwind CSS
+
+## Technology Stack
+
+### Backend
+- FastAPI (Python 3.13+)
+- Pydantic for type validation
+- Loguru for logging
+- uv for dependency management
+- Marp CLI for presentation rendering
+
+### Frontend
+- React 18+ with TypeScript
+- Vite for build tooling
+- Tailwind CSS for styling
+- Monaco Editor for code editing
+- TanStack Query for API state management
+
+### CLI
+- Typer for CLI framework
+- Rich for beautiful terminal output
+
+## Prerequisites
+
+- Python 3.13+
+- Node.js 20+
+- Docker (optional, for containerized deployment)
+- uv (Python package manager)
+
+## Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd marp-presentation-creator
+```
+
+### 2. Backend Setup
+
+```bash
+cd backend
+
+# Create .env file
+cp .env.example .env
+
+# Install dependencies
+uv sync
+
+# Run the backend
+uv run uvicorn app.main:app --reload
+```
+
+The backend will be available at `http://localhost:8000`
+
+API documentation: `http://localhost:8000/docs`
+
+### 3. Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+### 4. CLI Setup
+
+```bash
+cd cli
+
+# Install dependencies
+uv sync
+
+# Install CLI globally (optional)
+uv pip install -e .
+
+# Run CLI
+uv run marpify --help
+```
+
+## Docker Deployment
+
+### Development Mode (with hot-reload)
+
+```bash
+docker-compose --profile dev up
+```
+
+- Backend: `http://localhost:8000`
+- Frontend (dev): `http://localhost:5173`
+
+### Production Mode
+
+```bash
+docker-compose up --build
+```
+
+- Backend: `http://localhost:8000`
+- Frontend: `http://localhost:3000`
+
+## Usage
+
+### API Examples
+
+#### Create a Presentation
+
+```bash
+curl -X POST http://localhost:8000/api/presentations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "My Presentation",
+    "content": "---\nmarp: true\n---\n\n# Hello World\n\n---\n\n## Slide 2\n\nContent here"
+  }'
+```
+
+#### List All Presentations
+
+```bash
+curl http://localhost:8000/api/presentations
+```
+
+#### Get a Specific Presentation
+
+```bash
+curl http://localhost:8000/api/presentations/{id}
+```
+
+#### Preview Presentation
+
+```bash
+curl http://localhost:8000/api/presentations/{id}/preview
+```
+
+### CLI Examples
+
+#### Initialize a New Project
+
+```bash
+marpify init my-presentation
+marpify init slides --template corporate
+marpify init -t academic lecture
+```
+
+#### Export a Presentation
+
+```bash
+marpify export slides.md
+marpify export slides.md -f html
+marpify export slides.md --format pptx -o output.pptx
+```
+
+#### Launch Web UI
+
+```bash
+marpify serve
+marpify serve --port 3000
+marpify serve -p 8080 --no-open
+```
+
+## Project Structure
+
+```
+marp-presentation-creator/
+├── backend/                 # FastAPI backend
+│   ├── app/
+│   │   ├── api/            # API routes
+│   │   ├── core/           # Config, logger
+│   │   ├── schemas/        # Pydantic schemas
+│   │   └── services/       # Business logic
+│   ├── tests/              # Backend tests
+│   └── logs/               # Log files
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   └── api/            # API client
+│   └── public/             # Static assets
+├── cli/                    # CLI application
+│   └── marpify/
+│       └── commands/       # CLI commands
+├── docker-compose.yml      # Docker orchestration
+└── README.md
+```
+
+## Development
+
+### Running Tests
+
+#### Backend Tests
+
+```bash
+cd backend
+uv run pytest
+```
+
+#### Frontend Tests
+
+```bash
+cd frontend
+npm test
+```
+
+### Code Quality
+
+This project follows:
+- **SOLID principles** for architecture
+- **DRY principle** for code reusability
+- **Functions ≤ 10 lines** for maintainability
+- **Type hints** throughout codebase
+- **Minimal comments** - self-documenting code
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions welcome! Please read CLAUDE.md for coding standards.
