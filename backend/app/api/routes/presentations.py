@@ -5,6 +5,7 @@ from app.schemas.presentation import PresentationCreate, PresentationResponse, P
 from app.services import presentation_service as service
 from app.services import marp_service
 from app.core.logger import logger
+from app.core.validators import validate_export_format, sanitize_filename
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
 EXPORTS_DIR = Path("data/exports")
@@ -76,9 +77,8 @@ def export_to_format(pres: PresentationResponse, format: str) -> Path:
 
 @router.post("/{presentation_id}/export")
 def export_presentation(presentation_id: str, format: str = "pdf"):
-    valid_formats = ["pdf", "html", "pptx"]
-    if format not in valid_formats:
-        raise HTTPException(400, f"Invalid format. Must be one of: {valid_formats}")
+    if not validate_export_format(format):
+        raise HTTPException(400, f"Invalid format. Must be one of: pdf, html, pptx")
 
     pres = service.get_presentation(presentation_id)
     if not pres:
@@ -86,7 +86,8 @@ def export_presentation(presentation_id: str, format: str = "pdf"):
 
     try:
         output_path = export_to_format(pres, format)
-        filename = f"{pres.title}.{format}"
+        safe_title = sanitize_filename(pres.title)
+        filename = f"{safe_title}.{format}"
         return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
     except Exception as e:
         logger.error(f"Export failed: {e}")
