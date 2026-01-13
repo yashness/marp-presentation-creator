@@ -31,16 +31,19 @@ def determine_output_path(input_file: Path, fmt: str, output: Path | None) -> Pa
         return output
     return input_file.with_suffix(f".{fmt}")
 
+def build_export_command(input_file: Path, fmt: str, output_path: Path) -> list[str]:
+    return ["npx", "@marp-team/marp-cli", str(input_file), f"--{fmt}", "-o", str(output_path)]
+
+def run_export_command(cmd: list[str]):
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        console.print(f"[red]Export failed: {result.stderr}[/red]")
+        raise typer.Exit(1)
+
 def export_file(input_file: Path, fmt: str, output_path: Path):
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         task = progress.add_task(f"Exporting to {fmt.upper()}...", total=None)
-
-        cmd = ["npx", "@marp-team/marp-cli", str(input_file), f"--{fmt}", "-o", str(output_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            console.print(f"[red]Export failed: {result.stderr}[/red]")
-            raise typer.Exit(1)
-
+        cmd = build_export_command(input_file, fmt, output_path)
+        run_export_command(cmd)
         progress.update(task, completed=True)
-        console.print(f"[green]✓[/green] Exported to: {output_path}")
+    console.print(f"[green]✓[/green] Exported to: {output_path}")
