@@ -1,12 +1,12 @@
 {
   "description": "Forever Claude - Auto-restart configuration for continuous execution",
   "hooks": {
-    "SessionEnd": [
+    "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/auto-restart-session.sh"
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/auto-restart-session.py"
           }
         ]
       }
