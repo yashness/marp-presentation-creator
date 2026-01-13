@@ -73,12 +73,12 @@ Create a modern, user-friendly presentation builder that combines the simplicity
 - [x] Docker deployment
 
 #### Should Have
-- [ ] Export to HTML
-- [ ] Export to PPTX
-- [ ] Multiple built-in themes
-- [ ] Theme customization UI
-- [ ] Slide thumbnails
-- [ ] Keyboard shortcuts
+- [x] Export to HTML
+- [x] Export to PPTX
+- [x] Multiple built-in themes
+- [ ] Theme customization UI (frontend not built)
+- [ ] Slide thumbnails (frontend not built)
+- [ ] Keyboard shortcuts (frontend not built)
 
 #### Could Have
 - [ ] Real-time collaboration
