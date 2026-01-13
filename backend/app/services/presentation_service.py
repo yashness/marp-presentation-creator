@@ -34,7 +34,8 @@ def save_metadata(pres_id: str, metadata: dict[str, Any]) -> None:
 
 def load_metadata(pres_id: str) -> dict[str, Any]:
     path = get_metadata_path(pres_id)
-    return json.loads(path.read_text())
+    data: dict[str, Any] = json.loads(path.read_text())
+    return data
 
 def load_presentation_content(pres_id: str) -> str:
     path = get_presentation_path(pres_id)
