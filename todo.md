@@ -14,7 +14,8 @@ Ready for additional features or improvements.
 - [x] Extracted helper functions for better code organization:
   - Backend: Extracted render_html_preview and process_batch_export helpers from route handlers.
   - Frontend: Extracted validateAndShowError helper in App.tsx to eliminate duplicate validation pattern.
-  - Reduced route handler complexity following ARCHITECTURE.md 10-line guideline.
+  - Frontend: Extracted validateTitleAndContent helper in usePresentationValidation hook.
+  - Reduced route handler complexity following ARCHITECTURE.md 10-line guideline and DRY principle.
 - [x] Validated all changes:
   - Frontend builds successfully with no TypeScript errors.
   - Backend API endpoints functional (health, themes, presentations, preview all verified).
