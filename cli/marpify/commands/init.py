@@ -29,6 +29,18 @@ def create_presentation_file(project_dir: Path, template: str) -> None:
     slides_file = project_dir / "slides.md"
     slides_file.write_text(content)
 
+def print_init_success(name: str, template: str, project_dir: Path) -> None:
+    """Print success messages for init command."""
+    print_success(f"Created project: {name}")
+    console.print(f"  Template: [cyan]{template}[/cyan]")
+    console.print(f"  File: [yellow]{project_dir / 'slides.md'}[/yellow]")
+
+def handle_init(name: str, template: str) -> None:
+    """Handle project initialization."""
+    validate_template(template)
+    project_dir = create_project_dir(name)
+    create_presentation_file(project_dir, template)
+    print_init_success(name, template, project_dir)
 
 def init_command(
     name: str = typer.Argument(..., help="Project name"),
@@ -36,12 +48,7 @@ def init_command(
 ) -> None:
     """Initialize a new presentation project."""
     try:
-        validate_template(template)
-        project_dir = create_project_dir(name)
-        create_presentation_file(project_dir, template)
-        print_success(f"Created project: {name}")
-        console.print(f"  Template: [cyan]{template}[/cyan]")
-        console.print(f"  File: [yellow]{project_dir / 'slides.md'}[/yellow]")
+        handle_init(name, template)
     except Exception as e:
         print_error(str(e))
         raise typer.Exit(1)

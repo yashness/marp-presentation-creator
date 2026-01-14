@@ -15,14 +15,16 @@ def themes_command() -> None:
         raise typer.Exit(1)
 
 
-def display_themes(themes: list) -> None:
-    """Display themes in a table."""
-    table = create_table("Available Themes", [
+def create_themes_table() -> object:
+    """Create table for themes display."""
+    return create_table("Available Themes", [
         ("Name", "cyan"),
         ("Description", "green")
     ])
-    
+
+def display_themes(themes: list) -> None:
+    """Display themes in a table."""
+    table = create_themes_table()
     for theme in themes:
         table.add_row(theme["name"], theme.get("description", ""))
-    
     console.print(table)

@@ -35,6 +35,11 @@ def execute_export(title: str, content: str, format: str, file: str, output: str
     write_file(output_path, exported_data)
     print_success(f"Exported to {output_path}")
 
+def handle_export(file: str, format: str, output: str | None) -> None:
+    """Handle export command execution."""
+    title, content = prepare_export(file, format)
+    execute_export(title, content, format, file, output)
+
 def export_command(
     file: str = typer.Argument(..., help="Presentation markdown file"),
     format: str = typer.Option("pdf", "--format", "-f", help=f"Format: {', '.join(EXPORT_FORMATS)}"),
@@ -42,8 +47,7 @@ def export_command(
 ) -> None:
     """Export presentation to PDF, HTML, or PPTX."""
     try:
-        title, content = prepare_export(file, format)
-        execute_export(title, content, format, file, output)
+        handle_export(file, format, output)
     except Exception as e:
         print_error(str(e))
         raise typer.Exit(1)

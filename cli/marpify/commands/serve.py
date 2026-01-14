@@ -20,6 +20,12 @@ def start_server(port: int) -> None:
     except KeyboardInterrupt:
         print_info("\nServer stopped")
 
+def handle_serve(port: int, no_open: bool) -> None:
+    """Handle server startup."""
+    print_success(f"Starting server on port {port}")
+    if not no_open:
+        open_browser(port)
+    start_server(port)
 
 def serve_command(
     port: int = typer.Option(DEFAULT_PORT, "--port", "-p", help="Port to run on"),
@@ -27,10 +33,7 @@ def serve_command(
 ) -> None:
     """Launch the web UI in development mode."""
     try:
-        print_success(f"Starting server on port {port}")
-        if not no_open:
-            open_browser(port)
-        start_server(port)
+        handle_serve(port, no_open)
     except Exception as e:
         print_error(str(e))
         raise typer.Exit(1)
