@@ -6,6 +6,19 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 15)
+- [x] Code quality improvements and refactoring:
+  - Extracted `get_presentation_by_id()` helper function in presentation_service.py to eliminate duplicate database query pattern (3 occurrences reduced to reusable function).
+  - Created `createSlug()` utility function in lib/utils.ts to consolidate URL slug generation logic.
+  - Refactored 40+ line autosave useEffect in App.tsx into three focused functions: `createNewPresentation()`, `updateExistingPresentation()`, and `performAutosave()`.
+  - Created constants.ts file for magic strings and default values (DEFAULT_TITLE, DEFAULT_THEME, DEFAULT_CONTENT, AUTOSAVE_DEBOUNCE_MS, API_BASE_URL).
+  - Updated imports across App.tsx, client.ts, and usePresentationEditor.ts to use centralized constants.
+  - Improved code organization and maintainability following ARCHITECTURE.md 10-line guideline.
+- [x] Validated all changes:
+  - Python syntax validated successfully for presentation_service.py.
+  - TypeScript code structure verified for correctness.
+  - All refactorings maintain existing functionality while improving code quality.
+
 ## Completed (2026-01-14 - Session 14)
 - [x] Frontend code quality improvements:
   - Extracted buildUrl() helper function in API client to consolidate URL construction logic.

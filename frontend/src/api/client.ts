@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+import { API_BASE_URL } from '../lib/constants'
+
+const API_BASE = `${API_BASE_URL}/api`
 
 function buildUrl(path: string, params?: Record<string, string>): string {
   const url = `${API_BASE}${path}`
@@ -106,7 +108,8 @@ function downloadBlob(blob: Blob, filename: string): void {
 export async function exportPresentation(id: string, title: string, format: 'pdf' | 'html' | 'pptx'): Promise<void> {
   const response = await fetch(buildUrl(`/presentations/${id}/export`, { format }), { method: 'POST' })
   const blob = await handleBlobResponse(response)
-  downloadBlob(blob, `${title}.${format}`)
+  const safeTitle = title?.trim() ? title.trim() : 'presentation'
+  downloadBlob(blob, `${safeTitle}.${format}`)
 }
 
 export interface Theme {

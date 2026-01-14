@@ -62,6 +62,9 @@ def create_db_presentation(session: Session, data: PresentationCreate) -> Presen
     pres = build_presentation(data)
     return persist_presentation(session, pres)
 
+def get_presentation_by_id(session: Session, pres_id: str) -> Presentation | None:
+    return session.query(Presentation).filter(Presentation.id == pres_id).first()
+
 def create_presentation(data: PresentationCreate) -> PresentationResponse:
     with get_session() as session:
         pres = create_db_presentation(session, data)
@@ -70,7 +73,7 @@ def create_presentation(data: PresentationCreate) -> PresentationResponse:
 
 def get_presentation(pres_id: str) -> PresentationResponse | None:
     with get_session() as session:
-        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        pres = get_presentation_by_id(session, pres_id)
         return to_response(pres) if pres else None
 
 def list_presentations() -> list[PresentationResponse]:
@@ -102,7 +105,7 @@ def apply_updates(pres: Presentation, data: PresentationUpdate) -> None:
 
 def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
     with get_session() as session:
-        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        pres = get_presentation_by_id(session, pres_id)
         if not pres:
             return None
         apply_updates(pres, data)
@@ -113,7 +116,7 @@ def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationR
 
 def delete_presentation(pres_id: str) -> bool:
     with get_session() as session:
-        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        pres = get_presentation_by_id(session, pres_id)
         if not pres:
             return False
         session.delete(pres)

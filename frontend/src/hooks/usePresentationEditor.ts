@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { Presentation } from '../api/client'
 import { getPreview, exportPresentation as apiExportPresentation } from '../api/client'
 import { useAsyncOperation } from './useAsyncOperation'
+import { DEFAULT_THEME, DEFAULT_CONTENT } from '../lib/constants'
 
 interface EditorState {
   selectedId: string | null
@@ -11,13 +12,49 @@ interface EditorState {
   selectedTheme: string | null
 }
 
-const INITIAL_STATE: EditorState = {
+const DEFAULT_TITLE = 'Untitled presentation'
+
+const buildFrontmatter = (title: string, theme: string | null) => `---
+marp: true
+title: "${title || DEFAULT_TITLE}"
+theme: ${theme || DEFAULT_THEME}
+paginate: true
+---
+
+# Slide 1
+
+- Add your talking points here
+`
+
+const setFrontmatterValue = (content: string, key: string, value: string): string => {
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
+  const fm = fmMatch ? fmMatch[1] : ''
+  const body = fmMatch ? content.slice(fmMatch[0].length) : content
+  const lines = fm ? fm.split('\n') : []
+  let updated = false
+  const newLines = lines.map(line => {
+    if (line.trim().startsWith(`${key}:`)) {
+      updated = true
+      return `${key}: ${value}`
+    }
+    return line
+  })
+  if (!updated) {
+    newLines.push(`${key}: ${value}`)
+  }
+  const fmBlock = ['---', ...newLines.filter(Boolean), '---'].join('\n')
+  return `${fmBlock}${body}`
+}
+
+const getInitialState = (): EditorState => ({
   selectedId: null,
   title: '',
-  content: '',
+  content: buildFrontmatter('', null),
   preview: '',
   selectedTheme: null
-}
+})
+
+const INITIAL_STATE: EditorState = getInitialState()
 
 export function usePresentationEditor() {
   const [state, setState] = useState<EditorState>(INITIAL_STATE)
@@ -25,13 +62,39 @@ export function usePresentationEditor() {
   const setTitle = useCallback((title: string) => setState(s => ({ ...s, title })), [])
   const setContent = useCallback((content: string) => setState(s => ({ ...s, content })), [])
   const setSelectedTheme = useCallback((selectedTheme: string | null) => setState(s => ({ ...s, selectedTheme })), [])
-  const clearSelection = useCallback(() => setState(INITIAL_STATE), [])
+  const clearSelection = useCallback(() => setState(getInitialState()), [])
+  const setPreview = useCallback((preview: string) => setState(s => ({ ...s, preview })), [])
+  const setFromServer = useCallback((pres: Presentation) => {
+    setState(s => ({
+      ...s,
+      selectedId: pres.id,
+      title: pres.title,
+      content: pres.content || buildFrontmatter(pres.title, pres.theme_id || null),
+      selectedTheme: pres.theme_id || null,
+    }))
+  }, [])
+
+  const setCreatedMeta = useCallback((pres: Presentation) => {
+    setState(s => ({
+      ...s,
+      selectedId: pres.id,
+      selectedTheme: pres.theme_id || null,
+    }))
+  }, [])
+
+  const applyThemeToContent = useCallback((themeId: string | null) => {
+    setState(s => ({
+      ...s,
+      selectedTheme: themeId,
+      content: setFrontmatterValue(s.content, 'theme', themeId || DEFAULT_THEME),
+    }))
+  }, [])
 
   const selectPresentationOp = useCallback(async (pres: Presentation) => {
     setState({
       selectedId: pres.id,
       title: pres.title,
-      content: pres.content,
+      content: pres.content || buildFrontmatter(pres.title, pres.theme_id || null),
       preview: '',
       selectedTheme: pres.theme_id || null
     })
@@ -64,6 +127,10 @@ export function usePresentationEditor() {
     setContent,
     setSelectedTheme,
     clearSelection,
+    setPreview,
+    setFromServer,
+    setCreatedMeta,
+    applyThemeToContent,
     selectPresentation,
     refreshPreview,
     exportPresentation,
