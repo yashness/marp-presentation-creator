@@ -31,7 +31,30 @@ A presentation builder that combines Markdown (Marp) with a visual editing exper
 - Icons throughout the interface (lucide-react)
 - Monaco editor for Markdown editing
 - Real-time preview with Marp rendering
-- Export to PDF, HTML, and PPTX formats
+- Export to PDF, HTML, PPTX, and MP4 video formats
+
+## AI-Powered Features
+- **AI Presentation Generation**: Generate complete presentations from a description using Claude AI
+- **Outline Editor**: Edit and reorganize AI-generated outlines with inline editing and drag-drop
+- **AI Text Rewriting**: Improve or modify slide content with AI assistance
+- **AI Image Generation**: Create custom images with DALL-E 3 for your presentations
+- **Command Palette**: Quick access to AI features with Cmd/Ctrl+K keyboard shortcut
+- **Text-to-Speech**: Generate audio narration for slide comments with Kokoro TTS
+- **Video Export**: Combine slides with AI-generated narration into MP4 videos
+
+## Configuration
+
+### Azure AI Services (Optional)
+To enable AI features, create a `.env` file in the project root with your Azure credentials:
+
+```bash
+AZURE_ENDPOINT=https://your-resource.openai.azure.com/anthropic
+AZURE_DEPLOYMENT=claude-haiku-4-5
+AZURE_IMAGE_DEPLOYMENT=dall-e-3
+API_KEY=your-azure-api-key
+```
+
+The application will work without these credentials, but AI features will be disabled.
 
 ## Quick Start
 
