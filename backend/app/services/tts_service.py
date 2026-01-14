@@ -6,7 +6,7 @@ from typing import Optional
 from loguru import logger
 
 try:
-    import kokoro
+    from kokoro import KPipeline
     import soundfile as sf
     KOKORO_AVAILABLE = True
 except ImportError:
@@ -31,7 +31,8 @@ class TTSService:
             return
 
         try:
-            self.pipeline = kokoro.Pipeline()
+            # Initialize with American English by default
+            self.pipeline = KPipeline(lang_code='a')
             logger.info("Kokoro TTS initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Kokoro TTS: {e}")
@@ -81,15 +82,28 @@ class TTSService:
             # Generate audio using Kokoro
             logger.info(f"Generating audio for slide {slide_index} with voice '{voice}' and speed {speed}")
 
-            # Generate speech
-            audio_data, sample_rate = self.pipeline(
+            # Generate speech - pipeline returns a generator
+            generator = self.pipeline(
                 text,
                 voice=voice,
-                speed=speed
+                speed=speed,
+                split_pattern=r'\n+'
             )
 
-            # Save to file
-            sf.write(str(filepath), audio_data, sample_rate)
+            # Collect all audio chunks
+            audio_chunks = []
+            for i, (gs, ps, audio) in enumerate(generator):
+                audio_chunks.append(audio)
+
+            # Concatenate all audio chunks if multiple
+            if len(audio_chunks) == 1:
+                audio_data = audio_chunks[0]
+            else:
+                import numpy as np
+                audio_data = np.concatenate(audio_chunks)
+
+            # Save to file with 24kHz sample rate (Kokoro's output rate)
+            sf.write(str(filepath), audio_data, 24000)
 
             logger.info(f"Audio generated successfully: {filepath}")
             return str(filepath.relative_to(self.audio_dir.parent))
@@ -138,15 +152,18 @@ class TTSService:
         Returns:
             List of available voice IDs
         """
-        # Kokoro TTS supports multiple voices across different languages
-        # These are the common voices, but the actual list may vary
+        # Kokoro TTS voices - actual available voices from the model
         return [
-            "af",      # American Female
-            "am",      # American Male
-            "bf",      # British Female
-            "bm",      # British Male
-            "af_sarah",  # American Female - Sarah
-            "am_adam",   # American Male - Adam
-            "bf_emma",   # British Female - Emma
-            "bm_george", # British Male - George
+            "af",           # American Female
+            "af_bella",     # American Female - Bella
+            "af_heart",     # American Female - Heart
+            "af_nicole",    # American Female - Nicole
+            "af_sarah",     # American Female - Sarah
+            "af_sky",       # American Female - Sky
+            "am_adam",      # American Male - Adam
+            "am_michael",   # American Male - Michael
+            "bf_emma",      # British Female - Emma
+            "bf_isabella",  # British Female - Isabella
+            "bm_george",    # British Male - George
+            "bm_lewis",     # British Male - Lewis
         ]

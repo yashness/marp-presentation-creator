@@ -59,16 +59,20 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
           <Select
             value={voice}
             onChange={(e) => setVoice(e.target.value)}
-            className="w-32 text-sm"
+            className="w-40 text-sm"
           >
             <option value="af">American Female</option>
-            <option value="am">American Male</option>
-            <option value="bf">British Female</option>
-            <option value="bm">British Male</option>
-            <option value="af_sarah">Sarah</option>
-            <option value="am_adam">Adam</option>
-            <option value="bf_emma">Emma</option>
-            <option value="bm_george">George</option>
+            <option value="af_bella">AF - Bella</option>
+            <option value="af_heart">AF - Heart</option>
+            <option value="af_nicole">AF - Nicole</option>
+            <option value="af_sarah">AF - Sarah</option>
+            <option value="af_sky">AF - Sky</option>
+            <option value="am_adam">AM - Adam</option>
+            <option value="am_michael">AM - Michael</option>
+            <option value="bf_emma">BF - Emma</option>
+            <option value="bf_isabella">BF - Isabella</option>
+            <option value="bm_george">BM - George</option>
+            <option value="bm_lewis">BM - Lewis</option>
           </Select>
           <Select
             value={speed.toString()}

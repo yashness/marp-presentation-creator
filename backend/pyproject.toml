@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.128.0",
     "kokoro>=0.9.4",
     "loguru>=0.7.3",
+    "numpy>=2.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "python-dotenv>=1.2.1",

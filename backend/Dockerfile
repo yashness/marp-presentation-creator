@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     espeak-ng \
     libsndfile1 \
+    build-essential \
+    g++ \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
