@@ -4,6 +4,7 @@ import { getPreview } from './api/client'
 import { PresentationSidebar } from './components/PresentationSidebar'
 import { EditorPanel } from './components/EditorPanel'
 import { PreviewPanel } from './components/PreviewPanel'
+import { AIGenerationModal } from './components/AIGenerationModal'
 import { ToastContainer, useToast } from './components/ui/toast'
 import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
@@ -17,6 +18,7 @@ function App() {
   const [hasUserInput, setHasUserInput] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
+  const [showAIModal, setShowAIModal] = useState(false)
   const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme } = useThemes()
@@ -127,6 +129,15 @@ function App() {
     }
   }, [editor.title, editor.content, editor.selectedTheme, editor.selectedId, createNewPresentation, updateExistingPresentation])
 
+  const handleAIGenerate = useCallback((content: string, title: string) => {
+    editor.clearSelection()
+    editor.setTitle(title)
+    editor.setContent(content)
+    setHasUserInput(true)
+    setAutosaveEnabled(true)
+    autoSelectRef.current = false
+  }, [editor])
+
   useEffect(() => {
     if (!autosaveEnabled || !hasUserInput || !canAutosave) return
     const timeout = setTimeout(performAutosave, AUTOSAVE_DEBOUNCE_MS)
@@ -148,6 +159,12 @@ function App() {
   return (
     <>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {showAIModal && (
+        <AIGenerationModal
+          onClose={() => setShowAIModal(false)}
+          onGenerate={handleAIGenerate}
+        />
+      )}
       <div className="flex h-screen bg-gradient-to-br from-primary-50/40 via-white to-secondary-50/40">
         <PresentationSidebar
           presentations={presentations}
@@ -174,6 +191,7 @@ function App() {
             autoSelectRef.current = false
             window.history.replaceState({}, '', '/slides/new')
           }}
+          onAIGenerate={() => setShowAIModal(true)}
         />
 
         <EditorPanel

@@ -2,7 +2,7 @@ import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { PresentationItem } from './PresentationItem'
-import { Plus, Presentation as PresentationIcon } from 'lucide-react'
+import { Plus, Presentation as PresentationIcon, Sparkles } from 'lucide-react'
 
 interface PresentationSidebarProps {
   presentations: Presentation[]
@@ -13,6 +13,7 @@ interface PresentationSidebarProps {
   onDelete: (id: string) => void
   onDuplicate: (id: string) => void
   onNewPresentation: () => void
+  onAIGenerate?: () => void
 }
 
 export function PresentationSidebar({
@@ -24,10 +25,11 @@ export function PresentationSidebar({
   onDelete,
   onDuplicate,
   onNewPresentation,
+  onAIGenerate,
 }: PresentationSidebarProps) {
   return (
     <div className="w-80 bg-gradient-to-br from-white via-primary-50/30 to-secondary-50/20 border-r border-primary-100 shadow-lg flex flex-col backdrop-blur-sm">
-      <div className="p-6 border-b border-primary-100/50 bg-white/60 backdrop-blur-sm">
+      <div className="p-6 border-b border-primary-100/50 bg-white/60 backdrop-blur-sm space-y-2">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-700 to-secondary-600 bg-clip-text text-transparent flex items-center gap-2 mb-4">
           <PresentationIcon className="w-7 h-7 text-primary-600" />
           Presentations
@@ -36,6 +38,12 @@ export function PresentationSidebar({
           <Plus className="w-4 h-4" />
           New Presentation
         </Button>
+        {onAIGenerate && (
+          <Button onClick={onAIGenerate} className="w-full shadow-md hover:shadow-lg transition-all bg-gradient-to-r from-secondary-500 to-primary-500 hover:from-secondary-600 hover:to-primary-600" variant="default">
+            <Sparkles className="w-4 h-4" />
+            AI Generate
+          </Button>
+        )}
       </div>
 
       <div className="p-4 border-b border-primary-100/50">

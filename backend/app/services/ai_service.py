@@ -1,0 +1,208 @@
+"""AI service for presentation generation using Anthropic Claude."""
+
+import os
+from typing import Optional
+from anthropic import AnthropicBedrock
+from pydantic import BaseModel
+from loguru import logger
+
+
+class SlideOutline(BaseModel):
+    """Outline for a single slide."""
+    title: str
+    content_points: list[str]
+    notes: str = ""
+
+
+class PresentationOutline(BaseModel):
+    """Outline for entire presentation."""
+    title: str
+    slides: list[SlideOutline]
+
+
+class AIService:
+    """Service for AI-powered presentation generation."""
+
+    def __init__(self):
+        """Initialize AI service with Azure credentials."""
+        self.azure_endpoint = os.getenv("AZURE_ENDPOINT")
+        self.api_key = os.getenv("API_KEY")
+        self.deployment = os.getenv("AZURE_DEPLOYMENT", "claude-haiku-4-5")
+
+        if not self.azure_endpoint or not self.api_key:
+            logger.warning("Azure credentials not configured")
+            self.client = None
+        else:
+            self.client = AnthropicBedrock(
+                base_url=self.azure_endpoint,
+                api_key=self.api_key,
+            )
+
+    def generate_outline(self, description: str) -> Optional[PresentationOutline]:
+        """Generate presentation outline from description.
+
+        Args:
+            description: User's description of what they want
+
+        Returns:
+            Presentation outline with slides
+        """
+        if not self.client:
+            logger.error("AI client not initialized")
+            return None
+
+        try:
+            prompt = f"""You are a presentation expert. Create a detailed outline for a presentation based on this description:
+
+{description}
+
+Generate a structured outline with:
+1. A compelling presentation title
+2. 5-8 slides with:
+   - Clear, concise titles
+   - 3-5 key points per slide
+   - Brief speaker notes
+
+Respond in JSON format:
+{{
+    "title": "Presentation Title",
+    "slides": [
+        {{
+            "title": "Slide Title",
+            "content_points": ["Point 1", "Point 2", "Point 3"],
+            "notes": "Speaker notes for this slide"
+        }}
+    ]
+}}"""
+
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            content = response.content[0].text
+
+            import json
+            data = json.loads(content)
+            return PresentationOutline(**data)
+
+        except Exception as e:
+            logger.error(f"Failed to generate outline: {e}")
+            return None
+
+    def generate_slide_content(
+        self,
+        slide_outline: SlideOutline,
+        theme: str = "professional"
+    ) -> str:
+        """Generate markdown content for a single slide.
+
+        Args:
+            slide_outline: Outline for the slide
+            theme: Presentation theme/style
+
+        Returns:
+            Markdown content for the slide
+        """
+        if not self.client:
+            logger.error("AI client not initialized")
+            return f"# {slide_outline.title}\n\n" + "\n".join(f"- {point}" for point in slide_outline.content_points)
+
+        try:
+            prompt = f"""Convert this slide outline into polished Marp markdown:
+
+Title: {slide_outline.title}
+Points: {', '.join(slide_outline.content_points)}
+Notes: {slide_outline.notes}
+Theme: {theme}
+
+Create engaging markdown with:
+- Clear heading
+- Bullet points or structured content
+- Appropriate formatting (bold, italic, code blocks if needed)
+- Keep it concise and visual
+
+Return only the markdown content, no extra text."""
+
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            return response.content[0].text.strip()
+
+        except Exception as e:
+            logger.error(f"Failed to generate slide content: {e}")
+            return f"# {slide_outline.title}\n\n" + "\n".join(f"- {point}" for point in slide_outline.content_points)
+
+    def generate_full_presentation(
+        self,
+        outline: PresentationOutline,
+        theme: str = "professional"
+    ) -> str:
+        """Generate complete presentation markdown.
+
+        Args:
+            outline: Complete presentation outline
+            theme: Presentation theme/style
+
+        Returns:
+            Full Marp markdown presentation
+        """
+        frontmatter = f"""---
+marp: true
+title: {outline.title}
+theme: default
+paginate: true
+---
+
+"""
+
+        slides_content = []
+        for idx, slide in enumerate(outline.slides):
+            slide_md = self.generate_slide_content(slide, theme)
+
+            if slide.notes:
+                slide_md += f"\n\n<!-- {slide.notes} -->"
+
+            slides_content.append(slide_md)
+
+        return frontmatter + "\n\n---\n\n".join(slides_content)
+
+    def rewrite_slide(self, current_content: str, instruction: str) -> str:
+        """Rewrite a slide based on user instruction.
+
+        Args:
+            current_content: Current slide markdown
+            instruction: How to modify the slide
+
+        Returns:
+            Rewritten slide markdown
+        """
+        if not self.client:
+            logger.error("AI client not initialized")
+            return current_content
+
+        try:
+            prompt = f"""Rewrite this slide based on the instruction:
+
+Current content:
+{current_content}
+
+Instruction: {instruction}
+
+Return only the updated markdown content, no extra text."""
+
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            return response.content[0].text.strip()
+
+        except Exception as e:
+            logger.error(f"Failed to rewrite slide: {e}")
+            return current_content

@@ -239,3 +239,80 @@ export async function exportPresentationAsVideo(
   const safeTitle = title?.trim() ? title.trim() : 'presentation'
   downloadBlob(blob, `${safeTitle}.mp4`)
 }
+
+export interface SlideOutline {
+  title: string
+  content_points: string[]
+  notes?: string
+}
+
+export interface PresentationOutline {
+  title: string
+  slides: SlideOutline[]
+}
+
+export interface GenerateOutlineResponse {
+  success: boolean
+  outline?: PresentationOutline
+  message: string
+}
+
+export interface GenerateContentResponse {
+  success: boolean
+  content?: string
+  message: string
+}
+
+export interface RewriteSlideResponse {
+  success: boolean
+  content?: string
+  message: string
+}
+
+export async function generateOutline(description: string): Promise<PresentationOutline> {
+  const response = await fetch(buildUrl('/ai/generate-outline'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description })
+  })
+
+  const result = await handleResponse<GenerateOutlineResponse>(response)
+
+  if (!result.success || !result.outline) {
+    throw new Error(result.message || 'Failed to generate outline')
+  }
+
+  return result.outline
+}
+
+export async function generateContent(outline: PresentationOutline, theme: string = 'professional'): Promise<string> {
+  const response = await fetch(buildUrl('/ai/generate-content'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ outline, theme })
+  })
+
+  const result = await handleResponse<GenerateContentResponse>(response)
+
+  if (!result.success || !result.content) {
+    throw new Error(result.message || 'Failed to generate content')
+  }
+
+  return result.content
+}
+
+export async function rewriteSlide(currentContent: string, instruction: string): Promise<string> {
+  const response = await fetch(buildUrl('/ai/rewrite-slide'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_content: currentContent, instruction })
+  })
+
+  const result = await handleResponse<RewriteSlideResponse>(response)
+
+  if (!result.success || !result.content) {
+    throw new Error(result.message || 'Failed to rewrite slide')
+  }
+
+  return result.content
+}
