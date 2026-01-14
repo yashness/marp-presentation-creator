@@ -1,33 +1,36 @@
-import typer
+"""Serve command - Launch the web UI."""
+
+import subprocess
 import webbrowser
-from rich.console import Console
+import typer
+from marpify.config import DEFAULT_PORT
+from marpify.utils import print_success, print_info, print_error
 
-console = Console()
 
-def serve_app(
-    port: int = typer.Option(8000, "--port", "-p", help="Port to run server on"),
-    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
-    open_browser: bool = typer.Option(True, "--open/--no-open", "-o/-no", help="Open browser")
-):
-    """
-    Launch the Marp Builder web UI server.
+def open_browser(port: int) -> None:
+    """Open browser to the application URL."""
+    url = f"http://localhost:{port}"
+    webbrowser.open(url)
 
-    Examples:
-        marpify serve
-        marpify serve --port 3000
-        marpify serve -p 8080 --no-open
-    """
-    url = f"http://{host}:{port}"
-    console.print(f"[green]Starting server at {url}[/green]")
 
-    if open_browser:
-        open_browser_window(url)
-
-    console.print("[yellow]Note: Backend must be running separately[/yellow]")
-    console.print(f"[cyan]Server will be available at:[/cyan] {url}")
-
-def open_browser_window(url: str):
+def start_server(port: int) -> None:
+    """Start the development server."""
     try:
-        webbrowser.open(url)
-    except Exception:
-        pass
+        subprocess.run(["npm", "run", "dev", "--", f"--port={port}"], cwd="../frontend")
+    except KeyboardInterrupt:
+        print_info("\nServer stopped")
+
+
+def serve_command(
+    port: int = typer.Option(DEFAULT_PORT, "--port", "-p", help="Port to run on"),
+    no_open: bool = typer.Option(False, "--no-open", help="Don't open browser")
+) -> None:
+    """Launch the web UI in development mode."""
+    try:
+        print_success(f"Starting server on port {port}")
+        if not no_open:
+            open_browser(port)
+        start_server(port)
+    except Exception as e:
+        print_error(str(e))
+        raise typer.Exit(1)

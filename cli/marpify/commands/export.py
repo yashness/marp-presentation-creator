@@ -1,49 +1,48 @@
-import typer
+"""Export command - Export presentations to various formats."""
+
 from pathlib import Path
-import subprocess
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+import typer
+from marpify.api_client import create_presentation, export_presentation
+from marpify.config import EXPORT_FORMATS
+from marpify.utils import read_markdown_file, write_file, print_success, print_error
 
-console = Console()
 
-def export_presentation(
-    file: Path = typer.Argument(..., help="Presentation file to export"),
-    format: str = typer.Option("pdf", "--format", "-f", help="Export format (pdf, html, pptx)"),
-    output: Path = typer.Option(None, "--output", "-o", help="Output file path")
-):
-    """
-    Export presentation to various formats.
+def validate_format(format: str) -> None:
+    """Validate export format."""
+    if format not in EXPORT_FORMATS:
+        raise ValueError(f"Invalid format. Choose from: {', '.join(EXPORT_FORMATS)}")
 
-    Examples:
-        marpify export slides.md
-        marpify export slides.md -f html
-        marpify export slides.md --format pptx -o output.pptx
-    """
-    if not file.exists():
-        console.print(f"[red]Error: File '{file}' not found[/red]")
-        raise typer.Exit(1)
 
-    output_path = determine_output_path(file, format, output)
-    export_file(file, format, output_path)
-
-def determine_output_path(input_file: Path, fmt: str, output: Path | None) -> Path:
+def get_output_path(input_file: str, format: str, output: str | None) -> str:
+    """Determine output file path."""
     if output:
         return output
-    return input_file.with_suffix(f".{fmt}")
+    return str(Path(input_file).with_suffix(f".{format}"))
 
-def build_export_command(input_file: Path, fmt: str, output_path: Path) -> list[str]:
-    return ["npx", "@marp-team/marp-cli", str(input_file), f"--{fmt}", "-o", str(output_path)]
 
-def run_export_command(cmd: list[str]):
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        console.print(f"[red]Export failed: {result.stderr}[/red]")
+def export_command(
+    file: str = typer.Argument(..., help="Presentation markdown file"),
+    format: str = typer.Option("pdf", "--format", "-f", help=f"Format: {', '.join(EXPORT_FORMATS)}"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Output file path")
+) -> None:
+    """Export presentation to PDF, HTML, or PPTX."""
+    try:
+        validate_format(format)
+        content = read_markdown_file(file)
+        title = extract_title(content)
+        presentation = create_presentation(title, content)
+        exported_data = export_presentation(presentation["id"], format)
+        output_path = get_output_path(file, format, output)
+        write_file(output_path, exported_data)
+        print_success(f"Exported to {output_path}")
+    except Exception as e:
+        print_error(str(e))
         raise typer.Exit(1)
 
-def export_file(input_file: Path, fmt: str, output_path: Path):
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-        task = progress.add_task(f"Exporting to {fmt.upper()}...", total=None)
-        cmd = build_export_command(input_file, fmt, output_path)
-        run_export_command(cmd)
-        progress.update(task, completed=True)
-    console.print(f"[green]✓[/green] Exported to: {output_path}")
+
+def extract_title(content: str) -> str:
+    """Extract title from markdown content."""
+    for line in content.split("\n"):
+        if line.startswith("# "):
+            return line[2:].strip()
+    return "Untitled Presentation"

@@ -1,16 +1,24 @@
+"""Marpify CLI - Main entry point."""
+
 import typer
-from rich.console import Console
-from marpify.commands import init, serve, export
+from marpify.commands.init import init_command
+from marpify.commands.export import export_command
+from marpify.commands.list import list_command
+from marpify.commands.serve import serve_command
+from marpify.commands.themes import themes_command
 
 app = typer.Typer(
-    help="Marp Presentation Builder CLI - Create beautiful presentations with Markdown",
-    add_completion=False
+    help="Marp Presentation Builder CLI",
+    add_completion=False,
+    no_args_is_help=True
 )
-console = Console()
 
-app.command(name="init")(init.init_project)
-app.command(name="serve")(serve.serve_app)
-app.command(name="export")(export.export_presentation)
+app.command(name="init", help="Initialize a new presentation project")(init_command)
+app.command(name="export", help="Export presentation to PDF/HTML/PPTX")(export_command)
+app.command(name="list", help="List all presentations")(list_command)
+app.command(name="serve", help="Launch the web UI")(serve_command)
+app.command(name="themes", help="List available themes")(themes_command)
+
 
 if __name__ == "__main__":
     app()
