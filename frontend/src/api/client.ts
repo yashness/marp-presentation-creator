@@ -21,27 +21,25 @@ export interface PresentationUpdate {
   theme_id?: string | null
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+async function checkResponse(response: Response): Promise<void> {
   if (!response.ok) {
     const error = await response.text().catch(() => 'Unknown error')
     throw new Error(`API error: ${response.status} - ${error}`)
   }
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  await checkResponse(response)
   return response.json()
 }
 
 async function handleTextResponse(response: Response): Promise<string> {
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} - ${error}`)
-  }
+  await checkResponse(response)
   return response.text()
 }
 
 async function handleVoidResponse(response: Response): Promise<void> {
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} - ${error}`)
-  }
+  await checkResponse(response)
 }
 
 export async function fetchPresentations(query?: string, theme_id?: string | null): Promise<Presentation[]> {
@@ -82,10 +80,7 @@ export async function getPreview(id: string): Promise<string> {
 }
 
 async function handleBlobResponse(response: Response): Promise<Blob> {
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} - ${error}`)
-  }
+  await checkResponse(response)
   return response.blob()
 }
 

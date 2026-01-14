@@ -1,7 +1,8 @@
 import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Plus, Trash2, Presentation as PresentationIcon } from 'lucide-react'
+import { PresentationItem } from './PresentationItem'
+import { Plus, Presentation as PresentationIcon } from 'lucide-react'
 
 interface PresentationSidebarProps {
   presentations: Presentation[]
@@ -47,31 +48,13 @@ export function PresentationSidebar({
 
       <ul className="flex-1 overflow-y-auto p-2 space-y-2">
         {presentations.map(p => (
-          <li key={p.id} className="group">
-            <div
-              onClick={() => onSelect(p)}
-              className={`cursor-pointer p-3 rounded-md transition-all ${
-                selectedId === p.id
-                  ? 'bg-primary-100 border-l-4 border-primary-600'
-                  : 'hover:bg-primary-50 border-l-4 border-transparent'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-900 truncate flex-1">{p.title}</span>
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDelete(p.id)
-                  }}
-                  size="icon"
-                  variant="ghost"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </Button>
-              </div>
-            </div>
-          </li>
+          <PresentationItem
+            key={p.id}
+            presentation={p}
+            isSelected={selectedId === p.id}
+            onSelect={onSelect}
+            onDelete={onDelete}
+          />
         ))}
       </ul>
     </div>

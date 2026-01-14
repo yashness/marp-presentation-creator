@@ -1,3 +1,5 @@
+import { LoadingSpinner } from './LoadingSpinner'
+
 interface PreviewPanelProps {
   preview: string
   selectedId: string | null
@@ -10,9 +12,7 @@ export function PreviewPanel({ preview, selectedId, previewLoading }: PreviewPan
       <h2 className="text-2xl font-bold text-primary-900 mb-4">Preview</h2>
       <div className="flex-1 bg-white rounded-lg shadow-lg border border-primary-200 overflow-auto">
         {previewLoading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : selectedId && preview ? (
           <div dangerouslySetInnerHTML={{ __html: preview }} />
         ) : (
