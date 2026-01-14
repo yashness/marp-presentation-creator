@@ -86,6 +86,11 @@ export async function deletePresentation(id: string): Promise<void> {
   return handleVoidResponse(response)
 }
 
+export async function duplicatePresentation(id: string): Promise<Presentation> {
+  const response = await fetch(buildUrl(`/presentations/${id}/duplicate`), { method: 'POST' })
+  return handleResponse<Presentation>(response)
+}
+
 export async function getPreview(id: string): Promise<string> {
   const response = await fetch(buildUrl(`/presentations/${id}/preview`))
   return handleTextResponse(response)
@@ -118,9 +123,78 @@ export interface Theme {
   description: string
   css_content: string
   is_builtin: boolean
+  colors?: ThemeColors
+  typography?: ThemeTypography
+  spacing?: ThemeSpacing
+}
+
+export interface ThemeColors {
+  background: string
+  text: string
+  h1: string
+  h2: string
+  h3: string
+  link: string
+  code_background: string
+  code_text: string
+  code_block_background: string
+  code_block_text: string
+}
+
+export interface ThemeTypography {
+  font_family: string
+  font_size: string
+  h1_size: string
+  h1_weight: string
+  h2_size: string
+  h2_weight: string
+  h3_size: string
+  h3_weight: string
+  code_font_family: string
+}
+
+export interface ThemeSpacing {
+  slide_padding: string
+  h1_margin_bottom: string
+  h2_margin_top: string
+  code_padding: string
+  code_block_padding: string
+  border_radius: string
+  code_block_border_radius: string
+}
+
+export interface ThemeCreatePayload {
+  name: string
+  description?: string | null
+  colors: ThemeColors
+  typography: ThemeTypography
+  spacing: ThemeSpacing
 }
 
 export async function fetchThemes(): Promise<Theme[]> {
   const response = await fetch(buildUrl('/themes'))
   return handleResponse<Theme[]>(response)
+}
+
+export async function createTheme(data: ThemeCreatePayload): Promise<Theme> {
+  const response = await fetch(buildUrl('/themes'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  return handleResponse<Theme>(response)
+}
+
+export async function updateTheme(themeId: string, data: ThemeCreatePayload): Promise<Theme> {
+  const response = await fetch(buildUrl(`/themes/${themeId}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  return handleResponse<Theme>(response)
+}
+
+export async function deleteTheme(themeId: string): Promise<void> {
+  const response = await fetch(buildUrl(`/themes/${themeId}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
 }

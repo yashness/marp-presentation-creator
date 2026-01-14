@@ -185,7 +185,7 @@ def test_theme_css_generation():
     theme = response.json()
 
     css = theme["css_content"]
-    assert "/* @theme CSS Gen Test */" in css
+    assert f"/* @theme {theme['id']} */" in css
     assert "background: #ffffff" in css
     assert "color: #000000" in css
     assert "font-family: Arial, sans-serif" in css

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Presentation } from '../api/client'
-import { fetchPresentations, createPresentation, updatePresentation, deletePresentation } from '../api/client'
+import { fetchPresentations, createPresentation, updatePresentation, deletePresentation, duplicatePresentation } from '../api/client'
 import { useAsyncOperation } from './useAsyncOperation'
 
 function withReload<T extends (...args: any[]) => Promise<any>>(fn: T, reload: () => Promise<void>) {
@@ -35,17 +35,23 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
     withReload(async () => { await deletePresentation(id) }, loadPresentations)(),
     [loadPresentations]
   )
+  const duplicateOp = useCallback((id: string) =>
+    withReload(async () => duplicatePresentation(id), loadPresentations)(),
+    [loadPresentations]
+  )
 
   const [create, createLoading] = useAsyncOperation(createOp)
   const [update, updateLoading] = useAsyncOperation(updateOp)
   const [remove, removeLoading] = useAsyncOperation(removeOp)
+  const [duplicate, duplicateLoading] = useAsyncOperation(duplicateOp)
 
   return {
     presentations,
-    loading: createLoading || updateLoading || removeLoading,
+    loading: createLoading || updateLoading || removeLoading || duplicateLoading,
     loadPresentations,
     create,
     update,
     remove,
+    duplicate,
   }
 }

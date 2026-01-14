@@ -11,6 +11,7 @@ interface PresentationSidebarProps {
   onSearchChange: (query: string) => void
   onSelect: (pres: Presentation) => void
   onDelete: (id: string) => void
+  onDuplicate: (id: string) => void
   onNewPresentation: () => void
 }
 
@@ -21,6 +22,7 @@ export function PresentationSidebar({
   onSearchChange,
   onSelect,
   onDelete,
+  onDuplicate,
   onNewPresentation,
 }: PresentationSidebarProps) {
   return (
@@ -54,6 +56,7 @@ export function PresentationSidebar({
             isSelected={selectedId === p.id}
             onSelect={onSelect}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
           />
         ))}
       </ul>

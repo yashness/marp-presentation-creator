@@ -47,7 +47,7 @@ def list_builtin_themes() -> list[ThemeResponse]:
 def db_theme_to_response(theme: Theme) -> ThemeResponse:
     """Convert database theme to response."""
     css = generate_theme_css(
-        theme.name, theme.colors, theme.typography, theme.spacing
+        theme.id, theme.colors, theme.typography, theme.spacing
     )
     return ThemeResponse(
         id=theme.id,

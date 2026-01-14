@@ -4,11 +4,11 @@
 - `README.md`
 - `PRD.md`
 - `ARCHITECTURE.md`
-- `tasks.md`
 - `todo.md`
+- `progress.md`
 
 ## Documentation Rules
-- `tasks.md` and `todo.md` must never be deleted; they must be corrected and updated.
+- `todo.md` must never be deleted; they must be corrected and updated.
 - `ARCHITECTURE.md` is a prescription and must be updated when plans or requirements change.
 - `todo.md` must be synchronized with actual progress after every change.
 

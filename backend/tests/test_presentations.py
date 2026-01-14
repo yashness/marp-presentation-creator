@@ -90,6 +90,15 @@ def test_update_presentation_with_content():
     assert response.status_code == 200
     assert response.json()["content"] == new_content
 
+def test_duplicate_presentation():
+    pres = create_test_presentation()
+    response = client.post(f"/api/presentations/{pres['id']}/duplicate")
+    assert response.status_code == 201
+    dup = response.json()
+    assert dup["id"] != pres["id"]
+    assert dup["content"] == pres["content"]
+    assert dup["title"].endswith("(Copy)")
+
 def test_delete_presentation():
     pres = create_test_presentation()
     response = client.delete(f"/api/presentations/{pres['id']}")

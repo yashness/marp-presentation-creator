@@ -26,18 +26,22 @@ def test_build_marp_cmd_basic():
     cmd = marp_service.build_marp_cmd(temp_file, "--pdf", None, None)
     assert "--pdf" in cmd
     assert str(temp_file) in cmd
+    assert "--config" in cmd
+    assert str(marp_service.MARP_CONFIG_PATH) in cmd
 
 def test_build_marp_cmd_with_output():
     temp_file = Path("/tmp/test.md")
     cmd = marp_service.build_marp_cmd(temp_file, "--pdf", "/output/file.pdf", None)
     assert "-o" in cmd
     assert "/output/file.pdf" in cmd
+    assert "--config" in cmd
 
 def test_build_marp_cmd_with_theme():
     temp_file = Path("/tmp/test.md")
     cmd = marp_service.build_marp_cmd(temp_file, "--html", None, "default")
     assert "--theme" in cmd
     assert "default" in cmd
+    assert "--config" in cmd
 
 def test_render_to_html_invalid_content():
     with pytest.raises(ValueError):

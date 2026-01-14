@@ -19,12 +19,12 @@ function App() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
-  const { themes } = useThemes()
+  const { themes, createTheme, updateTheme, deleteTheme } = useThemes()
   const slugPendingRef = useRef<string | null>(null)
   const autoSelectRef = useRef(true)
 
   const editor = usePresentationEditor()
-  const { presentations, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
+  const { presentations, create, update, remove, duplicate } = usePresentations(searchQuery, editor.selectedTheme)
 
   const markDirty = useCallback(() => setHasUserInput(true), [])
 
@@ -156,6 +156,17 @@ function App() {
           onSearchChange={setSearchQuery}
           onSelect={handleSelect}
           onDelete={handleDelete}
+          onDuplicate={(id) => {
+            handleApiCall(
+              () => duplicate(id),
+              'Presentation duplicated',
+              'Failed to duplicate presentation',
+            ).then(result => {
+              if (result) {
+                editor.selectPresentation(result)
+              }
+            })
+          }}
           onNewPresentation={() => {
             editor.clearSelection()
             setHasUserInput(false)
@@ -176,9 +187,24 @@ function App() {
           onContentChange={(content) => { markDirty(); editor.setContent(content) }}
           onThemeChange={(theme) => {
             markDirty()
-            editor.applyThemeToContent(theme || null)
+            editor.setSelectedTheme(theme || null)
           }}
           onExport={editor.exportPresentation}
+          onCreateTheme={(data) => handleApiCall(
+            () => createTheme(data),
+            'Theme created',
+            'Failed to create theme'
+          )}
+          onUpdateTheme={(id, data) => handleApiCall(
+            () => updateTheme(id, data),
+            'Theme updated',
+            'Failed to update theme'
+          )}
+          onDeleteTheme={(id) => handleApiCall(
+            () => deleteTheme(id),
+            'Theme deleted',
+            'Failed to delete theme'
+          )}
         />
 
         <PreviewPanel

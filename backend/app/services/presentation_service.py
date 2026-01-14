@@ -99,7 +99,7 @@ def apply_updates(pres: Presentation, data: PresentationUpdate) -> None:
         pres.title = data.title
     if data.content:
         pres.content = data.content
-    if data.theme_id:
+    if data.theme_id is not None:
         pres.theme_id = data.theme_id
     pres.updated_at = datetime.now()
 
@@ -113,6 +113,25 @@ def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationR
         session.refresh(pres)
         logger.info(f"Updated presentation: {pres_id}")
         return to_response(pres)
+
+def duplicate_presentation(pres_id: str) -> PresentationResponse | None:
+    with get_session() as session:
+        existing = get_presentation_by_id(session, pres_id)
+        if not existing:
+            return None
+        new_pres = Presentation(
+            id=generate_id(),
+            title=f"{existing.title} (Copy)",
+            content=existing.content,
+            theme_id=existing.theme_id,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        session.add(new_pres)
+        session.flush()
+        session.refresh(new_pres)
+        logger.info(f"Duplicated presentation {pres_id} -> {new_pres.id}")
+        return to_response(new_pres)
 
 def delete_presentation(pres_id: str) -> bool:
     with get_session() as session:

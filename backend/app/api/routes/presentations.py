@@ -75,6 +75,13 @@ def delete_presentation(presentation_id: str) -> dict[str, str]:
         raise HTTPException(404, "Presentation not found")
     return {"message": "Presentation deleted"}
 
+@router.post("/{presentation_id}/duplicate", response_model=PresentationResponse, status_code=201)
+def duplicate_presentation(presentation_id: str) -> PresentationResponse:
+    duplicated = service.duplicate_presentation(presentation_id)
+    if not duplicated:
+        raise HTTPException(404, "Presentation not found")
+    return duplicated
+
 def render_html_preview(pres: PresentationResponse) -> Response:
     try:
         html = marp_service.render_to_html(pres.content, pres.theme_id)

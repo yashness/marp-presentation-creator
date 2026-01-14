@@ -1,16 +1,43 @@
 import os
 import subprocess
 import tempfile
+import shlex
 from pathlib import Path
 from app.core.config import settings
 from app.core.logger import logger
 from app.core.cache import render_cache, generate_cache_key
+from app.core.database import SessionLocal
+from app.services import theme_service
 
-def get_marp_command() -> str:
-    return settings.marp_cli_path
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+THEMES_DIR = BASE_DIR / "themes"
+THEME_CACHE_DIR = BASE_DIR / "data" / "theme_cache"
+MARP_CONFIG_PATH = BASE_DIR / "marp.config.js"
+
+THEME_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+def get_marp_command_parts() -> list[str]:
+    return shlex.split(settings.marp_cli_path)
 
 def validate_markdown(content: str) -> bool:
     return bool(content and content.strip())
+
+def ensure_theme_css(theme_id: str) -> None:
+    """Make sure the Marp CLI can resolve the selected theme."""
+    builtin_path = THEMES_DIR / f"{theme_id}.css"
+    if builtin_path.exists():
+        return
+
+    cached_path = THEME_CACHE_DIR / f"{theme_id}.css"
+    with SessionLocal() as session:
+        css = theme_service.get_theme_css(session, theme_id)
+
+    if not css:
+        logger.warning(f"Theme {theme_id} not found; falling back to default styles")
+        return
+
+    if not cached_path.exists() or cached_path.read_text() != css:
+        cached_path.write_text(css)
 
 def create_temp_file(content: str) -> Path:
     fd, temp_path = tempfile.mkstemp(suffix=".md", text=True)
@@ -20,10 +47,23 @@ def create_temp_file(content: str) -> Path:
     return temp_file
 
 def build_marp_cmd(temp_file: Path, format_flag: str, output: str | None, theme_id: str | None) -> list[str]:
-    cmd = [get_marp_command(), str(temp_file), format_flag, "--allow-local-files"]
+    if not MARP_CONFIG_PATH.exists():
+        logger.warning(f"Marp config missing at {MARP_CONFIG_PATH}; diagram support may be degraded")
+
+    cmd = (
+        get_marp_command_parts()
+        + [
+            str(temp_file),
+            format_flag,
+            "--allow-local-files",
+            "--config",
+            str(MARP_CONFIG_PATH),
+        ]
+    )
     if output:
         cmd.extend(["-o", output])
     if theme_id:
+        ensure_theme_css(theme_id)
         cmd.extend(["--theme", theme_id])
     return cmd
 
