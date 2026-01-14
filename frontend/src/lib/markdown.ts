@@ -96,11 +96,12 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
       continue
     }
 
-    const kv = line.match(/^([^:]+):\s*(.*)$/)
+    const kv = line.match(/^([^:]+): ?(.*)$/)
     if (kv) {
       const key = kv[1].trim()
       const rawValue = kv[2] ?? ''
-      frontmatter[key] = stripQuotes(rawValue.trim())
+      const shouldPreserveWhitespace = key === 'footer'
+      frontmatter[key] = stripQuotes(shouldPreserveWhitespace ? rawValue : rawValue.trim())
     }
     i++
   }
@@ -112,7 +113,7 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
 function parseSlideContent(raw: string, index: number): SlideBlock {
   let comment = ''
   let body = raw
-  const commentMatch = raw.match(/^<!--\s*slide-comment:\s*([\s\S]*?)\s*-->\s*\n?/i)
+  const commentMatch = raw.match(/^<!--\s*slide-comment:\n([\s\S]*?)\n-->\s*\n?/i)
   if (commentMatch) {
     comment = commentMatch[1]
     body = raw.slice(commentMatch[0].length)
@@ -142,7 +143,7 @@ export function parseSlides(content: string): ParsedSlides {
 
 function buildSlideBlock(slide: SlideBlock): string {
   const parts = []
-  if (slide.comment && slide.comment.trim().length > 0) {
+  if (slide.comment !== undefined && slide.comment !== null && slide.comment.length > 0) {
     parts.push(`<!-- slide-comment:\n${slide.comment}\n-->`)
   }
   parts.push(slide.content || '# New Slide')
