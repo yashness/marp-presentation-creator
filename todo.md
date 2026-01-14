@@ -9,7 +9,7 @@
 - ✅ Integrate Claude AI to generate presentation with AI, given the description. Plan --> create workflow with outline editing, inline editing, drag/drop reordering. Generate full presentation using Azure Anthropic keys
 - ✅ Add AI elements to re-write a given slide (backend ready, can be added to UI later)
 - ✅ Add ability to generate image with DALL-E 3 via Azure OpenAI (API endpoint + UI modal with image preview and markdown copy)
-- Add elements/shortcuts as we type for the slide to add AI text or add AI generated image as per our prompt or slide content
+- ✅ Add elements/shortcuts as we type for the slide to add AI text or add AI generated image (Command Palette with Cmd/Ctrl+K shortcut for quick AI commands)
 - Add login feature with clerk
 - Add billing with clerk
 - Add theme creator with AI, where we can upload our brand assets/colors/screenshots. 

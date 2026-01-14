@@ -8,6 +8,7 @@ import { VideoExportButton } from './VideoExportButton'
 import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
 import { TTSButton } from './TTSButton'
 import { ImageGenerationButton } from './ImageGenerationButton'
+import { CommandPalette } from './CommandPalette'
 import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
@@ -69,6 +70,8 @@ export function EditorPanel({
   const [themeStatus, setThemeStatus] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0)
 
   const parsed = useMemo(() => parseSlides(content), [content])
   const slides = parsed.slides.length
@@ -102,6 +105,10 @@ export function EditorPanel({
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && settingsOpen) {
         setSettingsOpen(false)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen(true)
       }
     }
     window.addEventListener('keydown', handler)
@@ -167,6 +174,16 @@ export function EditorPanel({
   const toggleCommentVisibility = (id: string) => {
     setOpenComments(prev => ({ ...prev, [id]: !prev[id] }))
   }
+
+  const handleInsertText = useCallback((text: string) => {
+    if (mode === 'blocks' && currentSlideIndex >= 0 && currentSlideIndex < slides.length) {
+      const slide = slides[currentSlideIndex]
+      const updatedContent = slide.content + '\n\n' + text
+      handleSlideChange(currentSlideIndex, updatedContent)
+    } else if (mode === 'raw') {
+      onContentChange(content + '\n\n' + text)
+    }
+  }, [mode, currentSlideIndex, slides, content, onContentChange])
 
   const updateThemeDraft = (section: 'colors' | 'typography' | 'spacing', key: string, value: string) => {
     setThemeDraft(prev => ({
@@ -296,6 +313,11 @@ export function EditorPanel({
             <MessageSquarePlus className="w-4 h-4" />
             Add slide
           </Button>
+          <Button onClick={() => setCommandPaletteOpen(true)} size="sm" variant="secondary" className="whitespace-nowrap gap-2">
+            <Sparkles className="w-4 h-4" />
+            AI Commands
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs bg-gray-200 rounded">⌘K</kbd>
+          </Button>
           <ImageGenerationButton />
         </div>
 
@@ -365,20 +387,22 @@ export function EditorPanel({
                     />
                   </div>
                 )}
-                <Editor
-                  height="200px"
-                  language="markdown"
-                  value={slide.content}
-                  onChange={(value) => handleSlideChange(index, value || '')}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    lineNumbers: 'off',
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'on',
-                    roundedSelection: false,
-                  }}
-                />
+                <div onFocus={() => setCurrentSlideIndex(index)}>
+                  <Editor
+                    height="200px"
+                    language="markdown"
+                    value={slide.content}
+                    onChange={(value) => handleSlideChange(index, value || '')}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 13,
+                      lineNumbers: 'off',
+                      scrollBeyondLastLine: false,
+                      wordWrap: 'on',
+                      roundedSelection: false,
+                    }}
+                  />
+                </div>
               </div>
             ))}
             <Button onClick={handleAddSlide} variant="outline" className="w-full border-dashed">
@@ -594,6 +618,13 @@ export function EditorPanel({
           </div>
         </div>
       )}
+
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onInsertText={handleInsertText}
+        currentSlideContent={mode === 'blocks' && currentSlideIndex >= 0 ? slides[currentSlideIndex]?.content : content}
+      />
     </div>
   )
 }
