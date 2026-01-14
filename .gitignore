@@ -52,6 +52,7 @@ htmlcov/
 .eggs/
 
 # Data storage
+data/
 backend/data/
 frontend/data/
 cli/data/
