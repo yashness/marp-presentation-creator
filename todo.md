@@ -19,6 +19,10 @@ Ready for additional features or improvements.
   - Wrapped handler functions in App.tsx with useCallback to prevent unnecessary re-renders.
   - Added memoization for validateAndShowError, handleCreate, handleUpdate, handleDelete, and handleSelect.
   - Improves React component performance by stabilizing callback references.
+- [x] Code cleanup - removed dead code:
+  - Deleted unused presentation_service_file.py (old file-based storage implementation).
+  - Replaced entirely by database-backed presentation_service.py.
+  - Reduces codebase maintenance burden and eliminates confusion.
 - [x] Validated all changes:
   - All 81 backend tests passing (5 pre-existing Marp CLI environment issues).
   - Frontend builds successfully with no TypeScript errors or warnings.
