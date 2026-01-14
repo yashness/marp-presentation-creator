@@ -41,15 +41,18 @@ def validate_batch_format(format: str) -> None:
         valid_formats = ", ".join(get_valid_formats())
         raise HTTPException(400, f"Invalid format: {format}. Must be one of: {valid_formats}")
 
+def process_batch_export(presentation_ids: list[str], format: str) -> list[BatchExportResult]:
+    results = [export_single_presentation(pid, format) for pid in presentation_ids]
+    success_count = sum(1 for r in results if r.status == "success")
+    logger.info(f"Batch export completed: {success_count}/{len(results)} successful")
+    return results
+
 @router.post("/batch/export")
 @limiter.limit("2/minute")
 def batch_export(request: Request, data: BatchExportRequest) -> list[BatchExportResult]:
     validate_batch_format(data.format)
     logger.info(f"Batch export: {len(data.presentation_ids)} presentations to {data.format}")
-    results = [export_single_presentation(pid, data.format) for pid in data.presentation_ids]
-    success_count = sum(1 for r in results if r.status == "success")
-    logger.info(f"Batch export completed: {success_count}/{len(results)} successful")
-    return results
+    return process_batch_export(data.presentation_ids, data.format)
 
 @router.get("/{presentation_id}", response_model=PresentationResponse)
 def get_presentation(presentation_id: str) -> PresentationResponse:
@@ -72,17 +75,20 @@ def delete_presentation(presentation_id: str) -> dict[str, str]:
         raise HTTPException(404, "Presentation not found")
     return {"message": "Presentation deleted"}
 
-@router.get("/{presentation_id}/preview")
-def preview_presentation(presentation_id: str) -> Response:
-    pres = service.get_presentation(presentation_id)
-    if not pres:
-        raise HTTPException(404, "Presentation not found")
+def render_html_preview(pres: PresentationResponse) -> Response:
     try:
         html = marp_service.render_to_html(pres.content, pres.theme_id)
         return Response(content=html, media_type="text/html")
     except Exception as e:
         logger.error(f"Preview failed: {e}")
         raise HTTPException(500, f"Preview failed: {str(e)}")
+
+@router.get("/{presentation_id}/preview")
+def preview_presentation(presentation_id: str) -> Response:
+    pres = service.get_presentation(presentation_id)
+    if not pres:
+        raise HTTPException(404, "Presentation not found")
+    return render_html_preview(pres)
 
 def export_to_format(pres: PresentationResponse, format: str) -> Path:
     format_info = get_export_format(format)

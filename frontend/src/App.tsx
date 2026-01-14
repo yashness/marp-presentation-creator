@@ -20,12 +20,17 @@ function App() {
   const editor = usePresentationEditor()
   const { presentations, loading, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
 
-  async function handleCreate() {
-    const error = validation.validateCreate(editor.title, editor.content)
+  function validateAndShowError(error: string | null): boolean {
     if (error) {
       showToast(error, 'error')
-      return
+      return false
     }
+    return true
+  }
+
+  async function handleCreate() {
+    const error = validation.validateCreate(editor.title, editor.content)
+    if (!validateAndShowError(error)) return
     const result = await handleApiCall(
       () => create(editor.title, editor.content, editor.selectedTheme),
       'Presentation created successfully',
@@ -36,10 +41,7 @@ function App() {
 
   async function handleUpdate() {
     const error = validation.validateUpdate(editor.selectedId, editor.title, editor.content)
-    if (error) {
-      showToast(error, 'error')
-      return
-    }
+    if (!validateAndShowError(error)) return
     await handleApiCall(
       () => update(editor.selectedId!, editor.title, editor.content, editor.selectedTheme),
       'Presentation updated successfully',
