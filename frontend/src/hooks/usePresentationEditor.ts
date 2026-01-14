@@ -3,44 +3,47 @@ import type { Presentation } from '../api/client'
 import { getPreview, exportPresentation as apiExportPresentation } from '../api/client'
 import { useAsyncOperation } from './useAsyncOperation'
 
-function useEditorState() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [preview, setPreview] = useState('')
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
-  return { selectedId, setSelectedId, title, setTitle, content, setContent, preview, setPreview, selectedTheme, setSelectedTheme }
+interface EditorState {
+  selectedId: string | null
+  title: string
+  content: string
+  preview: string
+  selectedTheme: string | null
 }
 
-function loadPresentationState(pres: Presentation, setState: ReturnType<typeof useEditorState>) {
-  setState.setSelectedId(pres.id)
-  setState.setTitle(pres.title)
-  setState.setContent(pres.content)
-  setState.setSelectedTheme(pres.theme_id || null)
+const INITIAL_STATE: EditorState = {
+  selectedId: null,
+  title: '',
+  content: '',
+  preview: '',
+  selectedTheme: null
 }
 
 export function usePresentationEditor() {
-  const state = useEditorState()
+  const [state, setState] = useState<EditorState>(INITIAL_STATE)
 
-  const clearSelection = useCallback(() => {
-    state.setSelectedId(null)
-    state.setTitle('')
-    state.setContent('')
-    state.setPreview('')
-    state.setSelectedTheme(null)
-  }, [state])
+  const setTitle = useCallback((title: string) => setState(s => ({ ...s, title })), [])
+  const setContent = useCallback((content: string) => setState(s => ({ ...s, content })), [])
+  const setSelectedTheme = useCallback((selectedTheme: string | null) => setState(s => ({ ...s, selectedTheme })), [])
+  const clearSelection = useCallback(() => setState(INITIAL_STATE), [])
 
   const selectPresentationOp = useCallback(async (pres: Presentation) => {
-    loadPresentationState(pres, state)
+    setState({
+      selectedId: pres.id,
+      title: pres.title,
+      content: pres.content,
+      preview: '',
+      selectedTheme: pres.theme_id || null
+    })
     const html = await getPreview(pres.id)
-    state.setPreview(html)
-  }, [state])
+    setState(s => ({ ...s, preview: html }))
+  }, [])
 
   const refreshPreviewOp = useCallback(async () => {
     if (!state.selectedId) return
     const html = await getPreview(state.selectedId)
-    state.setPreview(html)
-  }, [state.selectedId, state])
+    setState(s => ({ ...s, preview: html }))
+  }, [state.selectedId])
 
   const [selectPresentation, previewLoading1] = useAsyncOperation(selectPresentationOp)
   const [refreshPreview, previewLoading2] = useAsyncOperation(refreshPreviewOp)
@@ -57,9 +60,9 @@ export function usePresentationEditor() {
     preview: state.preview,
     selectedTheme: state.selectedTheme,
     previewLoading: previewLoading1 || previewLoading2,
-    setTitle: state.setTitle,
-    setContent: state.setContent,
-    setSelectedTheme: state.setSelectedTheme,
+    setTitle,
+    setContent,
+    setSelectedTheme,
     clearSelection,
     selectPresentation,
     refreshPreview,

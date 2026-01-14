@@ -6,6 +6,25 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 14)
+- [x] Frontend code quality improvements:
+  - Extracted buildUrl() helper function in API client to consolidate URL construction logic.
+  - Eliminated duplicate URLSearchParams logic across 7 API functions.
+  - Reduced code duplication by centralizing query parameter handling.
+- [x] React hooks optimization:
+  - Refactored usePresentationEditor to use single state object instead of multiple useState calls.
+  - Consolidated 5 separate state variables into one EditorState interface.
+  - Improved state update consistency with immutable updates.
+  - Better performance with fewer re-renders and cleaner dependencies.
+- [x] Backend resource management fix:
+  - Added missing os.close(fd) call in marp_service.py create_temp_file function.
+  - Prevents file descriptor leaks when creating temporary markdown files.
+  - Matches pattern already used in create_html_temp_file function.
+- [x] Validated all changes:
+  - Frontend builds successfully with no TypeScript errors.
+  - Backend API endpoints functional (health, themes, presentations, preview all verified).
+  - Docker containers running correctly and healthy.
+
 ## Completed (2026-01-14 - Session 13)
 - [x] Code organization improvements:
   - Extracted SaveButton, PreviewButton, and ExportButtonGroup components from EditorPanel.

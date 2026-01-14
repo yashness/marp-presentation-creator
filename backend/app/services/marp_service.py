@@ -14,6 +14,7 @@ def validate_markdown(content: str) -> bool:
 
 def create_temp_file(content: str) -> Path:
     fd, temp_path = tempfile.mkstemp(suffix=".md", text=True)
+    os.close(fd)
     temp_file = Path(temp_path)
     temp_file.write_text(content)
     return temp_file
