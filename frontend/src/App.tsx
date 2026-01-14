@@ -1,153 +1,103 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { Presentation } from './api/client'
-import { fetchPresentations, createPresentation, updatePresentation, deletePresentation, getPreview } from './api/client'
 import { PresentationSidebar } from './components/PresentationSidebar'
 import { EditorPanel } from './components/EditorPanel'
 import { PreviewPanel } from './components/PreviewPanel'
+import { ToastContainer, useToast } from './components/ui/toast'
+import { usePresentations } from './hooks/usePresentations'
+import { usePresentationEditor } from './hooks/usePresentationEditor'
 
 function App() {
-  const [presentations, setPresentations] = useState<Presentation[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [preview, setPreview] = useState('')
-  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
+  const { toasts, showToast, dismissToast } = useToast()
 
-  useEffect(() => {
-    loadPresentations()
-  }, [])
-
-  async function loadPresentations() {
-    try {
-      const data = await fetchPresentations(searchQuery, selectedTheme)
-      setPresentations(data)
-    } catch (error) {
-      console.error('Failed to load presentations:', error)
-    }
-  }
+  const editor = usePresentationEditor()
+  const { presentations, loading, loadPresentations, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
 
   async function handleCreate() {
-    if (!title || !content) return
-    setLoading(true)
+    if (!editor.title || !editor.content) {
+      showToast('Please enter title and content', 'error')
+      return
+    }
     try {
-      await createPresentation({ title, content, theme_id: selectedTheme })
-      setTitle('')
-      setContent('')
-      await loadPresentations()
+      await create(editor.title, editor.content, editor.selectedTheme)
+      editor.clearSelection()
+      showToast('Presentation created successfully', 'success')
     } catch (error) {
-      console.error('Failed to create presentation:', error)
-    } finally {
-      setLoading(false)
+      showToast('Failed to create presentation', 'error')
     }
   }
 
   async function handleUpdate() {
-    if (!selectedId || !title || !content) return
-    setLoading(true)
+    if (!editor.selectedId || !editor.title || !editor.content) {
+      showToast('Please enter title and content', 'error')
+      return
+    }
     try {
-      await updatePresentation(selectedId, { title, content, theme_id: selectedTheme })
-      await loadPresentations()
+      await update(editor.selectedId, editor.title, editor.content, editor.selectedTheme)
+      showToast('Presentation updated successfully', 'success')
     } catch (error) {
-      console.error('Failed to update presentation:', error)
-    } finally {
-      setLoading(false)
+      showToast('Failed to update presentation', 'error')
     }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this presentation?')) return
     try {
-      await deletePresentation(id)
-      await loadPresentations()
-      if (selectedId === id) {
-        clearSelection()
+      await remove(id)
+      if (editor.selectedId === id) {
+        editor.clearSelection()
       }
+      showToast('Presentation deleted successfully', 'success')
     } catch (error) {
-      console.error('Failed to delete presentation:', error)
+      showToast('Failed to delete presentation', 'error')
     }
-  }
-
-  function clearSelection() {
-    setSelectedId(null)
-    setTitle('')
-    setContent('')
-    setPreview('')
-    setSelectedTheme(null)
   }
 
   async function handleSelect(pres: Presentation) {
-    setSelectedId(pres.id)
-    setTitle(pres.title)
-    setContent(pres.content)
-    setSelectedTheme(pres.theme_id || null)
     try {
-      const html = await getPreview(pres.id)
-      setPreview(html)
+      await editor.selectPresentation(pres)
     } catch (error) {
-      console.error('Failed to load preview:', error)
-    }
-  }
-
-  async function handlePreview() {
-    if (!selectedId) return
-    try {
-      const html = await getPreview(selectedId)
-      setPreview(html)
-    } catch (error) {
-      console.error('Failed to load preview:', error)
-    }
-  }
-
-  async function handleExport(format: 'pdf' | 'html' | 'pptx') {
-    if (!selectedId) return
-    try {
-      const response = await fetch(`http://localhost:8000/api/presentations/${selectedId}/export?format=${format}`, { method: 'POST' })
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${title}.${format}`
-      link.click()
-    } catch (error) {
-      console.error('Failed to export:', error)
+      showToast('Failed to load presentation', 'error')
     }
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-primary-50 to-secondary-50">
-      <PresentationSidebar
-        presentations={presentations}
-        selectedId={selectedId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSearch={loadPresentations}
-        onSelect={handleSelect}
-        onDelete={handleDelete}
-        onNewPresentation={clearSelection}
-      />
+    <>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <div className="flex h-screen bg-gradient-to-br from-primary-50 to-secondary-50">
+        <PresentationSidebar
+          presentations={presentations}
+          selectedId={editor.selectedId}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearch={loadPresentations}
+          onSelect={handleSelect}
+          onDelete={handleDelete}
+          onNewPresentation={editor.clearSelection}
+        />
 
-      <EditorPanel
-        title={title}
-        content={content}
-        selectedTheme={selectedTheme}
-        selectedId={selectedId}
-        loading={loading}
-        onTitleChange={setTitle}
-        onContentChange={setContent}
-        onThemeChange={setSelectedTheme}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onExport={handleExport}
-        onPreview={handlePreview}
-      />
+        <EditorPanel
+          title={editor.title}
+          content={editor.content}
+          selectedTheme={editor.selectedTheme}
+          selectedId={editor.selectedId}
+          loading={loading}
+          onTitleChange={editor.setTitle}
+          onContentChange={editor.setContent}
+          onThemeChange={editor.setSelectedTheme}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onExport={editor.exportPresentation}
+          onPreview={editor.refreshPreview}
+        />
 
-      <PreviewPanel
-        preview={preview}
-        selectedId={selectedId}
-      />
-    </div>
+        <PreviewPanel
+          preview={editor.preview}
+          selectedId={editor.selectedId}
+        />
+      </div>
+    </>
   )
 }
 

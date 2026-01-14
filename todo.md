@@ -6,7 +6,23 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
-## Completed (2026-01-14)
+## Completed (2026-01-14 - Session 2)
+- [x] Refactored frontend with custom React hooks for better code organization:
+  - Created `usePresentations` hook to manage presentation CRUD operations.
+  - Created `usePresentationEditor` hook to manage editor state and preview.
+  - Reduced App.tsx from 155 lines to 104 lines (33% reduction).
+  - Improved separation of concerns and testability.
+- [x] Added ErrorBoundary component for robust error handling:
+  - Catches React errors and displays user-friendly error UI.
+  - Integrated into main.tsx to wrap entire application.
+- [x] Implemented toast notification system:
+  - Created reusable Toast component with success, error, and info variants.
+  - Added `useToast` hook for easy toast management.
+  - Integrated toast notifications for all CRUD operations.
+  - Auto-dismiss after 5 seconds with slide-in animation.
+- [x] Enhanced user feedback across the application.
+
+## Completed (2026-01-14 - Session 1)
 - [x] Refactored App.tsx into smaller focused components (PresentationSidebar, EditorPanel, PreviewPanel).
 - [x] Reduced App.tsx from 266 lines to 155 lines for better maintainability.
 - [x] Added gray color palette to Tailwind config for UI consistency.

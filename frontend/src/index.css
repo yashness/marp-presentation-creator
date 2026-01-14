@@ -15,3 +15,18 @@
     @apply bg-gradient-to-br from-primary-50 to-secondary-50 text-gray-900;
   }
 }
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
