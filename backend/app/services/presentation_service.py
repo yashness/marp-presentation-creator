@@ -72,7 +72,8 @@ def list_presentations() -> list[PresentationResponse]:
 
 def build_search_filters(session: Session, query: str, theme_id: str | None):
     q = session.query(Presentation)
-    q = q.filter(or_(Presentation.title.contains(query), Presentation.content.contains(query)))
+    if query and query.strip():
+        q = q.filter(or_(Presentation.title.contains(query), Presentation.content.contains(query)))
     if theme_id:
         q = q.filter(Presentation.theme_id == theme_id)
     return q

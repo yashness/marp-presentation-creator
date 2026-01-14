@@ -6,6 +6,42 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 5)
+- [x] Code quality improvements following ARCHITECTURE.md guidelines:
+  - Refactored API client to consistently use handleResponse utilities (handleTextResponse, handleVoidResponse, handleBlobResponse).
+  - Created reusable useAsyncOperation hook to eliminate duplicate loading state patterns across hooks.
+  - Extracted usePresentationValidation hook for cleaner validation logic in App.tsx.
+  - Created ExportButton component to eliminate duplication in EditorPanel (3 buttons → 1 component).
+  - Refactored marp_service.render_to_html into smaller functions (check_cache, create_html_temp_file, render_and_cache).
+  - Added input validation to build_search_filters to prevent inefficient empty queries.
+- [x] Improved code organization and maintainability:
+  - Reduced function lengths to better align with 10-line preference in ARCHITECTURE.md.
+  - Eliminated code duplication in error handling across frontend and backend.
+  - Better separation of concerns with extracted hooks and components.
+- [x] Validated all changes:
+  - Python syntax validated successfully.
+  - All modified files follow project architecture guidelines.
+  - TypeScript changes maintain type safety.
+
+## Completed (2026-01-14 - Session 4)
+- [x] Refactored backend route handlers for better code organization:
+  - Removed unnecessary helper functions (validate_batch_format, get_validated_presentation, render_html_response, get_export_path, get_media_type, validate_format_and_presentation, create_file_response).
+  - Inlined logic directly into route handlers to improve readability.
+  - Reduced code complexity while maintaining functionality.
+- [x] Improved frontend UX with loading states:
+  - Added previewLoading state to usePresentationEditor hook.
+  - Preview button now shows loading spinner during refresh.
+  - PreviewPanel displays centered loading spinner instead of blank screen.
+  - Better user feedback during asynchronous operations.
+- [x] Removed redundant search button from sidebar:
+  - Search now automatically triggers when query changes (auto-complete behavior).
+  - Simplified PresentationSidebar interface by removing onSearch prop.
+  - Cleaner, more modern UX aligned with common search patterns.
+- [x] Validated all code changes:
+  - Backend Python syntax validated successfully.
+  - Frontend TypeScript files compile correctly.
+  - All changes maintain type safety and existing functionality.
+
 ## Completed (2026-01-14 - Session 3)
 - [x] Enhanced API client architecture:
   - Added proper error handling to all API client functions with handleResponse utility.

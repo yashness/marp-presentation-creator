@@ -2,7 +2,8 @@ import Editor from '@monaco-editor/react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
-import { FileDown, Eye, Loader2 } from 'lucide-react'
+import { ExportButton } from './ExportButton'
+import { Eye, Loader2 } from 'lucide-react'
 
 interface EditorPanelProps {
   title: string
@@ -10,6 +11,7 @@ interface EditorPanelProps {
   selectedTheme: string | null
   selectedId: string | null
   loading: boolean
+  previewLoading: boolean
   onTitleChange: (title: string) => void
   onContentChange: (content: string) => void
   onThemeChange: (theme: string) => void
@@ -25,6 +27,7 @@ export function EditorPanel({
   selectedTheme,
   selectedId,
   loading,
+  previewLoading,
   onTitleChange,
   onContentChange,
   onThemeChange,
@@ -65,22 +68,13 @@ export function EditorPanel({
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
             </Button>
           )}
-          <Button onClick={onPreview} variant="outline" disabled={!selectedId}>
-            <Eye className="w-4 h-4" />
+          <Button onClick={onPreview} variant="outline" disabled={!selectedId || previewLoading}>
+            {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
             Preview
           </Button>
-          <Button onClick={() => onExport('pdf')} variant="outline" disabled={!selectedId}>
-            <FileDown className="w-4 h-4" />
-            PDF
-          </Button>
-          <Button onClick={() => onExport('html')} variant="outline" disabled={!selectedId}>
-            <FileDown className="w-4 h-4" />
-            HTML
-          </Button>
-          <Button onClick={() => onExport('pptx')} variant="outline" disabled={!selectedId}>
-            <FileDown className="w-4 h-4" />
-            PPTX
-          </Button>
+          <ExportButton format="pdf" onClick={onExport} disabled={!selectedId} />
+          <ExportButton format="html" onClick={onExport} disabled={!selectedId} />
+          <ExportButton format="pptx" onClick={onExport} disabled={!selectedId} />
         </div>
       </div>
 

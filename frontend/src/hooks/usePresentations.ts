@@ -1,60 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Presentation } from '../api/client'
 import { fetchPresentations, createPresentation, updatePresentation, deletePresentation } from '../api/client'
+import { useAsyncOperation } from './useAsyncOperation'
 
 export function usePresentations(searchQuery: string, selectedTheme: string | null) {
   const [presentations, setPresentations] = useState<Presentation[]>([])
-  const [loading, setLoading] = useState(false)
 
   const loadPresentations = useCallback(async () => {
-    try {
-      const data = await fetchPresentations(searchQuery, selectedTheme)
-      setPresentations(data)
-    } catch (error) {
-      console.error('Failed to load presentations:', error)
-      throw error
-    }
+    const data = await fetchPresentations(searchQuery, selectedTheme)
+    setPresentations(data)
   }, [searchQuery, selectedTheme])
 
   useEffect(() => {
-    loadPresentations()
+    loadPresentations().catch(error => console.error('Failed to load presentations:', error))
   }, [loadPresentations])
 
-  const create = useCallback(async (title: string, content: string, theme_id: string | null) => {
-    setLoading(true)
-    try {
-      await createPresentation({ title, content, theme_id })
-      await loadPresentations()
-    } catch (error) {
-      console.error('Failed to create presentation:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
+  const createOperation = useCallback(async (title: string, content: string, theme_id: string | null) => {
+    await createPresentation({ title, content, theme_id })
+    await loadPresentations()
   }, [loadPresentations])
 
-  const update = useCallback(async (id: string, title: string, content: string, theme_id: string | null) => {
-    setLoading(true)
-    try {
-      await updatePresentation(id, { title, content, theme_id })
-      await loadPresentations()
-    } catch (error) {
-      console.error('Failed to update presentation:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
+  const updateOperation = useCallback(async (id: string, title: string, content: string, theme_id: string | null) => {
+    await updatePresentation(id, { title, content, theme_id })
+    await loadPresentations()
   }, [loadPresentations])
 
-  const remove = useCallback(async (id: string) => {
-    try {
-      await deletePresentation(id)
-      await loadPresentations()
-    } catch (error) {
-      console.error('Failed to delete presentation:', error)
-      throw error
-    }
+  const removeOperation = useCallback(async (id: string) => {
+    await deletePresentation(id)
+    await loadPresentations()
   }, [loadPresentations])
+
+  const [create, createLoading] = useAsyncOperation(createOperation)
+  const [update, updateLoading] = useAsyncOperation(updateOperation)
+  const [remove, removeLoading] = useAsyncOperation(removeOperation)
+
+  const loading = createLoading || updateLoading || removeLoading
 
   return {
     presentations,

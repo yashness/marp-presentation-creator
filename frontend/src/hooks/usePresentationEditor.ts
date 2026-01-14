@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { Presentation } from '../api/client'
 import { getPreview, exportPresentation as apiExportPresentation } from '../api/client'
+import { useAsyncOperation } from './useAsyncOperation'
 
 export function usePresentationEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -17,30 +18,25 @@ export function usePresentationEditor() {
     setSelectedTheme(null)
   }
 
-  async function selectPresentation(pres: Presentation) {
+  const selectPresentationOp = useCallback(async (pres: Presentation) => {
     setSelectedId(pres.id)
     setTitle(pres.title)
     setContent(pres.content)
     setSelectedTheme(pres.theme_id || null)
-    try {
-      const html = await getPreview(pres.id)
-      setPreview(html)
-    } catch (error) {
-      console.error('Failed to load preview:', error)
-      throw error
-    }
-  }
+    const html = await getPreview(pres.id)
+    setPreview(html)
+  }, [])
 
-  async function refreshPreview() {
+  const refreshPreviewOp = useCallback(async () => {
     if (!selectedId) return
-    try {
-      const html = await getPreview(selectedId)
-      setPreview(html)
-    } catch (error) {
-      console.error('Failed to load preview:', error)
-      throw error
-    }
-  }
+    const html = await getPreview(selectedId)
+    setPreview(html)
+  }, [selectedId])
+
+  const [selectPresentation, previewLoading1] = useAsyncOperation(selectPresentationOp)
+  const [refreshPreview, previewLoading2] = useAsyncOperation(refreshPreviewOp)
+
+  const previewLoading = previewLoading1 || previewLoading2
 
   async function exportPresentation(format: 'pdf' | 'html' | 'pptx') {
     if (!selectedId) return
@@ -53,6 +49,7 @@ export function usePresentationEditor() {
     content,
     preview,
     selectedTheme,
+    previewLoading,
     setTitle,
     setContent,
     setSelectedTheme,

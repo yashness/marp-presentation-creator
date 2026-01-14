@@ -29,6 +29,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
+async function handleTextResponse(response: Response): Promise<string> {
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Unknown error')
+    throw new Error(`API error: ${response.status} - ${error}`)
+  }
+  return response.text()
+}
+
+async function handleVoidResponse(response: Response): Promise<void> {
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Unknown error')
+    throw new Error(`API error: ${response.status} - ${error}`)
+  }
+}
+
 export async function fetchPresentations(query?: string, theme_id?: string | null): Promise<Presentation[]> {
   const params = new URLSearchParams()
   if (query) params.append('query', query)
@@ -58,28 +73,25 @@ export async function updatePresentation(id: string, data: PresentationUpdate): 
 
 export async function deletePresentation(id: string): Promise<void> {
   const response = await fetch(`${API_BASE}/presentations/${id}`, { method: 'DELETE' })
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Unknown error')
-    throw new Error(`API error: ${response.status} - ${error}`)
-  }
+  return handleVoidResponse(response)
 }
 
 export async function getPreview(id: string): Promise<string> {
   const response = await fetch(`${API_BASE}/presentations/${id}/preview`)
+  return handleTextResponse(response)
+}
+
+async function handleBlobResponse(response: Response): Promise<Blob> {
   if (!response.ok) {
     const error = await response.text().catch(() => 'Unknown error')
     throw new Error(`API error: ${response.status} - ${error}`)
   }
-  return response.text()
+  return response.blob()
 }
 
 export async function exportPresentation(id: string, title: string, format: 'pdf' | 'html' | 'pptx'): Promise<void> {
   const response = await fetch(`${API_BASE}/presentations/${id}/export?format=${format}`, { method: 'POST' })
-  if (!response.ok) {
-    const error = await response.text().catch(() => 'Unknown error')
-    throw new Error(`Export failed: ${response.status} - ${error}`)
-  }
-  const blob = await response.blob()
+  const blob = await handleBlobResponse(response)
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

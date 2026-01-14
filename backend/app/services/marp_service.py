@@ -34,25 +34,40 @@ def run_marp_command(cmd: list[str], temp_file: Path, operation: str) -> subproc
         raise RuntimeError(f"{operation} failed: {result.stderr}")
     return result
 
-def render_to_html(content: str, theme_id: str | None = None) -> str:
-    if not validate_markdown(content):
-        raise ValueError("Invalid markdown content")
+def check_cache(content: str, theme_id: str | None) -> str | None:
     cache_key = generate_cache_key(content, theme_id)
     if cache_key in render_cache:
         logger.debug(f"Cache hit for render: {cache_key[:8]}")
         return render_cache[cache_key]
-    temp_file = create_temp_file(content)
+    return None
+
+def create_html_temp_file() -> Path:
     html_fd, html_path = tempfile.mkstemp(suffix=".html", text=True)
     os.close(html_fd)
-    Path(html_path).unlink(missing_ok=True)
-    cmd = build_marp_cmd(temp_file, "--html", html_path, theme_id)
-    try:
-        run_marp_command(cmd, temp_file, "Marp render")
-        html = Path(html_path).read_text()
-    finally:
-        Path(html_path).unlink(missing_ok=True)
+    html_file = Path(html_path)
+    html_file.unlink(missing_ok=True)
+    return html_file
+
+def render_and_cache(content: str, theme_id: str | None, html_file: Path) -> str:
+    html = html_file.read_text()
+    cache_key = generate_cache_key(content, theme_id)
     render_cache[cache_key] = html
     return html
+
+def render_to_html(content: str, theme_id: str | None = None) -> str:
+    if not validate_markdown(content):
+        raise ValueError("Invalid markdown content")
+    cached = check_cache(content, theme_id)
+    if cached:
+        return cached
+    temp_file = create_temp_file(content)
+    html_file = create_html_temp_file()
+    cmd = build_marp_cmd(temp_file, "--html", str(html_file), theme_id)
+    try:
+        run_marp_command(cmd, temp_file, "Marp render")
+        return render_and_cache(content, theme_id, html_file)
+    finally:
+        html_file.unlink(missing_ok=True)
 
 def render_export(content: str, output_path: Path, format_flag: str, format_name: str, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
