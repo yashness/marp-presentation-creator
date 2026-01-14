@@ -1,12 +1,106 @@
 {
   "description": "Forever Claude - Auto-restart configuration for continuous execution",
   "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook PreToolUse"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook PermissionRequest"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook PostToolUse"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook Notification"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook UserPromptSubmit"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook Stop"
+          },
+          {
+            "type": "command",
             "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/auto-restart-session.py"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook SubagentStop"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook PreCompact"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook SessionStart"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/yshah/workspace/projects/2026/personal/marp-presentation-creator/.claude/hooks/full-log-session.py --hook SessionEnd"
           }
         ]
       }
