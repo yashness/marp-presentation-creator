@@ -229,14 +229,16 @@ export function EditorPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col p-6 overflow-hidden relative">
+    <div className="flex-1 flex flex-col p-6 overflow-hidden relative bg-gradient-to-br from-white/50 to-primary-50/30">
       <div className="flex items-start justify-between mb-4 gap-4">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <LayoutTemplate className="w-7 h-7 text-primary-500" />
-            <h1 className="text-3xl font-bold text-primary-900">Presentation Builder</h1>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg shadow-md">
+              <LayoutTemplate className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-700 to-secondary-600 bg-clip-text text-transparent">Presentation Builder</h1>
           </div>
-          <p className="text-sm text-primary-400 flex items-center gap-2">
+          <p className="text-sm text-primary-600 flex items-center gap-2 ml-14">
             <Info className="w-4 h-4" />
             Structured slide blocks or full editor mode. Frontmatter stays in the controls.
           </p>
@@ -268,7 +270,7 @@ export function EditorPanel({
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm mb-4 space-y-3">
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-primary-200/50 p-4 shadow-lg mb-4 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-[1fr,260px,auto] gap-3 items-center">
           <Input
             type="text"
@@ -317,12 +319,12 @@ export function EditorPanel({
         </p>
       </div>
 
-      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-primary-200/50 overflow-hidden">
         {mode === 'blocks' ? (
-          <div className="h-full overflow-y-auto p-4 space-y-4 bg-slate-50">
+          <div className="h-full overflow-y-auto p-4 space-y-4 bg-gradient-to-br from-slate-50 to-primary-50/20">
             {slides.map((slide, index) => (
-              <div key={slide.id} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-100 border-b border-slate-200">
+              <div key={slide.id} className="bg-white rounded-xl border border-primary-200/50 shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-primary-200/50">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-500">Slide {index + 1}</p>
                     <p className="text-sm text-slate-700 truncate">
@@ -342,7 +344,7 @@ export function EditorPanel({
                   </div>
                 </div>
                 {openComments[slide.id] && (
-                  <div className="p-3 border-b border-slate-200 bg-secondary-50">
+                  <div className="p-3 border-b border-primary-200/50 bg-gradient-to-r from-secondary-50 to-primary-50">
                     <textarea
                       className="w-full h-24 p-3 rounded-md border border-slate-200 text-sm font-mono focus:outline-none"
                       placeholder="Add slide comment or reviewer note"

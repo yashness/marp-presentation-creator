@@ -26,29 +26,29 @@ export function PresentationSidebar({
   onNewPresentation,
 }: PresentationSidebarProps) {
   return (
-    <div className="w-80 bg-white border-r border-slate-200 shadow-sm flex flex-col">
-      <div className="p-6 border-b border-slate-200">
-        <h2 className="text-2xl font-bold text-primary-700 flex items-center gap-2 mb-4">
-          <PresentationIcon className="w-6 h-6 text-primary-500" />
+    <div className="w-80 bg-gradient-to-br from-white via-primary-50/30 to-secondary-50/20 border-r border-primary-100 shadow-lg flex flex-col backdrop-blur-sm">
+      <div className="p-6 border-b border-primary-100/50 bg-white/60 backdrop-blur-sm">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-700 to-secondary-600 bg-clip-text text-transparent flex items-center gap-2 mb-4">
+          <PresentationIcon className="w-7 h-7 text-primary-600" />
           Presentations
         </h2>
-        <Button onClick={onNewPresentation} className="w-full" variant="default">
+        <Button onClick={onNewPresentation} className="w-full shadow-md hover:shadow-lg transition-all" variant="default">
           <Plus className="w-4 h-4" />
           New Presentation
         </Button>
       </div>
 
-      <div className="p-4 border-b border-slate-200">
+      <div className="p-4 border-b border-primary-100/50">
         <Input
           type="text"
-          placeholder="Search..."
+          placeholder="Search presentations..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full"
+          className="w-full shadow-sm"
         />
       </div>
 
-      <ul className="flex-1 overflow-y-auto p-2 space-y-2">
+      <ul className="flex-1 overflow-y-auto p-3 space-y-2">
         {presentations.map(p => (
           <PresentationItem
             key={p.id}

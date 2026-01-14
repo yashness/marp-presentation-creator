@@ -148,7 +148,7 @@ function App() {
   return (
     <>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <div className="flex h-screen bg-slate-50">
+      <div className="flex h-screen bg-gradient-to-br from-primary-50/40 via-white to-secondary-50/40">
         <PresentationSidebar
           presentations={presentations}
           selectedId={editor.selectedId}
