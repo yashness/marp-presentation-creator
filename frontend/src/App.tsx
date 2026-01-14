@@ -7,11 +7,13 @@ import { ToastContainer, useToast } from './components/ui/toast'
 import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { usePresentationValidation } from './hooks/usePresentationValidation'
+import { useApiHandler } from './hooks/useApiHandler'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const { toasts, showToast, dismissToast } = useToast()
   const validation = usePresentationValidation()
+  const { handleApiCall } = useApiHandler()
 
   const editor = usePresentationEditor()
   const { presentations, loading, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
@@ -22,13 +24,12 @@ function App() {
       showToast(error, 'error')
       return
     }
-    try {
-      await create(editor.title, editor.content, editor.selectedTheme)
-      editor.clearSelection()
-      showToast('Presentation created successfully', 'success')
-    } catch (error) {
-      showToast('Failed to create presentation', 'error')
-    }
+    const result = await handleApiCall(
+      () => create(editor.title, editor.content, editor.selectedTheme),
+      'Presentation created successfully',
+      'Failed to create presentation',
+    )
+    if (result) editor.clearSelection()
   }
 
   async function handleUpdate() {
@@ -37,33 +38,31 @@ function App() {
       showToast(error, 'error')
       return
     }
-    try {
-      await update(editor.selectedId!, editor.title, editor.content, editor.selectedTheme)
-      showToast('Presentation updated successfully', 'success')
-    } catch (error) {
-      showToast('Failed to update presentation', 'error')
-    }
+    await handleApiCall(
+      () => update(editor.selectedId!, editor.title, editor.content, editor.selectedTheme),
+      'Presentation updated successfully',
+      'Failed to update presentation',
+    )
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this presentation?')) return
-    try {
-      await remove(id)
-      if (editor.selectedId === id) {
-        editor.clearSelection()
-      }
-      showToast('Presentation deleted successfully', 'success')
-    } catch (error) {
-      showToast('Failed to delete presentation', 'error')
+    const result = await handleApiCall(
+      () => remove(id),
+      'Presentation deleted successfully',
+      'Failed to delete presentation',
+    )
+    if (result && editor.selectedId === id) {
+      editor.clearSelection()
     }
   }
 
   async function handleSelect(pres: Presentation) {
-    try {
-      await editor.selectPresentation(pres)
-    } catch (error) {
-      showToast('Failed to load presentation', 'error')
-    }
+    await handleApiCall(
+      () => editor.selectPresentation(pres),
+      '',
+      'Failed to load presentation',
+    )
   }
 
   return (
