@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -41,10 +42,17 @@ def render_to_html(content: str, theme_id: str | None = None) -> str:
         logger.debug(f"Cache hit for render: {cache_key[:8]}")
         return render_cache[cache_key]
     temp_file = create_temp_file(content)
-    cmd = build_marp_cmd(temp_file, "--html", None, theme_id)
-    result = run_marp_command(cmd, temp_file, "Marp render")
-    render_cache[cache_key] = result.stdout
-    return result.stdout
+    html_fd, html_path = tempfile.mkstemp(suffix=".html", text=True)
+    os.close(html_fd)
+    Path(html_path).unlink(missing_ok=True)
+    cmd = build_marp_cmd(temp_file, "--html", html_path, theme_id)
+    try:
+        run_marp_command(cmd, temp_file, "Marp render")
+        html = Path(html_path).read_text()
+    finally:
+        Path(html_path).unlink(missing_ok=True)
+    render_cache[cache_key] = html
+    return html
 
 def render_export(content: str, output_path: Path, format_flag: str, format_name: str, theme_id: str | None = None) -> None:
     if not validate_markdown(content):

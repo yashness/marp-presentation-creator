@@ -69,13 +69,20 @@ def test_batch_export_with_invalid_id(mock_render):
     assert success_count == 1
     assert error_count == 1
 
-def test_render_cache():
+def test_render_cache(tmp_path):
     from app.services.marp_service import render_to_html
     from app.core.cache import render_cache
     render_cache.clear()
     content = get_sample_markdown()
-    with patch('app.services.marp_service.run_marp_command') as mock_run:
-        mock_run.return_value.stdout = "<html>test</html>"
+    html_content = "<html>test</html>"
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html_content)
+
+    with patch('app.services.marp_service.run_marp_command') as mock_run, \
+         patch('tempfile.mkstemp', return_value=(1, str(html_file))), \
+         patch('os.close'), \
+         patch('pathlib.Path.unlink'):
+        mock_run.return_value.stdout = html_content
         result1 = render_to_html(content, "default")
         result2 = render_to_html(content, "default")
         assert result1 == result2
@@ -89,7 +96,7 @@ def test_cache_key_generation():
     assert key1 == key2
     assert key1 != key3
 
-@patch('app.services.marp_service.render_to_pdf')
+@patch('app.services.marp_service.render_export')
 def test_batch_export_with_exception(mock_render):
     mock_render.side_effect = Exception("Marp failed")
     pres1 = create_presentation("Test Pres")

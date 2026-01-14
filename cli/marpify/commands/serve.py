@@ -16,7 +16,7 @@ def open_browser(port: int) -> None:
 def start_server(port: int) -> None:
     """Start the development server."""
     try:
-        subprocess.run(["npm", "run", "dev", "--", f"--port={port}"], cwd="../frontend")
+        subprocess.run(["bun", "run", "dev", "--", f"--port={port}"], cwd="../frontend")
     except KeyboardInterrupt:
         print_info("\nServer stopped")
 

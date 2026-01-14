@@ -1,0 +1,45 @@
+#!/bin/bash
+
+echo "=========================================="
+echo "Marp Presentation Builder - Status Check"
+echo "=========================================="
+echo ""
+
+echo "Docker Containers:"
+echo "------------------"
+docker compose ps 2>/dev/null || echo "Docker not available or containers not running"
+echo ""
+
+echo "Frontend Status:"
+echo "----------------"
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000 2>/dev/null || echo "Frontend not accessible"
+echo ""
+
+echo "Backend Status:"
+echo "---------------"
+curl -s http://localhost:8000/health 2>/dev/null | jq . || echo "Backend not accessible"
+echo ""
+
+echo "Recent Frontend Logs:"
+echo "---------------------"
+docker compose logs frontend --tail=10 2>/dev/null || echo "No logs available"
+echo ""
+
+echo "Recent Backend Logs:"
+echo "--------------------"
+docker compose logs backend --tail=10 2>/dev/null || echo "No logs available"
+echo ""
+
+echo "=========================================="
+echo "Quick Commands:"
+echo "=========================================="
+echo "Start:     docker compose up -d"
+echo "Logs:      docker compose logs -f"
+echo "Stop:      docker compose down"
+echo "Rebuild:   bash scripts/rebuild-frontend.sh"
+echo "Validate:  bash scripts/validate-all.sh"
+echo ""
+echo "Access:"
+echo "  Frontend: http://localhost:3000"
+echo "  Backend:  http://localhost:8000"
+echo "  API Docs: http://localhost:8000/docs"

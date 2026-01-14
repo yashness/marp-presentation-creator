@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
-import { Presentation, fetchPresentations, createPresentation, updatePresentation, deletePresentation, getPreview } from './api/client'
-import './App.css'
+import type { Presentation } from './api/client'
+import { fetchPresentations, createPresentation, updatePresentation, deletePresentation, getPreview } from './api/client'
+import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
+import { Select } from './components/ui/select'
+import { Plus, Search, Trash2, FileDown, Eye, Presentation as PresentationIcon, Loader2 } from 'lucide-react'
 
 function App() {
   const [presentations, setPresentations] = useState<Presentation[]>([])
@@ -108,53 +112,151 @@ function App() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
-      <div style={{ width: '250px', borderRight: '1px solid #ccc', padding: '20px', overflowY: 'auto' }}>
-        <h2>Presentations</h2>
-        <button onClick={clearSelection} style={{ marginBottom: '10px', width: '100%' }}>New Presentation</button>
-        <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', marginBottom: '5px', padding: '5px' }} />
-        <button onClick={handleSearch} style={{ width: '100%', marginBottom: '10px' }}>Search</button>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+    <div className="flex h-screen bg-gradient-to-br from-primary-50 to-secondary-50">
+      {/* Sidebar */}
+      <div className="w-80 bg-white border-r border-primary-200 shadow-lg flex flex-col">
+        <div className="p-6 border-b border-primary-200">
+          <h2 className="text-2xl font-bold text-primary-900 flex items-center gap-2 mb-4">
+            <PresentationIcon className="w-6 h-6 text-primary-600" />
+            Presentations
+          </h2>
+          <Button onClick={clearSelection} className="w-full" variant="default">
+            <Plus className="w-4 h-4" />
+            New Presentation
+          </Button>
+        </div>
+
+        <div className="p-4 border-b border-primary-200">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={handleSearch} size="icon" variant="outline">
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <ul className="flex-1 overflow-y-auto p-2 space-y-2">
           {presentations.map(p => (
-            <li key={p.id} style={{ margin: '10px 0' }}>
-              <div onClick={() => handleSelect(p)} style={{ cursor: 'pointer', padding: '5px', background: selectedId === p.id ? '#e3f2fd' : 'transparent' }}>{p.title}</div>
-              <button onClick={() => handleDelete(p.id)} style={{ fontSize: '12px', marginTop: '5px' }}>Delete</button>
+            <li key={p.id} className="group">
+              <div
+                onClick={() => handleSelect(p)}
+                className={`cursor-pointer p-3 rounded-md transition-all ${
+                  selectedId === p.id
+                    ? 'bg-primary-100 border-l-4 border-primary-600'
+                    : 'hover:bg-primary-50 border-l-4 border-transparent'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 truncate flex-1">{p.title}</span>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDelete(p.id)
+                    }}
+                    size="icon"
+                    variant="ghost"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </Button>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px' }}>
-        <h1>Marp Presentation Builder</h1>
-        <input type="text" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} style={{ padding: '10px', marginBottom: '10px', fontSize: '16px' }} />
-        <select value={selectedTheme || ''} onChange={(e) => setSelectedTheme(e.target.value || null)} style={{ padding: '10px', marginBottom: '10px' }}>
-          <option value="">Default Theme</option>
-          <option value="corporate">Corporate</option>
-          <option value="academic">Academic</option>
-        </select>
-        <div style={{ flex: 1, marginBottom: '10px', border: '1px solid #ccc' }}>
-          <Editor height="100%" defaultLanguage="markdown" value={content} onChange={(value) => setContent(value || '')} theme="vs-dark" options={{ minimap: { enabled: false }, fontSize: 14 }} />
+      {/* Main Editor */}
+      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+        <div className="mb-6">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent mb-6">
+            Marp Presentation Builder
+          </h1>
+
+          <div className="space-y-4">
+            <Input
+              type="text"
+              placeholder="Presentation Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-lg"
+            />
+
+            <Select
+              value={selectedTheme || ''}
+              onChange={(e) => setSelectedTheme(e.target.value || null)}
+            >
+              <option value="">Default Theme</option>
+              <option value="corporate">Corporate</option>
+              <option value="academic">Academic</option>
+            </Select>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+
+        <div className="flex-1 mb-4 border border-primary-300 rounded-lg overflow-hidden shadow-md">
+          <Editor
+            height="100%"
+            defaultLanguage="markdown"
+            value={content}
+            onChange={(value) => setContent(value || '')}
+            theme="vs-dark"
+            options={{ minimap: { enabled: false }, fontSize: 14 }}
+          />
+        </div>
+
+        <div className="flex gap-3">
           {selectedId ? (
-            <button onClick={handleUpdate} disabled={loading}>Update</button>
+            <Button onClick={handleUpdate} disabled={loading} className="flex-1">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Update
+            </Button>
           ) : (
-            <button onClick={handleCreate} disabled={loading}>Create</button>
+            <Button onClick={handleCreate} disabled={loading} className="flex-1">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Create
+            </Button>
           )}
           {selectedId && (
             <>
-              <button onClick={() => handleExport('pdf')}>Export PDF</button>
-              <button onClick={() => handleExport('html')}>Export HTML</button>
-              <button onClick={() => handleExport('pptx')}>Export PPTX</button>
+              <Button onClick={() => handleExport('pdf')} variant="secondary">
+                <FileDown className="w-4 h-4" />
+                PDF
+              </Button>
+              <Button onClick={() => handleExport('html')} variant="secondary">
+                <FileDown className="w-4 h-4" />
+                HTML
+              </Button>
+              <Button onClick={() => handleExport('pptx')} variant="secondary">
+                <FileDown className="w-4 h-4" />
+                PPTX
+              </Button>
             </>
           )}
         </div>
       </div>
 
+      {/* Preview Panel */}
       {preview && (
-        <div style={{ width: '50%', borderLeft: '1px solid #ccc', padding: '20px', overflowY: 'auto' }}>
-          <h2>Preview</h2>
-          <iframe srcDoc={preview} style={{ width: '100%', height: '100%', border: 'none' }} />
+        <div className="w-1/2 bg-white border-l border-primary-200 shadow-lg flex flex-col">
+          <div className="p-6 border-b border-primary-200">
+            <h2 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
+              <Eye className="w-6 h-6 text-primary-600" />
+              Preview
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <iframe
+              srcDoc={preview}
+              className="w-full h-full border-0 rounded-lg shadow-sm"
+              title="Presentation Preview"
+            />
+          </div>
         </div>
       )}
     </div>

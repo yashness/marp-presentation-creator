@@ -128,7 +128,7 @@ def test_preview_error(mock_render):
     response = client.get(f"/api/presentations/{pres['id']}/preview")
     assert response.status_code == 500
 
-@patch('app.services.marp_service.render_to_pdf')
+@patch('app.services.marp_service.render_export')
 def test_export_pdf(mock_render):
     pres = create_test_presentation()
     export_path = EXPORTS_DIR / f"{pres['id']}.pdf"
@@ -138,7 +138,7 @@ def test_export_pdf(mock_render):
     assert "application/pdf" in response.headers["content-type"]
     export_path.unlink(missing_ok=True)
 
-@patch('app.services.marp_service.render_to_html_file')
+@patch('app.services.marp_service.render_export')
 def test_export_html(mock_render):
     pres = create_test_presentation()
     export_path = EXPORTS_DIR / f"{pres['id']}.html"
@@ -148,7 +148,7 @@ def test_export_html(mock_render):
     assert "text/html" in response.headers["content-type"]
     export_path.unlink(missing_ok=True)
 
-@patch('app.services.marp_service.render_to_pptx')
+@patch('app.services.marp_service.render_export')
 def test_export_pptx(mock_render):
     pres = create_test_presentation()
     export_path = EXPORTS_DIR / f"{pres['id']}.pptx"
@@ -167,7 +167,7 @@ def test_export_nonexistent_presentation():
     response = client.post("/api/presentations/nonexistent-id/export?format=pdf")
     assert response.status_code == 404
 
-@patch('app.services.marp_service.render_to_pdf')
+@patch('app.services.marp_service.render_export')
 def test_export_error(mock_render):
     mock_render.side_effect = Exception("Export failed")
     pres = create_test_presentation()

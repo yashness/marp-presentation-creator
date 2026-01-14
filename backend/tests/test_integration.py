@@ -123,4 +123,4 @@ def test_error_recovery_workflow():
         "presentation_ids": ["test-id"],
         "format": "invalid"
     })
-    assert invalid_format_response.status_code == 400
+    assert invalid_format_response.status_code == 422

@@ -1,11 +1,18 @@
+FROM oven/bun:1.3.5 AS bun
+
 FROM python:3.13-slim
 
 RUN apt-get update && apt-get install -y \
+    chromium \
     nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @marp-team/marp-cli
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=bun /usr/local/bin/bunx /usr/local/bin/bunx
+ENV BUN_INSTALL=/usr/local/bun
+ENV PATH="${BUN_INSTALL}/bin:${PATH}"
+ENV CHROME_PATH=/usr/bin/chromium
+RUN bun add -g @marp-team/marp-cli
 
 WORKDIR /app
 

@@ -9,9 +9,14 @@ from app.models.presentation import Presentation
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
 from app.core.database import SessionLocal
 from app.core.logger import logger
+from app.core.validators import is_safe_filename
 
 def generate_id() -> str:
     return str(uuid.uuid4())
+
+def validate_presentation_id(pres_id: str) -> None:
+    if not is_safe_filename(pres_id):
+        raise ValueError("Invalid presentation ID")
 
 @contextmanager
 def get_session():
