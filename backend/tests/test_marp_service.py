@@ -103,3 +103,36 @@ def test_render_to_pptx_marp_failure(mocker):
 
     with pytest.raises(RuntimeError, match="PPTX export failed"):
         marp_service.render_to_pptx(get_valid_markdown(), Path("/tmp/test.pptx"))
+
+def test_render_to_html_success(mocker):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 0
+    mock_result.stdout = "<html>rendered content</html>"
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    html = marp_service.render_to_html(get_valid_markdown())
+    assert html == "<html>rendered content</html>"
+
+def test_render_to_pdf_success(mocker, tmp_path):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 0
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    output_path = tmp_path / "output.pdf"
+    marp_service.render_to_pdf(get_valid_markdown(), output_path)
+
+def test_render_to_html_file_success(mocker, tmp_path):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 0
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    output_path = tmp_path / "output.html"
+    marp_service.render_to_html_file(get_valid_markdown(), output_path)
+
+def test_render_to_pptx_success(mocker, tmp_path):
+    mock_result = mocker.Mock()
+    mock_result.returncode = 0
+    mocker.patch("subprocess.run", return_value=mock_result)
+
+    output_path = tmp_path / "output.pptx"
+    marp_service.render_to_pptx(get_valid_markdown(), output_path)

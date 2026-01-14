@@ -84,6 +84,9 @@ def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate
     metadata["updated_at"] = datetime.now()
     return metadata
 
+def get_updated_content(pres_id: str, new_content: str | None) -> str:
+    return new_content or load_presentation_content(pres_id)
+
 def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
     pres = get_presentation(pres_id)
     if not pres:
@@ -93,7 +96,7 @@ def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationR
     metadata = apply_updates_to_metadata(load_metadata(pres_id), data)
     save_metadata(pres_id, metadata)
     logger.info(f"Updated presentation: {pres_id}")
-    content = data.content or load_presentation_content(pres_id)
+    content = get_updated_content(pres_id, data.content)
     return PresentationResponse(**metadata, content=content)
 
 def delete_presentation(pres_id: str) -> bool:

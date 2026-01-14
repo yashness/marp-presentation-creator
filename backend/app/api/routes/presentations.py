@@ -41,18 +41,24 @@ def delete_presentation(presentation_id: str) -> dict[str, str]:
         raise HTTPException(404, "Presentation not found")
     return {"message": "Presentation deleted"}
 
-@router.get("/{presentation_id}/preview")
-def preview_presentation(presentation_id: str) -> Response:
+def get_validated_presentation(presentation_id: str) -> PresentationResponse:
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
+    return pres
 
+def render_html_response(pres: PresentationResponse) -> Response:
     try:
         html = marp_service.render_to_html(pres.content, pres.theme_id)
         return Response(content=html, media_type="text/html")
     except Exception as e:
         logger.error(f"Preview failed: {e}")
         raise HTTPException(500, f"Preview failed: {str(e)}")
+
+@router.get("/{presentation_id}/preview")
+def preview_presentation(presentation_id: str) -> Response:
+    pres = get_validated_presentation(presentation_id)
+    return render_html_response(pres)
 
 def get_export_path(pres_id: str, format: str) -> Path:
     return EXPORTS_DIR / f"{pres_id}.{format}"
