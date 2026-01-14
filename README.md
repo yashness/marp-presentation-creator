@@ -7,9 +7,12 @@ A modern, full-featured presentation builder combining Markdown simplicity (Marp
 - **WYSIWYG Editor**: Split view with Markdown editor and live preview
 - **Marp Integration**: Full support for Marp presentation syntax
 - **Export**: Export to PDF, HTML, and PPTX formats
+- **Batch Export**: Export multiple presentations at once
+- **Search & Filter**: Search presentations by title/content and filter by theme
 - **Theme System**: 3 built-in themes (default, corporate, academic) with custom theme support
 - **CLI Tools**: Command-line interface for quick operations
-- **REST API**: FastAPI backend for presentation management with 99% test coverage
+- **REST API**: FastAPI backend for presentation management with 100% test coverage
+- **Performance**: Rate limiting and intelligent caching for optimal performance
 - **Modern Frontend**: React + TypeScript + Tailwind CSS
 
 ## Technology Stack
@@ -137,6 +140,19 @@ curl -X POST http://localhost:8000/api/presentations \
 curl http://localhost:8000/api/presentations
 ```
 
+#### Search Presentations
+
+```bash
+# Search by title or content
+curl "http://localhost:8000/api/presentations?query=python"
+
+# Filter by theme
+curl "http://localhost:8000/api/presentations?theme_id=corporate"
+
+# Combine search and filter
+curl "http://localhost:8000/api/presentations?query=tutorial&theme_id=academic"
+```
+
 #### Get a Specific Presentation
 
 ```bash
@@ -160,6 +176,18 @@ curl -X POST "http://localhost:8000/api/presentations/{id}/export?format=html" -
 
 # Export to PPTX
 curl -X POST "http://localhost:8000/api/presentations/{id}/export?format=pptx" --output presentation.pptx
+```
+
+#### Batch Export Presentations
+
+```bash
+# Export multiple presentations at once
+curl -X POST http://localhost:8000/api/presentations/batch/export \
+  -H "Content-Type: application/json" \
+  -d '{
+    "presentation_ids": ["id1", "id2", "id3"],
+    "format": "pdf"
+  }'
 ```
 
 #### List Available Themes
@@ -264,9 +292,9 @@ cd backend
 
 ## Test Coverage
 
-- Backend: 56 tests, 100% coverage
-- CLI: 20 tests, comprehensive command coverage
+- Backend: 64 tests, 100% coverage
 - All tests passing with pytest
+- Full coverage includes rate limiting, caching, batch operations, and search features
 
 ## License
 
