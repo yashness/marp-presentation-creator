@@ -3,8 +3,9 @@
 from datetime import datetime
 import uuid
 from contextlib import contextmanager
+from typing import Generator
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, Query
 from app.models.presentation import Presentation
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
 from app.core.database import SessionLocal
@@ -19,7 +20,7 @@ def validate_presentation_id(pres_id: str) -> None:
         raise ValueError("Invalid presentation ID")
 
 @contextmanager
-def get_session():
+def get_session() -> Generator[Session, None, None]:
     session = SessionLocal()
     try:
         yield session
@@ -77,7 +78,7 @@ def list_presentations() -> list[PresentationResponse]:
         presentations = session.query(Presentation).all()
         return [to_response(p) for p in presentations]
 
-def build_search_filters(session: Session, query: str, theme_id: str | None):
+def build_search_filters(session: Session, query: str, theme_id: str | None) -> Query[tuple[Presentation]]:
     q = session.query(Presentation)
     if query and query.strip():
         q = q.filter(or_(Presentation.title.contains(query), Presentation.content.contains(query)))

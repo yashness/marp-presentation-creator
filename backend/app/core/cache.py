@@ -9,4 +9,4 @@ def generate_cache_key(content: str, theme_id: str | None) -> str:
     combined = f"{content}{theme_str}"
     return hashlib.md5(combined.encode()).hexdigest()
 
-render_cache = create_render_cache()
+render_cache: TTLCache[str, str] = create_render_cache()
