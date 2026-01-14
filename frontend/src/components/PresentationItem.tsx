@@ -11,7 +11,7 @@ interface PresentationItemProps {
 
 export function PresentationItem({ presentation, isSelected, onSelect, onDelete }: PresentationItemProps) {
   return (
-    <li className="group">
+    <li className="group" onDoubleClick={() => onSelect(presentation)}>
       <div
         onClick={() => onSelect(presentation)}
         className={`cursor-pointer p-3 rounded-md transition-all ${
@@ -21,7 +21,10 @@ export function PresentationItem({ presentation, isSelected, onSelect, onDelete 
         }`}
       >
         <div className="flex items-center justify-between">
-          <span className="font-medium text-gray-900 truncate flex-1">{presentation.title}</span>
+          <div className="flex-1 truncate">
+            <span className="font-medium text-gray-900 truncate">{presentation.title}</span>
+            <div className="text-xs text-gray-500">{new Date(presentation.updated_at).toLocaleString()}</div>
+          </div>
           <Button
             onClick={(e) => {
               e.stopPropagation()

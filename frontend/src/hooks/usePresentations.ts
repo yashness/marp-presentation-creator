@@ -4,9 +4,10 @@ import { fetchPresentations, createPresentation, updatePresentation, deletePrese
 import { useAsyncOperation } from './useAsyncOperation'
 
 function withReload<T extends (...args: any[]) => Promise<any>>(fn: T, reload: () => Promise<void>) {
-  return async (...args: Parameters<T>): Promise<void> => {
-    await fn(...args)
+  return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
+    const result = await fn(...args)
     await reload()
+    return result
   }
 }
 
@@ -23,11 +24,11 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
   }, [loadPresentations])
 
   const createOp = useCallback((title: string, content: string, theme_id: string | null) =>
-    withReload(async () => { await createPresentation({ title, content, theme_id }) }, loadPresentations)(),
+    withReload(async () => createPresentation({ title, content, theme_id }), loadPresentations)(),
     [loadPresentations]
   )
   const updateOp = useCallback((id: string, title: string, content: string, theme_id: string | null) =>
-    withReload(async () => { await updatePresentation(id, { title, content, theme_id }) }, loadPresentations)(),
+    withReload(async () => updatePresentation(id, { title, content, theme_id }), loadPresentations)(),
     [loadPresentations]
   )
   const removeOp = useCallback((id: string) =>
