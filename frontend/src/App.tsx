@@ -8,12 +8,14 @@ import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { usePresentationValidation } from './hooks/usePresentationValidation'
 import { useApiHandler } from './hooks/useApiHandler'
+import { useThemes } from './hooks/useThemes'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const { toasts, showToast, dismissToast } = useToast()
   const validation = usePresentationValidation()
   const { handleApiCall } = useApiHandler()
+  const { themes } = useThemes()
 
   const editor = usePresentationEditor()
   const { presentations, loading, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
@@ -85,6 +87,7 @@ function App() {
           selectedTheme={editor.selectedTheme}
           selectedId={editor.selectedId}
           loading={loading}
+          themes={themes}
           onTitleChange={editor.setTitle}
           onContentChange={editor.setContent}
           onThemeChange={editor.setSelectedTheme}

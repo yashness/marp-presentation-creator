@@ -84,13 +84,30 @@ async function handleBlobResponse(response: Response): Promise<Blob> {
   return response.blob()
 }
 
-export async function exportPresentation(id: string, title: string, format: 'pdf' | 'html' | 'pptx'): Promise<void> {
-  const response = await fetch(`${API_BASE}/presentations/${id}/export?format=${format}`, { method: 'POST' })
-  const blob = await handleBlobResponse(response)
+function downloadBlob(blob: Blob, filename: string): void {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${title}.${format}`
+  link.download = filename
   link.click()
   window.URL.revokeObjectURL(url)
+}
+
+export async function exportPresentation(id: string, title: string, format: 'pdf' | 'html' | 'pptx'): Promise<void> {
+  const response = await fetch(`${API_BASE}/presentations/${id}/export?format=${format}`, { method: 'POST' })
+  const blob = await handleBlobResponse(response)
+  downloadBlob(blob, `${title}.${format}`)
+}
+
+export interface Theme {
+  id: string
+  name: string
+  description: string
+  css_content: string
+  is_builtin: boolean
+}
+
+export async function fetchThemes(): Promise<Theme[]> {
+  const response = await fetch(`${API_BASE}/themes`)
+  return handleResponse<Theme[]>(response)
 }

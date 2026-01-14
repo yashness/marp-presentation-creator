@@ -1,4 +1,5 @@
 import Editor from '@monaco-editor/react'
+import type { Theme } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -12,6 +13,7 @@ interface EditorPanelProps {
   selectedId: string | null
   loading: boolean
   previewLoading: boolean
+  themes: Theme[]
   onTitleChange: (title: string) => void
   onContentChange: (content: string) => void
   onThemeChange: (theme: string) => void
@@ -28,6 +30,7 @@ export function EditorPanel({
   selectedId,
   loading,
   previewLoading,
+  themes,
   onTitleChange,
   onContentChange,
   onThemeChange,
@@ -53,8 +56,11 @@ export function EditorPanel({
           />
           <Select value={selectedTheme || ''} onChange={(e) => onThemeChange(e.target.value)}>
             <option value="">Default Theme</option>
-            <option value="corporate">Corporate</option>
-            <option value="academic">Academic</option>
+            {themes.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {theme.name}
+              </option>
+            ))}
           </Select>
         </div>
 

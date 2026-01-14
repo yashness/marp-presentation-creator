@@ -82,16 +82,17 @@ def search_presentations(query: str, theme_id: str | None = None) -> list[Presen
     return filtered
 
 def filter_by_query_and_theme(presentations: list[PresentationResponse], query: str, theme_id: str | None) -> list[PresentationResponse]:
-    results = []
-    for pres in presentations:
-        if matches_filters(pres, query, theme_id):
-            results.append(pres)
-    return results
+    return [pres for pres in presentations if matches_filters(pres, query, theme_id)]
+
+def query_matches_presentation(pres: PresentationResponse, query: str) -> bool:
+    query_lower = query.lower()
+    return query_lower in pres.title.lower() or query_lower in pres.content.lower()
+
+def theme_matches_presentation(pres: PresentationResponse, theme_id: str | None) -> bool:
+    return theme_id is None or pres.theme_id == theme_id
 
 def matches_filters(pres: PresentationResponse, query: str, theme_id: str | None) -> bool:
-    query_match = query.lower() in pres.title.lower() or query.lower() in pres.content.lower()
-    theme_match = theme_id is None or pres.theme_id == theme_id
-    return query_match and theme_match
+    return query_matches_presentation(pres, query) and theme_matches_presentation(pres, theme_id)
 
 def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate) -> dict[str, Any]:
     if data.title:
@@ -104,14 +105,17 @@ def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate
 def get_updated_content(pres_id: str, new_content: str | None) -> str:
     return new_content or load_presentation_content(pres_id)
 
-def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
-    pres = get_presentation(pres_id)
-    if not pres:
-        return None
+def save_updated_files(pres_id: str, data: PresentationUpdate) -> dict[str, Any]:
     if data.content:
         save_presentation_file(pres_id, data.content)
     metadata = apply_updates_to_metadata(load_metadata(pres_id), data)
     save_metadata(pres_id, metadata)
+    return metadata
+
+def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
+    if not get_presentation(pres_id):
+        return None
+    metadata = save_updated_files(pres_id, data)
     logger.info(f"Updated presentation: {pres_id}")
     content = get_updated_content(pres_id, data.content)
     return PresentationResponse(**metadata, content=content)

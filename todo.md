@@ -6,6 +6,33 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 9)
+- [x] Improved frontend error handling and logging:
+  - Added console error logging in useApiHandler hook for better debugging.
+  - Added conditional check to prevent empty success toasts from displaying.
+  - Improved developer experience with actionable error messages.
+- [x] Refactored API client for better code organization:
+  - Extracted `downloadBlob()` helper function from exportPresentation.
+  - Reduced exportPresentation from 9 lines to 4 lines (56% reduction).
+  - Better separation of concerns following ARCHITECTURE.md 10-line guideline.
+- [x] Refactored backend service functions:
+  - Simplified `filter_by_query_and_theme` using list comprehension (reduced from 6 to 2 lines).
+  - Split `matches_filters` into `query_matches_presentation` and `theme_matches_presentation`.
+  - Extracted `save_updated_files` helper from `update_presentation`.
+  - Reduced `update_presentation` from 11 lines to 7 lines following 10-line guideline.
+  - All functions now better aligned with ARCHITECTURE.md code quality standards.
+- [x] Implemented dynamic theme loading from API:
+  - Added `fetchThemes()` function to API client with proper type definitions.
+  - Created `useThemes` hook for managing theme state with loading indicator.
+  - Updated EditorPanel to dynamically render themes from API instead of hardcoded values.
+  - Themes are now loaded from backend on app startup for better maintainability.
+  - Eliminates need to update frontend code when themes are added/removed on backend.
+- [x] Validated all changes:
+  - Frontend builds successfully with no TypeScript errors.
+  - Backend tests: 81/86 passing (5 failures are pre-existing Marp CLI environment issues).
+  - Python syntax validated successfully.
+  - All refactorings maintain existing functionality.
+
 ## Completed (2026-01-14 - Session 8)
 - [x] Refactored API client for better code organization:
   - Extracted `checkResponse()` helper function to eliminate duplicate error handling logic.

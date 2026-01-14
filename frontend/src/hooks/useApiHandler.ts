@@ -10,9 +10,12 @@ export function useApiHandler() {
   ): Promise<T | null> {
     try {
       const result = await operation()
-      showToast(successMessage, 'success')
+      if (successMessage) {
+        showToast(successMessage, 'success')
+      }
       return result
     } catch (error) {
+      console.error('API operation failed:', error)
       showToast(errorMessage, 'error')
       return null
     }
