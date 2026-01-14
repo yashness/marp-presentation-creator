@@ -40,19 +40,26 @@ def to_response(pres: Presentation) -> PresentationResponse:
         updated_at=pres.updated_at
     )
 
-def create_db_presentation(session: Session, data: PresentationCreate) -> Presentation:
-    pres = Presentation(
+def build_presentation(data: PresentationCreate) -> Presentation:
+    now = datetime.now()
+    return Presentation(
         id=generate_id(),
         title=data.title,
         content=data.content,
         theme_id=data.theme_id,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        created_at=now,
+        updated_at=now
     )
+
+def persist_presentation(session: Session, pres: Presentation) -> Presentation:
     session.add(pres)
     session.flush()
     session.refresh(pres)
     return pres
+
+def create_db_presentation(session: Session, data: PresentationCreate) -> Presentation:
+    pres = build_presentation(data)
+    return persist_presentation(session, pres)
 
 def create_presentation(data: PresentationCreate) -> PresentationResponse:
     with get_session() as session:

@@ -54,12 +54,7 @@ def render_and_cache(content: str, theme_id: str | None, html_file: Path) -> str
     render_cache[cache_key] = html
     return html
 
-def render_to_html(content: str, theme_id: str | None = None) -> str:
-    if not validate_markdown(content):
-        raise ValueError("Invalid markdown content")
-    cached = check_cache(content, theme_id)
-    if cached:
-        return cached
+def execute_html_render(content: str, theme_id: str | None) -> str:
     temp_file = create_temp_file(content)
     html_file = create_html_temp_file()
     cmd = build_marp_cmd(temp_file, "--html", str(html_file), theme_id)
@@ -68,6 +63,14 @@ def render_to_html(content: str, theme_id: str | None = None) -> str:
         return render_and_cache(content, theme_id, html_file)
     finally:
         html_file.unlink(missing_ok=True)
+
+def render_to_html(content: str, theme_id: str | None = None) -> str:
+    if not validate_markdown(content):
+        raise ValueError("Invalid markdown content")
+    cached = check_cache(content, theme_id)
+    if cached:
+        return cached
+    return execute_html_render(content, theme_id)
 
 def render_export(content: str, output_path: Path, format_flag: str, format_name: str, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
