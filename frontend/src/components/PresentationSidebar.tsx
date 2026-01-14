@@ -1,4 +1,4 @@
-import { Presentation } from '../api/client'
+import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Plus, Search, Trash2, Presentation as PresentationIcon } from 'lucide-react'

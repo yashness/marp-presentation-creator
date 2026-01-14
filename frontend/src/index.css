@@ -8,11 +8,12 @@
   }
 
   * {
-    @apply border-gray-200;
+    border-color: #e5e7eb;
   }
 
   body {
-    @apply bg-gradient-to-br from-primary-50 to-secondary-50 text-gray-900;
+    background: linear-gradient(to bottom right, var(--color-primary-50), var(--color-secondary-50));
+    color: #111827;
   }
 }
 

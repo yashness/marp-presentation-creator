@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Presentation } from '../api/client'
-import { getPreview } from '../api/client'
+import { getPreview, exportPresentation as apiExportPresentation } from '../api/client'
 
 export function usePresentationEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -44,18 +44,7 @@ export function usePresentationEditor() {
 
   async function exportPresentation(format: 'pdf' | 'html' | 'pptx') {
     if (!selectedId) return
-    try {
-      const response = await fetch(`http://localhost:8000/api/presentations/${selectedId}/export?format=${format}`, { method: 'POST' })
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${title}.${format}`
-      link.click()
-    } catch (error) {
-      console.error('Failed to export:', error)
-      throw error
-    }
+    await apiExportPresentation(selectedId, title, format)
   }
 
   return {
