@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
 import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
+import { TTSButton } from './TTSButton'
 import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
@@ -344,12 +345,18 @@ export function EditorPanel({
                   </div>
                 </div>
                 {openComments[slide.id] && (
-                  <div className="p-3 border-b border-primary-200/50 bg-gradient-to-r from-secondary-50 to-primary-50">
+                  <div className="p-3 border-b border-primary-200/50 bg-gradient-to-r from-secondary-50 to-primary-50 space-y-3">
                     <textarea
-                      className="w-full h-24 p-3 rounded-md border border-slate-200 text-sm font-mono focus:outline-none"
+                      className="w-full h-24 p-3 rounded-md border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Add slide comment or reviewer note"
                       value={slide.comment || ''}
                       onChange={(e) => handleCommentChange(index, e.target.value)}
+                    />
+                    <TTSButton
+                      presentationId={selectedId}
+                      slideIndex={index}
+                      commentText={slide.comment || ''}
+                      onAudioGenerated={(url) => console.log('Audio generated:', url)}
                     />
                   </div>
                 )}

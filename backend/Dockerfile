@@ -5,6 +5,8 @@ FROM python:3.13-slim
 RUN apt-get update && apt-get install -y \
     chromium \
     nodejs \
+    espeak-ng \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
