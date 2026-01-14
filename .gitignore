@@ -59,3 +59,14 @@ cli/data/
 *.db
 *.sqlite
 *.sqlite3
+
+# Screenshots and validation artifacts
+screenshots/
+backend/screenshots/
+
+# Bun lock file (using npm/pnpm instead)
+bun.lock
+frontend/bun.lock
+
+# Claude hooks
+.claude/hooks/
