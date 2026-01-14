@@ -75,20 +75,25 @@ def export_to_format(pres: PresentationResponse, format: str) -> Path:
         marp_service.render_to_pptx(pres.content, output_path, pres.theme_id)
     return output_path
 
-@router.post("/{presentation_id}/export")
-def export_presentation(presentation_id: str, format: str = "pdf") -> FileResponse:
+def validate_format_and_presentation(format: str, presentation_id: str) -> PresentationResponse:
     if not validate_export_format(format):
         raise HTTPException(400, f"Invalid format. Must be one of: pdf, html, pptx")
-
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
+    return pres
 
+def create_file_response(output_path: Path, pres_title: str, format: str) -> FileResponse:
+    safe_title = sanitize_filename(pres_title)
+    filename = f"{safe_title}.{format}"
+    return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
+
+@router.post("/{presentation_id}/export")
+def export_presentation(presentation_id: str, format: str = "pdf") -> FileResponse:
+    pres = validate_format_and_presentation(format, presentation_id)
     try:
         output_path = export_to_format(pres, format)
-        safe_title = sanitize_filename(pres.title)
-        filename = f"{safe_title}.{format}"
-        return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
+        return create_file_response(output_path, pres.title, format)
     except Exception as e:
         logger.error(f"Export failed: {e}")
         raise HTTPException(500, f"Export failed: {str(e)}")

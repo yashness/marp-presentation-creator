@@ -20,6 +20,21 @@ def get_output_path(input_file: str, format: str, output: str | None) -> str:
     return str(Path(input_file).with_suffix(f".{format}"))
 
 
+def prepare_export(file: str, format: str) -> tuple[str, str]:
+    """Prepare content and title for export."""
+    validate_format(format)
+    content = read_markdown_file(file)
+    title = extract_title(content)
+    return title, content
+
+def execute_export(title: str, content: str, format: str, file: str, output: str | None) -> None:
+    """Execute the export operation."""
+    presentation = create_presentation(title, content)
+    exported_data = export_presentation(presentation["id"], format)
+    output_path = get_output_path(file, format, output)
+    write_file(output_path, exported_data)
+    print_success(f"Exported to {output_path}")
+
 def export_command(
     file: str = typer.Argument(..., help="Presentation markdown file"),
     format: str = typer.Option("pdf", "--format", "-f", help=f"Format: {', '.join(EXPORT_FORMATS)}"),
@@ -27,14 +42,8 @@ def export_command(
 ) -> None:
     """Export presentation to PDF, HTML, or PPTX."""
     try:
-        validate_format(format)
-        content = read_markdown_file(file)
-        title = extract_title(content)
-        presentation = create_presentation(title, content)
-        exported_data = export_presentation(presentation["id"], format)
-        output_path = get_output_path(file, format, output)
-        write_file(output_path, exported_data)
-        print_success(f"Exported to {output_path}")
+        title, content = prepare_export(file, format)
+        execute_export(title, content, format, file, output)
     except Exception as e:
         print_error(str(e))
         raise typer.Exit(1)

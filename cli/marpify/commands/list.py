@@ -20,19 +20,22 @@ def list_command() -> None:
         raise typer.Exit(1)
 
 
+def create_presentations_table() -> object:
+    """Create table structure for presentations."""
+    return create_table("Presentations", [
+        ("ID", "cyan"), ("Title", "green"), ("Created", "blue")
+    ])
+
+def add_presentation_rows(table: object, presentations: list) -> None:
+    """Add presentation data to table."""
+    for p in presentations:
+        table.add_row(p["id"], p["title"], format_date(p.get("created_at", "")))
+
 def display_presentations(presentations: list) -> None:
     """Display presentations in a table."""
     if not presentations:
         console.print("[yellow]No presentations found[/yellow]")
         return
-    
-    table = create_table("Presentations", [
-        ("ID", "cyan"),
-        ("Title", "green"),
-        ("Created", "blue")
-    ])
-    
-    for p in presentations:
-        table.add_row(p["id"], p["title"], format_date(p.get("created_at", "")))
-    
+    table = create_presentations_table()
+    add_presentation_rows(table, presentations)
     console.print(table)
