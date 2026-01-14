@@ -6,6 +6,20 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 6)
+- [x] Removed dead helper functions from presentations route:
+  - Eliminated 6 unused helper functions (get_validated_presentation, render_html_response, get_export_path, get_media_type, validate_format_and_presentation, create_file_response).
+  - Inlined logic directly into route handlers for better code clarity.
+  - Reduced file size from 133 to 121 lines (9% reduction).
+- [x] Refactored export_presentation to follow 10-line guideline:
+  - Split into smaller focused functions (validate_and_get_presentation, create_export_response).
+  - Main export_presentation route handler reduced from 16 to 7 lines.
+  - Improved code organization following ARCHITECTURE.md guidelines.
+- [x] Validated all changes:
+  - Python syntax validated successfully.
+  - All modified files maintain type safety.
+  - Backend code follows project architecture principles.
+
 ## Completed (2026-01-14 - Session 5)
 - [x] Code quality improvements following ARCHITECTURE.md guidelines:
   - Refactored API client to consistently use handleResponse utilities (handleTextResponse, handleVoidResponse, handleBlobResponse).

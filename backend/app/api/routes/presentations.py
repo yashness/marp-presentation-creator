@@ -72,13 +72,11 @@ def delete_presentation(presentation_id: str) -> dict[str, str]:
         raise HTTPException(404, "Presentation not found")
     return {"message": "Presentation deleted"}
 
-def get_validated_presentation(presentation_id: str) -> PresentationResponse:
+@router.get("/{presentation_id}/preview")
+def preview_presentation(presentation_id: str) -> Response:
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
-    return pres
-
-def render_html_response(pres: PresentationResponse) -> Response:
     try:
         html = marp_service.render_to_html(pres.content, pres.theme_id)
         return Response(content=html, media_type="text/html")
@@ -86,47 +84,37 @@ def render_html_response(pres: PresentationResponse) -> Response:
         logger.error(f"Preview failed: {e}")
         raise HTTPException(500, f"Preview failed: {str(e)}")
 
-@router.get("/{presentation_id}/preview")
-def preview_presentation(presentation_id: str) -> Response:
-    pres = get_validated_presentation(presentation_id)
-    return render_html_response(pres)
-
-def get_export_path(pres_id: str, format: str) -> Path:
-    return EXPORTS_DIR / f"{pres_id}.{format}"
-
-def get_media_type(format: str) -> str:
-    format_info = get_export_format(format)
-    return format_info.media_type if format_info else "application/octet-stream"
-
 def export_to_format(pres: PresentationResponse, format: str) -> Path:
     format_info = get_export_format(format)
     if not format_info:
         raise ValueError(f"Unsupported format: {format}")
-    output_path = get_export_path(pres.id, format)
+    output_path = EXPORTS_DIR / f"{pres.id}.{format}"
     marp_service.render_export(pres.content, output_path, format_info.marp_flag, format_info.display_name, pres.theme_id)
     return output_path
 
-def validate_format_and_presentation(format: str, presentation_id: str) -> PresentationResponse:
-    valid_formats = ", ".join(get_valid_formats())
+def validate_and_get_presentation(format: str, presentation_id: str) -> PresentationResponse:
     if not validate_export_format(format):
+        valid_formats = ", ".join(get_valid_formats())
         raise HTTPException(400, f"Invalid format. Must be one of: {valid_formats}")
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
     return pres
 
-def create_file_response(output_path: Path, pres_title: str, format: str) -> FileResponse:
-    safe_title = sanitize_filename(pres_title)
+def create_export_response(output_path: Path, title: str, format: str) -> FileResponse:
+    safe_title = sanitize_filename(title)
     filename = f"{safe_title}.{format}"
-    return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
+    format_info = get_export_format(format)
+    media_type = format_info.media_type if format_info else "application/octet-stream"
+    return FileResponse(output_path, media_type=media_type, filename=filename)
 
 @router.post("/{presentation_id}/export")
 @limiter.limit("5/minute")
 def export_presentation(request: Request, presentation_id: str, format: str = "pdf") -> FileResponse:
-    pres = validate_format_and_presentation(format, presentation_id)
+    pres = validate_and_get_presentation(format, presentation_id)
     try:
         output_path = export_to_format(pres, format)
-        return create_file_response(output_path, pres.title, format)
+        return create_export_response(output_path, pres.title, format)
     except Exception as e:
         logger.error(f"Export failed: {e}")
         raise HTTPException(500, f"Export failed: {str(e)}")
