@@ -20,7 +20,7 @@ def create_temp_file(content: str) -> Path:
     return temp_file
 
 def build_marp_cmd(temp_file: Path, format_flag: str, output: str | None, theme_id: str | None) -> list[str]:
-    cmd = [get_marp_command(), str(temp_file), format_flag]
+    cmd = [get_marp_command(), str(temp_file), format_flag, "--allow-local-files"]
     if output:
         cmd.extend(["-o", output])
     if theme_id:
@@ -49,8 +49,21 @@ def create_html_temp_file() -> Path:
     html_file.unlink(missing_ok=True)
     return html_file
 
+def inject_mermaid_support(html: str) -> str:
+    """Inject Mermaid.js support into HTML."""
+    mermaid_script = """
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+"""
+    if "</head>" in html:
+        return html.replace("</head>", f"{mermaid_script}</head>")
+    return mermaid_script + html
+
 def render_and_cache(content: str, theme_id: str | None, html_file: Path) -> str:
     html = html_file.read_text()
+    html = inject_mermaid_support(html)
     cache_key = generate_cache_key(content, theme_id)
     render_cache[cache_key] = html
     return html

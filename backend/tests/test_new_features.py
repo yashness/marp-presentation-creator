@@ -39,7 +39,7 @@ def test_filter_presentations_by_theme():
     response = client.get("/api/presentations?theme_id=corporate")
     assert response.status_code == 200
 
-@patch('app.services.marp_service.render_to_pdf')
+@patch('app.services.marp_service.render_export')
 def test_batch_export_success(mock_render):
     pres1 = create_presentation("Pres 1")
     pres2 = create_presentation("Pres 2")
@@ -53,7 +53,7 @@ def test_batch_export_success(mock_render):
     assert len(results) == 2
     assert all(r["status"] == "success" for r in results)
 
-@patch('app.services.marp_service.render_to_pdf')
+@patch('app.services.marp_service.render_export')
 def test_batch_export_with_invalid_id(mock_render):
     pres1 = create_presentation("Valid Pres")
     request = {

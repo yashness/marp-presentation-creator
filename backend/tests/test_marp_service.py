@@ -122,7 +122,8 @@ def test_render_to_html_success(mocker, tmp_path):
     mocker.patch("pathlib.Path.unlink")
 
     html = marp_service.render_to_html(get_valid_markdown())
-    assert html == html_content
+    assert "<html>rendered content</html>" in html
+    assert "mermaid" in html
 
 def test_render_to_pdf_success(mocker, tmp_path):
     mock_result = mocker.Mock()

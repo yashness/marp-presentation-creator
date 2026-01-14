@@ -8,7 +8,7 @@ def test_list_themes():
     assert response.status_code == 200
     themes = response.json()
     assert isinstance(themes, list)
-    assert len(themes) == 3
+    assert len(themes) >= 3  # At least 3 built-in themes
 
 def test_theme_names():
     response = client.get("/api/themes")
