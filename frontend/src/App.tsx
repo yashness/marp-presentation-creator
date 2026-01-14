@@ -9,7 +9,7 @@ import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { useApiHandler } from './hooks/useApiHandler'
 import { useThemes } from './hooks/useThemes'
-import { createSlug } from './lib/utils'
+import { createSlug, getMostRecentPresentation, extractIdFromSlug } from './lib/utils'
 import { AUTOSAVE_DEBOUNCE_MS } from './lib/constants'
 
 function App() {
@@ -54,6 +54,34 @@ function App() {
   }, [handleApiCall, editor.selectPresentation])
 
   const canAutosave = useMemo(() => editor.content.trim().length > 0, [editor.content])
+
+  const trySelectFromSlug = useCallback((presentations: Presentation[]): Presentation | null => {
+    if (!slugPendingRef.current) {
+      const match = window.location.pathname.match(/\/slides\/([^/]+)$/)
+      if (match) slugPendingRef.current = match[1]
+    }
+    if (!slugPendingRef.current) return null
+
+    const maybeId = extractIdFromSlug(slugPendingRef.current)
+    const candidate = presentations.find(p => p.id === maybeId)
+    if (candidate) {
+      slugPendingRef.current = null
+    }
+    return candidate || null
+  }, [])
+
+  const autoSelectPresentation = useCallback(() => {
+    const fromSlug = trySelectFromSlug(presentations)
+    if (fromSlug) {
+      handleSelect(fromSlug)
+      return
+    }
+    const recent = getMostRecentPresentation(presentations)
+    if (recent) {
+      handleSelect(recent)
+    }
+    autoSelectRef.current = false
+  }, [presentations, trySelectFromSlug, handleSelect])
 
   const createNewPresentation = useCallback(async (title: string, content: string, themeId: string | null) => {
     const created = await handleApiCall(
@@ -114,29 +142,9 @@ function App() {
 
   // On initial load: if URL has /slides/<slug-uuid> try to select that; else pick most recent.
   useEffect(() => {
-    if (!autoSelectRef.current) return
-    if (editor.selectedId || presentations.length === 0) return
-    if (!slugPendingRef.current) {
-      const match = window.location.pathname.match(/\/slides\/([^/]+)$/)
-      if (match) slugPendingRef.current = match[1]
-    }
-    const slugParam = slugPendingRef.current
-    if (slugParam) {
-      const maybeId = slugParam.split('-').slice(-1)[0]
-      const candidate = presentations.find(p => p.id === maybeId)
-      if (candidate) {
-        handleSelect(candidate)
-        slugPendingRef.current = null
-        return
-      }
-    }
-    // fallback to most recent
-    const recent = [...presentations].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
-    if (recent) {
-      handleSelect(recent)
-    }
-    autoSelectRef.current = false
-  }, [presentations, editor.selectedId, handleSelect])
+    if (!autoSelectRef.current || editor.selectedId || presentations.length === 0) return
+    autoSelectPresentation()
+  }, [presentations, editor.selectedId, autoSelectPresentation])
 
   return (
     <>

@@ -1,63 +1,22 @@
 import Editor from '@monaco-editor/react'
 import type { Theme } from '../api/client'
-import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
-import { Eye, Loader2 } from 'lucide-react'
+import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
+import { Info } from 'lucide-react'
 
 interface EditorPanelProps {
   title: string
   content: string
   selectedTheme: string | null
   selectedId: string | null
-  loading: boolean
-  previewLoading: boolean
+  autosaveStatus: 'idle' | 'saving' | 'saved' | 'error'
   themes: Theme[]
   onTitleChange: (title: string) => void
   onContentChange: (content: string) => void
   onThemeChange: (theme: string) => void
-  onCreate: () => void
-  onUpdate: () => void
   onExport: (format: 'pdf' | 'html' | 'pptx') => void
-  onPreview: () => void
-}
-
-interface SaveButtonProps {
-  selectedId: string | null
-  loading: boolean
-  onCreate: () => void
-  onUpdate: () => void
-}
-
-function SaveButton({ selectedId, loading, onCreate, onUpdate }: SaveButtonProps) {
-  if (selectedId) {
-    return (
-      <Button onClick={onUpdate} disabled={loading}>
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update'}
-      </Button>
-    )
-  }
-  return (
-    <Button onClick={onCreate} disabled={loading}>
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-    </Button>
-  )
-}
-
-interface PreviewButtonProps {
-  selectedId: string | null
-  previewLoading: boolean
-  onPreview: () => void
-}
-
-function PreviewButton({ selectedId, previewLoading, onPreview }: PreviewButtonProps) {
-  return (
-    <Button onClick={onPreview} variant="outline" disabled={!selectedId || previewLoading}>
-      {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-      Preview
-    </Button>
-  )
 }
 
 interface ExportButtonGroupProps {
@@ -80,31 +39,36 @@ export function EditorPanel({
   content,
   selectedTheme,
   selectedId,
-  loading,
-  previewLoading,
+  autosaveStatus,
   themes,
   onTitleChange,
   onContentChange,
   onThemeChange,
-  onCreate,
-  onUpdate,
   onExport,
-  onPreview,
 }: EditorPanelProps) {
   return (
     <div className="flex-1 flex flex-col p-6 overflow-hidden">
-      <div className="mb-6">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent mb-6">
-          Marp Presentation Builder
-        </h1>
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-4xl font-bold text-primary-800">
+            Marp Presentation Builder
+          </h1>
+          <div className="h-6 flex items-center">
+            <AutosaveStatusIndicator status={autosaveStatus} />
+          </div>
+        </div>
+        <p className="text-sm text-primary-400 mb-4 flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          Autosaves and refreshes the preview as you type. Start typing to create a draft automatically.
+        </p>
 
-        <div className="flex gap-4 mb-4">
+        <div className="flex gap-4 mb-3">
           <Input
             type="text"
             placeholder="Presentation Title"
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            className="flex-1"
+            className="flex-1 min-w-[240px]"
           />
           <Select value={selectedTheme || ''} onChange={(e) => onThemeChange(e.target.value)}>
             <option value="">Default Theme</option>
@@ -117,13 +81,11 @@ export function EditorPanel({
         </div>
 
         <div className="flex gap-2">
-          <SaveButton selectedId={selectedId} loading={loading} onCreate={onCreate} onUpdate={onUpdate} />
-          <PreviewButton selectedId={selectedId} previewLoading={previewLoading} onPreview={onPreview} />
           <ExportButtonGroup selectedId={selectedId} onExport={onExport} />
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-lg shadow-lg border border-primary-200 overflow-hidden">
+      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <Editor
           height="100%"
           defaultLanguage="markdown"

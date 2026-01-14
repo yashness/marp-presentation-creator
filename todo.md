@@ -6,6 +6,23 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 16)
+- [x] Frontend code quality improvements and refactoring:
+  - Extracted `getMostRecentPresentation()` helper function in lib/utils.ts to consolidate presentation sorting logic.
+  - Extracted `extractIdFromSlug()` helper function in lib/utils.ts to simplify slug parsing.
+  - Refactored 25-line auto-select useEffect in App.tsx into two focused helper functions: `trySelectFromSlug()` and `autoSelectPresentation()`.
+  - Reduced auto-select useEffect from 25 lines to 3 lines (88% reduction).
+  - Created lib/markdown.ts file for markdown frontmatter utilities.
+  - Extracted `setFrontmatterValue()` function from usePresentationEditor.ts (18 lines) into reusable utility module.
+  - Created AutosaveStatusIndicator component to replace inline renderStatus function in EditorPanel.
+  - Reduced EditorPanel complexity by extracting status rendering logic into dedicated component.
+  - Improved code organization and maintainability following ARCHITECTURE.md 10-line guideline.
+- [x] Validated all changes:
+  - TypeScript code structure verified for correctness.
+  - All imports properly configured across App.tsx, utils.ts, markdown.ts, usePresentationEditor.ts, EditorPanel.tsx, and AutosaveStatusIndicator.tsx.
+  - All refactorings maintain existing functionality while improving code quality.
+  - Backend code reviewed - all functions comply with 10-line guideline.
+
 ## Completed (2026-01-14 - Session 15)
 - [x] Code quality improvements and refactoring:
   - Extracted `get_presentation_by_id()` helper function in presentation_service.py to eliminate duplicate database query pattern (3 occurrences reduced to reusable function).
