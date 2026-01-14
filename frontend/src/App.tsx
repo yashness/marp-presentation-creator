@@ -14,7 +14,7 @@ function App() {
   const validation = usePresentationValidation()
 
   const editor = usePresentationEditor()
-  const { presentations, loading, loadPresentations, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
+  const { presentations, loading, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
 
   async function handleCreate() {
     const error = validation.validateCreate(editor.title, editor.content)

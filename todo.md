@@ -6,6 +6,24 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 7)
+- [x] Fixed PresentationSidebar component TypeScript issues:
+  - Removed unused onSearch prop from interface and component destructuring.
+  - Removed redundant search button from UI (search triggers automatically on query change).
+  - Removed unused Search icon import from lucide-react.
+  - Simplified search input layout by removing button and using full width.
+- [x] Fixed App.tsx TypeScript warnings:
+  - Removed unused loadPresentations variable from usePresentations destructuring.
+  - Cleaned up unused imports to pass TypeScript strict checks.
+- [x] Enhanced PreviewPanel loading state:
+  - Added proper usage of previewLoading prop in conditional rendering.
+  - Shows spinner when preview is loading instead of blank or stale content.
+  - Improved user feedback during async preview operations.
+- [x] Validated all changes:
+  - Frontend builds successfully with no TypeScript errors.
+  - All component props properly typed and validated.
+  - 81/86 backend tests passing (5 failures are pre-existing Marp CLI environment issues).
+
 ## Completed (2026-01-14 - Session 6)
 - [x] Removed dead helper functions from presentations route:
   - Eliminated 6 unused helper functions (get_validated_presentation, render_html_response, get_export_path, get_media_type, validate_format_and_presentation, create_file_response).

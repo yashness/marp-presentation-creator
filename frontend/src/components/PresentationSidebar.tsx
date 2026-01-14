@@ -1,14 +1,13 @@
 import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Plus, Search, Trash2, Presentation as PresentationIcon } from 'lucide-react'
+import { Plus, Trash2, Presentation as PresentationIcon } from 'lucide-react'
 
 interface PresentationSidebarProps {
   presentations: Presentation[]
   selectedId: string | null
   searchQuery: string
   onSearchChange: (query: string) => void
-  onSearch: () => void
   onSelect: (pres: Presentation) => void
   onDelete: (id: string) => void
   onNewPresentation: () => void
@@ -19,7 +18,6 @@ export function PresentationSidebar({
   selectedId,
   searchQuery,
   onSearchChange,
-  onSearch,
   onSelect,
   onDelete,
   onNewPresentation,
@@ -38,18 +36,13 @@ export function PresentationSidebar({
       </div>
 
       <div className="p-4 border-b border-primary-200">
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="flex-1"
-          />
-          <Button onClick={onSearch} size="icon" variant="outline">
-            <Search className="w-4 h-4" />
-          </Button>
-        </div>
+        <Input
+          type="text"
+          placeholder="Search..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full"
+        />
       </div>
 
       <ul className="flex-1 overflow-y-auto p-2 space-y-2">
