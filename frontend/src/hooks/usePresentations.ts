@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Presentation } from '../api/client'
 import { fetchPresentations, createPresentation, updatePresentation, deletePresentation } from '../api/client'
 
@@ -6,11 +6,7 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
   const [presentations, setPresentations] = useState<Presentation[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    loadPresentations()
-  }, [])
-
-  async function loadPresentations() {
+  const loadPresentations = useCallback(async () => {
     try {
       const data = await fetchPresentations(searchQuery, selectedTheme)
       setPresentations(data)
@@ -18,9 +14,13 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
       console.error('Failed to load presentations:', error)
       throw error
     }
-  }
+  }, [searchQuery, selectedTheme])
 
-  async function create(title: string, content: string, theme_id: string | null) {
+  useEffect(() => {
+    loadPresentations()
+  }, [loadPresentations])
+
+  const create = useCallback(async (title: string, content: string, theme_id: string | null) => {
     setLoading(true)
     try {
       await createPresentation({ title, content, theme_id })
@@ -31,9 +31,9 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
     } finally {
       setLoading(false)
     }
-  }
+  }, [loadPresentations])
 
-  async function update(id: string, title: string, content: string, theme_id: string | null) {
+  const update = useCallback(async (id: string, title: string, content: string, theme_id: string | null) => {
     setLoading(true)
     try {
       await updatePresentation(id, { title, content, theme_id })
@@ -44,9 +44,9 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
     } finally {
       setLoading(false)
     }
-  }
+  }, [loadPresentations])
 
-  async function remove(id: string) {
+  const remove = useCallback(async (id: string) => {
     try {
       await deletePresentation(id)
       await loadPresentations()
@@ -54,7 +54,7 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
       console.error('Failed to delete presentation:', error)
       throw error
     }
-  }
+  }, [loadPresentations])
 
   return {
     presentations,
