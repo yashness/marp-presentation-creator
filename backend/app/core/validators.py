@@ -1,5 +1,7 @@
 """Input validation utilities."""
 
+from app.core.constants import get_valid_formats
+
 def is_safe_filename(filename: str) -> bool:
     """Check if filename is safe (no path traversal)."""
     dangerous = ["/", "\\", "..", "\0"]
@@ -7,8 +9,7 @@ def is_safe_filename(filename: str) -> bool:
 
 def validate_export_format(format: str) -> bool:
     """Validate export format is allowed."""
-    valid = ["pdf", "html", "pptx"]
-    return format in valid
+    return format in get_valid_formats()
 
 def sanitize_filename(filename: str) -> str:
     """Remove unsafe characters from filename."""

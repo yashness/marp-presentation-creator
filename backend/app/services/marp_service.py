@@ -46,26 +46,19 @@ def render_to_html(content: str, theme_id: str | None = None) -> str:
     render_cache[cache_key] = result.stdout
     return result.stdout
 
-def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None) -> None:
+def render_export(content: str, output_path: Path, format_flag: str, format_name: str, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
     temp_file = create_temp_file(content)
-    cmd = build_marp_cmd(temp_file, "--pdf", str(output_path), theme_id)
-    run_marp_command(cmd, temp_file, "PDF export")
-    logger.info(f"PDF exported: {output_path}")
+    cmd = build_marp_cmd(temp_file, format_flag, str(output_path), theme_id)
+    run_marp_command(cmd, temp_file, f"{format_name} export")
+    logger.info(f"{format_name} exported: {output_path}")
+
+def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None) -> None:
+    render_export(content, output_path, "--pdf", "PDF", theme_id)
 
 def render_to_html_file(content: str, output_path: Path, theme_id: str | None = None) -> None:
-    if not validate_markdown(content):
-        raise ValueError("Invalid markdown content")
-    temp_file = create_temp_file(content)
-    cmd = build_marp_cmd(temp_file, "--html", str(output_path), theme_id)
-    run_marp_command(cmd, temp_file, "HTML export")
-    logger.info(f"HTML exported: {output_path}")
+    render_export(content, output_path, "--html", "HTML", theme_id)
 
 def render_to_pptx(content: str, output_path: Path, theme_id: str | None = None) -> None:
-    if not validate_markdown(content):
-        raise ValueError("Invalid markdown content")
-    temp_file = create_temp_file(content)
-    cmd = build_marp_cmd(temp_file, "--pptx", str(output_path), theme_id)
-    run_marp_command(cmd, temp_file, "PPTX export")
-    logger.info(f"PPTX exported: {output_path}")
+    render_export(content, output_path, "--pptx", "PPTX", theme_id)

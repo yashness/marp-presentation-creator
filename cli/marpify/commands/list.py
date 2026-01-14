@@ -1,6 +1,7 @@
 """List command - List all presentations."""
 
 import typer
+from rich.table import Table
 from marpify.api_client import list_presentations
 from marpify.utils import create_table, console, print_error
 
@@ -20,18 +21,18 @@ def list_command() -> None:
         raise typer.Exit(1)
 
 
-def create_presentations_table() -> object:
+def create_presentations_table() -> Table:
     """Create table structure for presentations."""
     return create_table("Presentations", [
         ("ID", "cyan"), ("Title", "green"), ("Created", "blue")
     ])
 
-def add_presentation_rows(table: object, presentations: list) -> None:
+def add_presentation_rows(table: Table, presentations: list[dict]) -> None:
     """Add presentation data to table."""
     for p in presentations:
         table.add_row(p["id"], p["title"], format_date(p.get("created_at", "")))
 
-def display_presentations(presentations: list) -> None:
+def display_presentations(presentations: list[dict]) -> None:
     """Display presentations in a table."""
     if not presentations:
         console.print("[yellow]No presentations found[/yellow]")

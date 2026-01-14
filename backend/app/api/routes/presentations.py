@@ -8,6 +8,7 @@ from app.services import marp_service
 from app.core.logger import logger
 from app.core.validators import validate_export_format, sanitize_filename
 from app.core.rate_limiter import limiter
+from app.core.constants import get_export_format, get_valid_formats
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
 EXPORTS_DIR = Path("data/exports")
@@ -35,11 +36,19 @@ def export_single_presentation(pres_id: str, format: str) -> BatchExportResult:
     except Exception as e:
         return BatchExportResult(presentation_id=pres_id, status="error", error=str(e))
 
+def validate_batch_format(format: str) -> None:
+    if not validate_export_format(format):
+        valid_formats = ", ".join(get_valid_formats())
+        raise HTTPException(400, f"Invalid format: {format}. Must be one of: {valid_formats}")
+
 @router.post("/batch/export")
 @limiter.limit("2/minute")
 def batch_export(request: Request, data: BatchExportRequest) -> list[BatchExportResult]:
+    validate_batch_format(data.format)
     logger.info(f"Batch export: {len(data.presentation_ids)} presentations to {data.format}")
     results = [export_single_presentation(pid, data.format) for pid in data.presentation_ids]
+    success_count = sum(1 for r in results if r.status == "success")
+    logger.info(f"Batch export completed: {success_count}/{len(results)} successful")
     return results
 
 @router.get("/{presentation_id}", response_model=PresentationResponse)
@@ -86,26 +95,21 @@ def get_export_path(pres_id: str, format: str) -> Path:
     return EXPORTS_DIR / f"{pres_id}.{format}"
 
 def get_media_type(format: str) -> str:
-    media_types = {
-        "pdf": "application/pdf",
-        "html": "text/html",
-        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    }
-    return media_types.get(format, "application/octet-stream")
+    format_info = get_export_format(format)
+    return format_info.media_type if format_info else "application/octet-stream"
 
 def export_to_format(pres: PresentationResponse, format: str) -> Path:
+    format_info = get_export_format(format)
+    if not format_info:
+        raise ValueError(f"Unsupported format: {format}")
     output_path = get_export_path(pres.id, format)
-    if format == "pdf":
-        marp_service.render_to_pdf(pres.content, output_path, pres.theme_id)
-    elif format == "html":
-        marp_service.render_to_html_file(pres.content, output_path, pres.theme_id)
-    elif format == "pptx":
-        marp_service.render_to_pptx(pres.content, output_path, pres.theme_id)
+    marp_service.render_export(pres.content, output_path, format_info.marp_flag, format_info.display_name, pres.theme_id)
     return output_path
 
 def validate_format_and_presentation(format: str, presentation_id: str) -> PresentationResponse:
+    valid_formats = ", ".join(get_valid_formats())
     if not validate_export_format(format):
-        raise HTTPException(400, f"Invalid format. Must be one of: pdf, html, pptx")
+        raise HTTPException(400, f"Invalid format. Must be one of: {valid_formats}")
     pres = service.get_presentation(presentation_id)
     if not pres:
         raise HTTPException(404, "Presentation not found")
