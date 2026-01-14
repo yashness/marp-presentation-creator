@@ -6,6 +6,22 @@ None - All tasks completed.
 ## Next Up
 Ready for additional features or improvements.
 
+## Completed (2026-01-14 - Session 18)
+- [x] Frontend code quality improvements following ARCHITECTURE.md guidelines:
+  - Extracted `updateBrowserUrl()` helper function in lib/utils.ts to consolidate URL slug generation and browser history updates.
+  - Reduced `handleSelect()` function from 12 lines to 10 lines by using the new helper.
+  - Extracted `getSlugFromUrl()` helper function in lib/utils.ts to detect presentation slug from URL pathname.
+  - Simplified `trySelectFromSlug()` function from 13 lines to 11 lines by using the new helper.
+  - Created `refreshPreviewAndMarkSaved()` helper function to eliminate duplicate preview refresh logic.
+  - Reduced `createNewPresentation()` from 15 lines to 10 lines (33% reduction).
+  - Reduced `updateExistingPresentation()` from 14 lines to 9 lines (36% reduction).
+  - Improved code organization and reduced duplication in autosave flow.
+- [x] Validated all changes:
+  - Frontend builds successfully with no TypeScript errors.
+  - All 86 backend tests passing.
+  - Backend and frontend Docker containers healthy and running.
+  - API endpoints functional (health, themes, presentations all verified).
+
 ## Completed (2026-01-14 - Session 17)
 - [x] UI polish and aesthetic improvements:
   - Refined color palette to use subtle slate grays for borders and backgrounds

@@ -21,3 +21,13 @@ export function getMostRecentPresentation(presentations: Presentation[]): Presen
 export function extractIdFromSlug(slug: string): string {
   return slug.split('-').slice(-1)[0]
 }
+
+export function updateBrowserUrl(title: string, id: string): void {
+  const slug = title ? createSlug(title) : 'presentation'
+  window.history.replaceState({}, '', `/slides/${slug}-${id}`)
+}
+
+export function getSlugFromUrl(): string | null {
+  const match = window.location.pathname.match(/\/slides\/([^/]+)$/)
+  return match ? match[1] : null
+}

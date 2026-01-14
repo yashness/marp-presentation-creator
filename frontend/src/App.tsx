@@ -9,7 +9,7 @@ import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { useApiHandler } from './hooks/useApiHandler'
 import { useThemes } from './hooks/useThemes'
-import { createSlug, getMostRecentPresentation, extractIdFromSlug } from './lib/utils'
+import { getMostRecentPresentation, extractIdFromSlug, updateBrowserUrl, getSlugFromUrl } from './lib/utils'
 import { AUTOSAVE_DEBOUNCE_MS } from './lib/constants'
 
 function App() {
@@ -49,16 +49,14 @@ function App() {
     setHasUserInput(false)
     setAutosaveStatus('idle')
     setAutosaveEnabled(true)
-    const slug = pres.title ? createSlug(pres.title) : 'presentation'
-    window.history.replaceState({}, '', `/slides/${slug}-${pres.id}`)
+    updateBrowserUrl(pres.title, pres.id)
   }, [handleApiCall, editor.selectPresentation])
 
   const canAutosave = useMemo(() => editor.content.trim().length > 0, [editor.content])
 
   const trySelectFromSlug = useCallback((presentations: Presentation[]): Presentation | null => {
     if (!slugPendingRef.current) {
-      const match = window.location.pathname.match(/\/slides\/([^/]+)$/)
-      if (match) slugPendingRef.current = match[1]
+      slugPendingRef.current = getSlugFromUrl()
     }
     if (!slugPendingRef.current) return null
 
@@ -83,6 +81,13 @@ function App() {
     autoSelectRef.current = false
   }, [presentations, trySelectFromSlug, handleSelect])
 
+  const refreshPreviewAndMarkSaved = useCallback(async (id: string) => {
+    const html = await getPreview(id)
+    editor.setPreview(html)
+    setHasUserInput(false)
+    setAutosaveStatus('saved')
+  }, [editor.setPreview])
+
   const createNewPresentation = useCallback(async (title: string, content: string, themeId: string | null) => {
     const created = await handleApiCall(
       () => create(title, content, themeId),
@@ -91,14 +96,11 @@ function App() {
     )
     if (created) {
       editor.setCreatedMeta(created)
-      const html = await getPreview(created.id)
-      editor.setPreview(html)
-      setHasUserInput(false)
-      setAutosaveStatus('saved')
+      await refreshPreviewAndMarkSaved(created.id)
     } else {
       setAutosaveStatus('error')
     }
-  }, [handleApiCall, create, editor.setCreatedMeta, editor.setPreview])
+  }, [handleApiCall, create, editor.setCreatedMeta, refreshPreviewAndMarkSaved])
 
   const updateExistingPresentation = useCallback(async (id: string, title: string, content: string, themeId: string | null) => {
     const updated = await handleApiCall(
@@ -107,14 +109,11 @@ function App() {
       'Failed to auto-save changes',
     )
     if (updated) {
-      const html = await getPreview(updated.id)
-      editor.setPreview(html)
-      setHasUserInput(false)
-      setAutosaveStatus('saved')
+      await refreshPreviewAndMarkSaved(updated.id)
     } else {
       setAutosaveStatus('error')
     }
-  }, [handleApiCall, update, editor.setPreview])
+  }, [handleApiCall, update, refreshPreviewAndMarkSaved])
 
   const performAutosave = useCallback(async () => {
     const title = editor.title.trim() || 'Untitled presentation'
