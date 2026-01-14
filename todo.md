@@ -15,6 +15,10 @@ Ready for additional features or improvements.
 - [x] Fixed docker-compose.yml deprecation warning:
   - Removed obsolete 'version' attribute to eliminate warning message.
   - Updated to modern docker-compose format.
+- [x] Performance optimizations in frontend:
+  - Wrapped handler functions in App.tsx with useCallback to prevent unnecessary re-renders.
+  - Added memoization for validateAndShowError, handleCreate, handleUpdate, handleDelete, and handleSelect.
+  - Improves React component performance by stabilizing callback references.
 - [x] Validated all changes:
   - All 81 backend tests passing (5 pre-existing Marp CLI environment issues).
   - Frontend builds successfully with no TypeScript errors or warnings.

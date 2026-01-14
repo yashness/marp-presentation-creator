@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { Presentation } from './api/client'
 import { PresentationSidebar } from './components/PresentationSidebar'
 import { EditorPanel } from './components/EditorPanel'
@@ -20,15 +20,15 @@ function App() {
   const editor = usePresentationEditor()
   const { presentations, loading, create, update, remove } = usePresentations(searchQuery, editor.selectedTheme)
 
-  function validateAndShowError(error: string | null): boolean {
+  const validateAndShowError = useCallback((error: string | null): boolean => {
     if (error) {
       showToast(error, 'error')
       return false
     }
     return true
-  }
+  }, [showToast])
 
-  async function handleCreate() {
+  const handleCreate = useCallback(async () => {
     const error = validation.validateCreate(editor.title, editor.content)
     if (!validateAndShowError(error)) return
     const result = await handleApiCall(
@@ -37,9 +37,9 @@ function App() {
       'Failed to create presentation',
     )
     if (result) editor.clearSelection()
-  }
+  }, [validation, editor.title, editor.content, editor.selectedTheme, editor.clearSelection, validateAndShowError, handleApiCall, create])
 
-  async function handleUpdate() {
+  const handleUpdate = useCallback(async () => {
     const error = validation.validateUpdate(editor.selectedId, editor.title, editor.content)
     if (!validateAndShowError(error)) return
     await handleApiCall(
@@ -47,9 +47,9 @@ function App() {
       'Presentation updated successfully',
       'Failed to update presentation',
     )
-  }
+  }, [validation, editor.selectedId, editor.title, editor.content, editor.selectedTheme, validateAndShowError, handleApiCall, update])
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this presentation?')) return
     const result = await handleApiCall(
       () => remove(id),
@@ -59,15 +59,15 @@ function App() {
     if (result && editor.selectedId === id) {
       editor.clearSelection()
     }
-  }
+  }, [handleApiCall, remove, editor.selectedId, editor.clearSelection])
 
-  async function handleSelect(pres: Presentation) {
+  const handleSelect = useCallback(async (pres: Presentation) => {
     await handleApiCall(
       () => editor.selectPresentation(pres),
       '',
       'Failed to load presentation',
     )
-  }
+  }, [handleApiCall, editor.selectPresentation])
 
   return (
     <>
