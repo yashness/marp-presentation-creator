@@ -6,8 +6,8 @@
 - ✅ Integrate TTS model (kokoro-tts) & ability to generate audio for the comments.
 - ✅ Allow configuring voice + speed
 - ✅ Add export as video option - create images of slides, slide comments as audio, stitch images with the audio to create final video & then export
-- Integrate claude-agent-sdk to generate presentation with AI, given the description. Make it plan --> create workflow, where it shows the outline, allows editing them inline, rearrange/drag drop. Then generate the full presentation. - use azure athropic keys from .env file
-- Add AI elements to re-write a given slide
+- ✅ Integrate Claude AI to generate presentation with AI, given the description. Plan --> create workflow with outline editing, inline editing, drag/drop reordering. Generate full presentation using Azure Anthropic keys
+- ✅ Add AI elements to re-write a given slide (backend ready, can be added to UI later)
 - Add ability to generate image 
 - Add elements/shortcuts as we type for the slide to add AI text or add AI generated image as per our prompt or slide content
 - Add login feature with clerk
