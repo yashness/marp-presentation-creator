@@ -20,9 +20,18 @@ def get_output_path(input_file: str, format: str, output: str | None) -> str:
     return str(Path(input_file).with_suffix(f".{format}"))
 
 
+def validate_file_exists(file_path: str) -> None:
+    """Validate input file exists and is readable."""
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+    if not path.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+
 def prepare_export(file: str, format: str) -> tuple[str, str]:
     """Prepare content and title for export."""
     validate_format(format)
+    validate_file_exists(file)
     content = read_markdown_file(file)
     title = extract_title(content)
     return title, content

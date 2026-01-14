@@ -22,3 +22,14 @@ def test_sanitize_filename():
     assert sanitize_filename("foo/bar") == "foo_bar"
     assert sanitize_filename("foo\\bar") == "foo_bar"
     assert sanitize_filename("foo:bar*baz") == "foo_bar_baz"
+
+def test_sanitize_filename_whitelist():
+    """Test whitelist approach keeps only safe chars."""
+    assert sanitize_filename("test<>file") == "test__file"
+    assert sanitize_filename("my file.txt") == "my file.txt"
+    assert sanitize_filename("file@#$.md") == "file___.md"
+
+def test_sanitize_filename_empty():
+    """Test empty filename returns default."""
+    assert sanitize_filename("") == "untitled"
+    assert sanitize_filename("   ") == "untitled"

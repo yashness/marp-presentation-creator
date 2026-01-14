@@ -64,7 +64,7 @@ def get_presentation(pres_id: str) -> PresentationResponse | None:
         metadata = load_metadata(pres_id)
         content = load_presentation_content(pres_id)
         return PresentationResponse(**metadata, content=content)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError):
         return None
 
 def list_presentations() -> list[PresentationResponse]:

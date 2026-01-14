@@ -6,8 +6,16 @@ from marpify.config import DEFAULT_THEME, AVAILABLE_THEMES
 from marpify.utils import console, print_success, print_error
 
 
+def validate_project_name(name: str) -> None:
+    """Validate project name is safe."""
+    if not name or name.strip() == "":
+        raise ValueError("Project name cannot be empty")
+    if any(c in name for c in ['/', '\\', '\x00', ':', '*', '?', '"', '<', '>', '|']):
+        raise ValueError("Project name contains invalid characters")
+
 def create_project_dir(name: str) -> Path:
     """Create project directory."""
+    validate_project_name(name)
     project_dir = Path(name)
     project_dir.mkdir(exist_ok=True)
     return project_dir
