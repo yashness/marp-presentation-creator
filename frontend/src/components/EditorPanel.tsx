@@ -23,6 +23,58 @@ interface EditorPanelProps {
   onPreview: () => void
 }
 
+interface SaveButtonProps {
+  selectedId: string | null
+  loading: boolean
+  onCreate: () => void
+  onUpdate: () => void
+}
+
+function SaveButton({ selectedId, loading, onCreate, onUpdate }: SaveButtonProps) {
+  if (selectedId) {
+    return (
+      <Button onClick={onUpdate} disabled={loading}>
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update'}
+      </Button>
+    )
+  }
+  return (
+    <Button onClick={onCreate} disabled={loading}>
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+    </Button>
+  )
+}
+
+interface PreviewButtonProps {
+  selectedId: string | null
+  previewLoading: boolean
+  onPreview: () => void
+}
+
+function PreviewButton({ selectedId, previewLoading, onPreview }: PreviewButtonProps) {
+  return (
+    <Button onClick={onPreview} variant="outline" disabled={!selectedId || previewLoading}>
+      {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+      Preview
+    </Button>
+  )
+}
+
+interface ExportButtonGroupProps {
+  selectedId: string | null
+  onExport: (format: 'pdf' | 'html' | 'pptx') => void
+}
+
+function ExportButtonGroup({ selectedId, onExport }: ExportButtonGroupProps) {
+  return (
+    <>
+      <ExportButton format="pdf" onClick={onExport} disabled={!selectedId} />
+      <ExportButton format="html" onClick={onExport} disabled={!selectedId} />
+      <ExportButton format="pptx" onClick={onExport} disabled={!selectedId} />
+    </>
+  )
+}
+
 export function EditorPanel({
   title,
   content,
@@ -65,22 +117,9 @@ export function EditorPanel({
         </div>
 
         <div className="flex gap-2">
-          {selectedId ? (
-            <Button onClick={onUpdate} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update'}
-            </Button>
-          ) : (
-            <Button onClick={onCreate} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-            </Button>
-          )}
-          <Button onClick={onPreview} variant="outline" disabled={!selectedId || previewLoading}>
-            {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-            Preview
-          </Button>
-          <ExportButton format="pdf" onClick={onExport} disabled={!selectedId} />
-          <ExportButton format="html" onClick={onExport} disabled={!selectedId} />
-          <ExportButton format="pptx" onClick={onExport} disabled={!selectedId} />
+          <SaveButton selectedId={selectedId} loading={loading} onCreate={onCreate} onUpdate={onUpdate} />
+          <PreviewButton selectedId={selectedId} previewLoading={previewLoading} onPreview={onPreview} />
+          <ExportButtonGroup selectedId={selectedId} onExport={onExport} />
         </div>
       </div>
 
