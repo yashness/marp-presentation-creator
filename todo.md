@@ -16,6 +16,11 @@ Ready for additional features or improvements.
   - Fixed TypeScript type import issues for verbatimModuleSyntax compatibility.
   - Simplified usePresentationEditor hook export logic using API client.
   - Fixed Tailwind CSS v4 compatibility in index.css (removed @apply directives).
+- [x] Optimized React hooks for performance:
+  - Added useCallback to usePresentations hook functions (loadPresentations, create, update, remove).
+  - Fixed loadPresentations to properly use searchQuery and selectedTheme dependencies.
+  - Presentations now auto-reload when search query or theme filter changes.
+  - Prevents unnecessary re-renders and improves component performance.
 - [x] Validated system health:
   - All 86 backend tests passing.
   - Frontend builds successfully with no TypeScript errors.
