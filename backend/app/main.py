@@ -11,7 +11,9 @@ from app.core.rate_limiter import limiter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    from app.core.database import init_db
     logger.info("Starting Marp Builder API")
+    init_db()
     yield
     logger.info("Shutting down Marp Builder API")
 

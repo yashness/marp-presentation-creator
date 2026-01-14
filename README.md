@@ -19,6 +19,7 @@ A modern, full-featured presentation builder combining Markdown simplicity (Marp
 
 ### Backend
 - FastAPI (Python 3.13+)
+- SQLAlchemy with SQLite for data persistence
 - Pydantic for type validation
 - Loguru for logging
 - uv for dependency management

@@ -1,126 +1,107 @@
-from pathlib import Path
-from datetime import datetime
-from typing import Any
-import uuid
-import json
-from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
-from app.core.logger import logger
+"""Presentation service with database persistence."""
 
-STORAGE_DIR = Path("data/presentations")
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+from datetime import datetime
+import uuid
+from contextlib import contextmanager
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+from app.models.presentation import Presentation
+from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
+from app.core.database import SessionLocal
+from app.core.logger import logger
 
 def generate_id() -> str:
     return str(uuid.uuid4())
 
-def validate_presentation_id(pres_id: str) -> None:
-    if "/" in pres_id or "\\" in pres_id or ".." in pres_id:
-        raise ValueError("Invalid presentation ID")
+@contextmanager
+def get_session():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
-def get_presentation_path(pres_id: str) -> Path:
-    validate_presentation_id(pres_id)
-    return STORAGE_DIR / f"{pres_id}.md"
+def to_response(pres: Presentation) -> PresentationResponse:
+    return PresentationResponse(
+        id=pres.id,
+        title=pres.title,
+        content=pres.content,
+        theme_id=pres.theme_id,
+        created_at=pres.created_at,
+        updated_at=pres.updated_at
+    )
 
-def get_metadata_path(pres_id: str) -> Path:
-    validate_presentation_id(pres_id)
-    return STORAGE_DIR / f"{pres_id}.json"
-
-def save_presentation_file(pres_id: str, content: str) -> None:
-    path = get_presentation_path(pres_id)
-    path.write_text(content)
-
-def save_metadata(pres_id: str, metadata: dict[str, Any]) -> None:
-    path = get_metadata_path(pres_id)
-    path.write_text(json.dumps(metadata, default=str))
-
-def load_metadata(pres_id: str) -> dict[str, Any]:
-    path = get_metadata_path(pres_id)
-    data: dict[str, Any] = json.loads(path.read_text())
-    return data
-
-def load_presentation_content(pres_id: str) -> str:
-    path = get_presentation_path(pres_id)
-    return path.read_text()
-
-def build_metadata(pres_id: str, title: str, theme_id: str | None, now: datetime) -> dict[str, Any]:
-    return {
-        "id": pres_id,
-        "title": title,
-        "theme_id": theme_id,
-        "created_at": now,
-        "updated_at": now
-    }
+def create_db_presentation(session: Session, data: PresentationCreate) -> Presentation:
+    pres = Presentation(
+        id=generate_id(),
+        title=data.title,
+        content=data.content,
+        theme_id=data.theme_id,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    session.add(pres)
+    session.flush()
+    session.refresh(pres)
+    return pres
 
 def create_presentation(data: PresentationCreate) -> PresentationResponse:
-    pres_id = generate_id()
-    now = datetime.now()
-    save_presentation_file(pres_id, data.content)
-    metadata = build_metadata(pres_id, data.title, data.theme_id, now)
-    save_metadata(pres_id, metadata)
-    logger.info(f"Created presentation: {pres_id}")
-    return PresentationResponse(**metadata, content=data.content)
+    with get_session() as session:
+        pres = create_db_presentation(session, data)
+        logger.info(f"Created presentation: {pres.id}")
+        return to_response(pres)
 
 def get_presentation(pres_id: str) -> PresentationResponse | None:
-    try:
-        metadata = load_metadata(pres_id)
-        content = load_presentation_content(pres_id)
-        return PresentationResponse(**metadata, content=content)
-    except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError):
-        return None
+    with get_session() as session:
+        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        return to_response(pres) if pres else None
 
 def list_presentations() -> list[PresentationResponse]:
-    presentations = []
-    for meta_file in STORAGE_DIR.glob("*.json"):
-        pres_id = meta_file.stem
-        pres = get_presentation(pres_id)
-        if pres:
-            presentations.append(pres)
-    return presentations
+    with get_session() as session:
+        presentations = session.query(Presentation).all()
+        return [to_response(p) for p in presentations]
+
+def build_search_filters(session: Session, query: str, theme_id: str | None):
+    q = session.query(Presentation)
+    q = q.filter(or_(Presentation.title.contains(query), Presentation.content.contains(query)))
+    if theme_id:
+        q = q.filter(Presentation.theme_id == theme_id)
+    return q
 
 def search_presentations(query: str, theme_id: str | None = None) -> list[PresentationResponse]:
-    all_presentations = list_presentations()
-    filtered = filter_by_query_and_theme(all_presentations, query, theme_id)
-    return filtered
+    with get_session() as session:
+        q = build_search_filters(session, query, theme_id)
+        return [to_response(p) for p in q.all()]
 
-def filter_by_query_and_theme(presentations: list[PresentationResponse], query: str, theme_id: str | None) -> list[PresentationResponse]:
-    results = []
-    for pres in presentations:
-        if matches_filters(pres, query, theme_id):
-            results.append(pres)
-    return results
-
-def matches_filters(pres: PresentationResponse, query: str, theme_id: str | None) -> bool:
-    query_match = query.lower() in pres.title.lower() or query.lower() in pres.content.lower()
-    theme_match = theme_id is None or pres.theme_id == theme_id
-    return query_match and theme_match
-
-def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate) -> dict[str, Any]:
+def apply_updates(pres: Presentation, data: PresentationUpdate) -> None:
     if data.title:
-        metadata["title"] = data.title
+        pres.title = data.title
+    if data.content:
+        pres.content = data.content
     if data.theme_id:
-        metadata["theme_id"] = data.theme_id
-    metadata["updated_at"] = datetime.now()
-    return metadata
-
-def get_updated_content(pres_id: str, new_content: str | None) -> str:
-    return new_content or load_presentation_content(pres_id)
+        pres.theme_id = data.theme_id
+    pres.updated_at = datetime.now()
 
 def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
-    pres = get_presentation(pres_id)
-    if not pres:
-        return None
-    if data.content:
-        save_presentation_file(pres_id, data.content)
-    metadata = apply_updates_to_metadata(load_metadata(pres_id), data)
-    save_metadata(pres_id, metadata)
-    logger.info(f"Updated presentation: {pres_id}")
-    content = get_updated_content(pres_id, data.content)
-    return PresentationResponse(**metadata, content=content)
+    with get_session() as session:
+        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        if not pres:
+            return None
+        apply_updates(pres, data)
+        session.flush()
+        session.refresh(pres)
+        logger.info(f"Updated presentation: {pres_id}")
+        return to_response(pres)
 
 def delete_presentation(pres_id: str) -> bool:
-    try:
-        get_presentation_path(pres_id).unlink()
-        get_metadata_path(pres_id).unlink()
+    with get_session() as session:
+        pres = session.query(Presentation).filter(Presentation.id == pres_id).first()
+        if not pres:
+            return False
+        session.delete(pres)
         logger.info(f"Deleted presentation: {pres_id}")
         return True
-    except FileNotFoundError:
-        return False
