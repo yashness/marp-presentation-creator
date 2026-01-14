@@ -76,6 +76,23 @@ def list_presentations() -> list[PresentationResponse]:
             presentations.append(pres)
     return presentations
 
+def search_presentations(query: str, theme_id: str | None = None) -> list[PresentationResponse]:
+    all_presentations = list_presentations()
+    filtered = filter_by_query_and_theme(all_presentations, query, theme_id)
+    return filtered
+
+def filter_by_query_and_theme(presentations: list[PresentationResponse], query: str, theme_id: str | None) -> list[PresentationResponse]:
+    results = []
+    for pres in presentations:
+        if matches_filters(pres, query, theme_id):
+            results.append(pres)
+    return results
+
+def matches_filters(pres: PresentationResponse, query: str, theme_id: str | None) -> bool:
+    query_match = query.lower() in pres.title.lower() or query.lower() in pres.content.lower()
+    theme_match = theme_id is None or pres.theme_id == theme_id
+    return query_match and theme_match
+
 def apply_updates_to_metadata(metadata: dict[str, Any], data: PresentationUpdate) -> dict[str, Any]:
     if data.title:
         metadata["title"] = data.title

@@ -1,24 +1,46 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Request
 from fastapi.responses import FileResponse
 from pathlib import Path
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
+from app.schemas.batch import BatchExportRequest, BatchExportResult
 from app.services import presentation_service as service
 from app.services import marp_service
 from app.core.logger import logger
 from app.core.validators import validate_export_format, sanitize_filename
+from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
 EXPORTS_DIR = Path("data/exports")
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("", response_model=PresentationResponse)
-def create_presentation(data: PresentationCreate) -> PresentationResponse:
+@limiter.limit("10/minute")
+def create_presentation(request: Request, data: PresentationCreate) -> PresentationResponse:
     logger.info(f"Creating presentation: {data.title}")
     return service.create_presentation(data)
 
 @router.get("", response_model=list[PresentationResponse])
-def list_presentations() -> list[PresentationResponse]:
+def list_presentations(query: str | None = None, theme_id: str | None = None) -> list[PresentationResponse]:
+    if query:
+        return service.search_presentations(query, theme_id)
     return service.list_presentations()
+
+def export_single_presentation(pres_id: str, format: str) -> BatchExportResult:
+    try:
+        pres = service.get_presentation(pres_id)
+        if not pres:
+            return BatchExportResult(presentation_id=pres_id, status="error", error="Not found")
+        output_path = export_to_format(pres, format)
+        return BatchExportResult(presentation_id=pres_id, status="success", file_path=str(output_path))
+    except Exception as e:
+        return BatchExportResult(presentation_id=pres_id, status="error", error=str(e))
+
+@router.post("/batch/export")
+@limiter.limit("2/minute")
+def batch_export(request: Request, data: BatchExportRequest) -> list[BatchExportResult]:
+    logger.info(f"Batch export: {len(data.presentation_ids)} presentations to {data.format}")
+    results = [export_single_presentation(pid, data.format) for pid in data.presentation_ids]
+    return results
 
 @router.get("/{presentation_id}", response_model=PresentationResponse)
 def get_presentation(presentation_id: str) -> PresentationResponse:
@@ -95,7 +117,8 @@ def create_file_response(output_path: Path, pres_title: str, format: str) -> Fil
     return FileResponse(output_path, media_type=get_media_type(format), filename=filename)
 
 @router.post("/{presentation_id}/export")
-def export_presentation(presentation_id: str, format: str = "pdf") -> FileResponse:
+@limiter.limit("5/minute")
+def export_presentation(request: Request, presentation_id: str, format: str = "pdf") -> FileResponse:
     pres = validate_format_and_presentation(format, presentation_id)
     try:
         output_path = export_to_format(pres, format)

@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 from app.core.config import settings
 from app.core.logger import logger
+from app.core.cache import render_cache, generate_cache_key
 
 def get_marp_command() -> str:
     return settings.marp_cli_path
@@ -35,9 +36,14 @@ def run_marp_command(cmd: list[str], temp_file: Path, operation: str) -> subproc
 def render_to_html(content: str, theme_id: str | None = None) -> str:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
+    cache_key = generate_cache_key(content, theme_id)
+    if cache_key in render_cache:
+        logger.debug(f"Cache hit for render: {cache_key[:8]}")
+        return render_cache[cache_key]
     temp_file = create_temp_file(content)
     cmd = build_marp_cmd(temp_file, "--html", None, theme_id)
     result = run_marp_command(cmd, temp_file, "Marp render")
+    render_cache[cache_key] = result.stdout
     return result.stdout
 
 def render_to_pdf(content: str, output_path: Path, theme_id: str | None = None) -> None:
