@@ -6,6 +6,13 @@ class PresentationBase(BaseModel):
     content: str = Field(min_length=1)
     theme_id: str | None = None
 
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Title cannot be empty or whitespace only")
+        return v.strip()
+
     @field_validator("content")
     @classmethod
     def validate_content(cls, v: str) -> str:

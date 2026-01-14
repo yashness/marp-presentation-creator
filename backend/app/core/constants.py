@@ -1,4 +1,13 @@
-"""Application constants and configuration."""
+"""Application constants and configuration.
+
+This module centralizes all configuration constants for export formats
+and themes, following the Open/Closed Principle. To add new formats or
+themes, extend the dictionaries here rather than modifying service logic.
+
+Example:
+    To add a new export format:
+    EXPORT_FORMATS["svg"] = ExportFormat("svg", "image/svg+xml", "--svg", "SVG")
+"""
 
 from dataclasses import dataclass
 
