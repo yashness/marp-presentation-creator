@@ -1,6 +1,8 @@
 """AI service for presentation generation using Anthropic Claude."""
 
 import os
+import base64
+import httpx
 from typing import Optional
 from anthropic import AnthropicBedrock
 from pydantic import BaseModel
@@ -28,6 +30,7 @@ class AIService:
         self.azure_endpoint = os.getenv("AZURE_ENDPOINT")
         self.api_key = os.getenv("API_KEY")
         self.deployment = os.getenv("AZURE_DEPLOYMENT", "claude-haiku-4-5")
+        self.image_deployment = os.getenv("AZURE_IMAGE_DEPLOYMENT", "dall-e-3")
 
         if not self.azure_endpoint or not self.api_key:
             logger.warning("Azure credentials not configured")
@@ -206,3 +209,61 @@ Return only the updated markdown content, no extra text."""
         except Exception as e:
             logger.error(f"Failed to rewrite slide: {e}")
             return current_content
+
+    def generate_image(
+        self,
+        prompt: str,
+        size: str = "1024x1024",
+        quality: str = "standard"
+    ) -> Optional[str]:
+        """Generate image using DALL-E via Azure OpenAI.
+
+        Args:
+            prompt: Description of the image to generate
+            size: Image dimensions (1024x1024, 1792x1024, 1024x1792)
+            quality: Image quality (standard or hd)
+
+        Returns:
+            Base64 encoded image data or None if failed
+        """
+        if not self.azure_endpoint or not self.api_key:
+            logger.error("Azure credentials not configured")
+            return None
+
+        try:
+            azure_base = self.azure_endpoint.replace("/anthropic", "")
+            image_url = f"{azure_base}/openai/deployments/{self.image_deployment}/images/generations"
+            params = {"api-version": "2024-02-01"}
+
+            headers = {
+                "api-key": self.api_key,
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "prompt": prompt,
+                "size": size,
+                "n": 1,
+                "quality": quality,
+                "response_format": "b64_json"
+            }
+
+            with httpx.Client(timeout=60.0) as client:
+                response = client.post(
+                    image_url,
+                    headers=headers,
+                    params=params,
+                    json=payload
+                )
+                response.raise_for_status()
+
+            data = response.json()
+            if data.get("data") and len(data["data"]) > 0:
+                return data["data"][0].get("b64_json")
+
+            logger.error("No image data in response")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to generate image: {e}")
+            return None

@@ -7,6 +7,7 @@ import { ExportButton } from './ExportButton'
 import { VideoExportButton } from './VideoExportButton'
 import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
 import { TTSButton } from './TTSButton'
+import { ImageGenerationButton } from './ImageGenerationButton'
 import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
@@ -295,6 +296,7 @@ export function EditorPanel({
             <MessageSquarePlus className="w-4 h-4" />
             Add slide
           </Button>
+          <ImageGenerationButton />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

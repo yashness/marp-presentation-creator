@@ -49,6 +49,20 @@ class RewriteSlideResponse(BaseModel):
     message: str
 
 
+class GenerateImageRequest(BaseModel):
+    """Request model for generating images."""
+    prompt: str = Field(..., min_length=10, description="Description of the image")
+    size: str = Field(default="1024x1024", description="Image size")
+    quality: str = Field(default="standard", description="Image quality")
+
+
+class GenerateImageResponse(BaseModel):
+    """Response model for image generation."""
+    success: bool
+    image_data: str | None = None
+    message: str
+
+
 @router.post("/generate-outline", response_model=GenerateOutlineResponse)
 async def generate_outline(request: GenerateOutlineRequest) -> GenerateOutlineResponse:
     """Generate presentation outline from description.
@@ -136,6 +150,40 @@ async def rewrite_slide(request: RewriteSlideRequest) -> RewriteSlideResponse:
         success=True,
         content=content,
         message="Slide rewritten successfully"
+    )
+
+
+@router.post("/generate-image", response_model=GenerateImageResponse)
+async def generate_image(request: GenerateImageRequest) -> GenerateImageResponse:
+    """Generate image using DALL-E.
+
+    Args:
+        request: Image prompt and parameters
+
+    Returns:
+        Base64 encoded image data
+
+    Raises:
+        HTTPException: If generation fails
+    """
+    logger.info(f"Generating image: {request.prompt[:50]}...")
+
+    image_data = ai_service.generate_image(
+        request.prompt,
+        request.size,
+        request.quality
+    )
+
+    if not image_data:
+        return GenerateImageResponse(
+            success=False,
+            message="Failed to generate image. Please try again."
+        )
+
+    return GenerateImageResponse(
+        success=True,
+        image_data=image_data,
+        message="Image generated successfully"
     )
 
 

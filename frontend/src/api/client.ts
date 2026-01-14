@@ -316,3 +316,29 @@ export async function rewriteSlide(currentContent: string, instruction: string):
 
   return result.content
 }
+
+export interface GenerateImageResponse {
+  success: boolean
+  image_data?: string
+  message: string
+}
+
+export async function generateImage(
+  prompt: string,
+  size: string = '1024x1024',
+  quality: string = 'standard'
+): Promise<string> {
+  const response = await fetch(buildUrl('/ai/generate-image'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, size, quality })
+  })
+
+  const result = await handleResponse<GenerateImageResponse>(response)
+
+  if (!result.success || !result.image_data) {
+    throw new Error(result.message || 'Failed to generate image')
+  }
+
+  return result.image_data
+}

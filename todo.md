@@ -8,7 +8,7 @@
 - ✅ Add export as video option - create images of slides, slide comments as audio, stitch images with the audio to create final video & then export
 - ✅ Integrate Claude AI to generate presentation with AI, given the description. Plan --> create workflow with outline editing, inline editing, drag/drop reordering. Generate full presentation using Azure Anthropic keys
 - ✅ Add AI elements to re-write a given slide (backend ready, can be added to UI later)
-- Add ability to generate image 
+- ✅ Add ability to generate image with DALL-E 3 via Azure OpenAI (API endpoint + UI modal with image preview and markdown copy)
 - Add elements/shortcuts as we type for the slide to add AI text or add AI generated image as per our prompt or slide content
 - Add login feature with clerk
 - Add billing with clerk
