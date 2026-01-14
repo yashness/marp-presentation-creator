@@ -4,6 +4,7 @@ import type { Theme, ThemeCreatePayload } from '../api/client'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
+import { VideoExportButton } from './VideoExportButton'
 import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
 import { TTSButton } from './TTSButton'
 import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette } from 'lucide-react'
@@ -31,15 +32,17 @@ interface EditorPanelProps {
 
 interface ExportButtonGroupProps {
   selectedId: string | null
+  presentationTitle: string
   onExport: (format: 'pdf' | 'html' | 'pptx') => void
 }
 
-function ExportButtonGroup({ selectedId, onExport }: ExportButtonGroupProps) {
+function ExportButtonGroup({ selectedId, presentationTitle, onExport }: ExportButtonGroupProps) {
   return (
     <>
       <ExportButton format="pdf" onClick={onExport} disabled={!selectedId} />
       <ExportButton format="html" onClick={onExport} disabled={!selectedId} />
       <ExportButton format="pptx" onClick={onExport} disabled={!selectedId} />
+      <VideoExportButton presentationId={selectedId} presentationTitle={presentationTitle} />
     </>
   )
 }
@@ -428,7 +431,7 @@ export function EditorPanel({
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <ExportButtonGroup selectedId={selectedId} onExport={onExport} />
+                    <ExportButtonGroup selectedId={selectedId} presentationTitle={title} onExport={onExport} />
                   </div>
                 </div>
                 <p className="text-xs text-slate-500">

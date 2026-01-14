@@ -198,3 +198,44 @@ export async function deleteTheme(themeId: string): Promise<void> {
   const response = await fetch(buildUrl(`/themes/${themeId}`), { method: 'DELETE' })
   return handleVoidResponse(response)
 }
+
+export interface VideoExportRequest {
+  voice?: string
+  speed?: number
+  slide_duration?: number
+}
+
+export interface VideoExportResponse {
+  success: boolean
+  video_url?: string
+  message: string
+}
+
+export async function exportPresentationAsVideo(
+  id: string,
+  title: string,
+  options?: VideoExportRequest
+): Promise<void> {
+  const request: VideoExportRequest = {
+    voice: options?.voice || 'af',
+    speed: options?.speed || 1.0,
+    slide_duration: options?.slide_duration || 5.0
+  }
+
+  const response = await fetch(buildUrl(`/video/${id}/export`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  })
+
+  const result = await handleResponse<VideoExportResponse>(response)
+
+  if (!result.success || !result.video_url) {
+    throw new Error(result.message || 'Video export failed')
+  }
+
+  const downloadResponse = await fetch(`${API_BASE}${result.video_url}`)
+  const blob = await handleBlobResponse(downloadResponse)
+  const safeTitle = title?.trim() ? title.trim() : 'presentation'
+  downloadBlob(blob, `${safeTitle}.mp4`)
+}

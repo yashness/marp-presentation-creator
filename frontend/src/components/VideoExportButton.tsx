@@ -1,0 +1,117 @@
+import { useState } from 'react'
+import { Button } from './ui/button'
+import { Video, Settings } from 'lucide-react'
+import { exportPresentationAsVideo } from '../api/client'
+
+interface VideoExportButtonProps {
+  presentationId: string | null
+  presentationTitle: string
+}
+
+export function VideoExportButton({ presentationId, presentationTitle }: VideoExportButtonProps) {
+  const [isExporting, setIsExporting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [voice, setVoice] = useState('af')
+  const [speed, setSpeed] = useState(1.0)
+  const [slideDuration, setSlideDuration] = useState(5.0)
+
+  const handleExport = async () => {
+    if (!presentationId) return
+
+    setIsExporting(true)
+    setShowSettings(false)
+
+    try {
+      await exportPresentationAsVideo(presentationId, presentationTitle, {
+        voice,
+        speed,
+        slide_duration: slideDuration
+      })
+    } catch (error) {
+      console.error('Video export failed:', error)
+      alert(error instanceof Error ? error.message : 'Video export failed')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <Button
+          onClick={handleExport}
+          variant="outline"
+          disabled={!presentationId || isExporting}
+          className="flex items-center gap-2"
+        >
+          <Video className="w-4 h-4" />
+          {isExporting ? 'Exporting...' : 'MP4'}
+        </Button>
+        <Button
+          onClick={() => setShowSettings(!showSettings)}
+          variant="ghost"
+          size="icon"
+          disabled={!presentationId}
+          className="w-8 h-8"
+        >
+          <Settings className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {showSettings && (
+        <div className="absolute top-full right-0 mt-2 p-4 bg-white rounded-lg border border-slate-200 shadow-lg z-50 min-w-[280px] space-y-3">
+          <p className="text-sm font-semibold text-slate-700">Video Export Settings</p>
+
+          <div className="space-y-2">
+            <label className="text-xs text-slate-600">Voice</label>
+            <select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="af">Female (American)</option>
+              <option value="am">Male (American)</option>
+              <option value="bf">Female (British)</option>
+              <option value="bm">Male (British)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-slate-600">Speed: {speed.toFixed(1)}x</label>
+            <input
+              type="range"
+              min="0.5"
+              max="2.0"
+              step="0.1"
+              value={speed}
+              onChange={(e) => setSpeed(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-slate-600">Slide Duration (no audio): {slideDuration}s</label>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="1"
+              value={slideDuration}
+              onChange={(e) => setSlideDuration(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button size="sm" onClick={handleExport} className="flex-1">
+              Export Video
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowSettings(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
