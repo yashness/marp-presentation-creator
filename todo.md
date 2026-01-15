@@ -10,8 +10,8 @@
 - ✅ Add AI elements to re-write a given slide (backend ready, can be added to UI later)
 - ✅ Add ability to generate image with DALL-E 3 via Azure OpenAI (API endpoint + UI modal with image preview and markdown copy)
 - ✅ Add elements/shortcuts as we type for the slide to add AI text or add AI generated image (Command Palette with Cmd/Ctrl+K shortcut for quick AI commands)
-- Add login feature with clerk
-- Add billing with clerk
+- ✅ Add login feature with Clerk (sign in/sign up modals, user menu in sidebar)
+- ✅ Add billing with Clerk (pricing tiers modal, manage billing button)
 - Add theme creator with AI, where we can upload our brand assets/colors/screenshots. 
 - Allow customizing with logo/assets
 - Structuring presentations as workspace/folders
