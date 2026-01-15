@@ -65,6 +65,16 @@ const PRICING_TIERS: PricingTier[] = [
 ]
 
 export function BillingModal({ open, onOpenChange }: BillingModalProps) {
+  const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+  if (!PUBLISHABLE_KEY) {
+    return null
+  }
+
+  return <BillingModalContent open={open} onOpenChange={onOpenChange} />
+}
+
+function BillingModalContent({ open, onOpenChange }: BillingModalProps) {
   const { userId } = useAuth()
   const [selectedTier, setSelectedTier] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)

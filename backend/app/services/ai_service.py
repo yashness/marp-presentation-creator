@@ -267,3 +267,66 @@ Return only the updated markdown content, no extra text."""
         except Exception as e:
             logger.error(f"Failed to generate image: {e}")
             return None
+
+    def generate_theme_css(
+        self,
+        theme_name: str,
+        brand_colors: list[str],
+        description: str = ""
+    ) -> Optional[str]:
+        """Generate Marp theme CSS based on brand colors and description.
+
+        Args:
+            theme_name: Name for the theme
+            brand_colors: List of hex color codes (primary, secondary, etc.)
+            description: Additional context about brand style
+
+        Returns:
+            Generated CSS theme content
+        """
+        if not self.client:
+            logger.error("AI client not initialized")
+            return None
+
+        try:
+            color_info = "\n".join([f"Color {i+1}: {c}" for i, c in enumerate(brand_colors)])
+
+            prompt = f"""Generate a professional Marp theme CSS file based on these brand colors:
+
+{color_info}
+
+Theme name: {theme_name}
+{f'Style description: {description}' if description else ''}
+
+Create a complete Marp theme with:
+1. Section styling with color hierarchy
+2. Typography (headings, body text, code)
+3. Layout and spacing
+4. Lists, blockquotes, tables
+5. Color scheme that uses the provided colors tastefully
+
+The CSS should follow Marp theme structure:
+- Use :root for variables
+- Style section elements
+- Include h1-h6, p, ul, ol, code, pre, blockquote, table, etc.
+
+Return ONLY the CSS code, no markdown formatting or explanations."""
+
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            css_content = response.content[0].text.strip()
+
+            # Clean up markdown code blocks if present
+            if css_content.startswith("```"):
+                lines = css_content.split("\n")
+                css_content = "\n".join(lines[1:-1]) if len(lines) > 2 else css_content
+
+            return css_content
+
+        except Exception as e:
+            logger.error(f"Failed to generate theme: {e}")
+            return None

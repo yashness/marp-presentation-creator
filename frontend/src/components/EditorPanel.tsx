@@ -9,6 +9,7 @@ import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
 import { TTSButton } from './TTSButton'
 import { ImageGenerationButton } from './ImageGenerationButton'
 import { CommandPalette } from './CommandPalette'
+import { ThemeCreatorModal } from './ThemeCreatorModal'
 import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
@@ -72,6 +73,7 @@ export function EditorPanel({
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0)
+  const [themeCreatorOpen, setThemeCreatorOpen] = useState(false)
 
   const parsed = useMemo(() => parseSlides(content), [content])
   const slides = parsed.slides.length
@@ -476,6 +478,14 @@ export function EditorPanel({
                   </div>
                   <Sparkles className="w-5 h-5 text-secondary-500" />
                 </div>
+                <Button
+                  size="sm"
+                  onClick={() => setThemeCreatorOpen(true)}
+                  className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI Theme Creator
+                </Button>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-slate-600">Load existing custom theme</label>
                   <Select
@@ -624,6 +634,14 @@ export function EditorPanel({
         onClose={() => setCommandPaletteOpen(false)}
         onInsertText={handleInsertText}
         currentSlideContent={mode === 'blocks' && currentSlideIndex >= 0 ? slides[currentSlideIndex]?.content : content}
+      />
+
+      <ThemeCreatorModal
+        open={themeCreatorOpen}
+        onOpenChange={setThemeCreatorOpen}
+        onThemeCreated={() => {
+          window.location.reload()
+        }}
       />
     </div>
   )

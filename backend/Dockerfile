@@ -28,8 +28,6 @@ RUN uv sync --frozen
 
 COPY . .
 
-RUN uv run python -c "from kokoro import KPipeline; print('Downloading Kokoro model...'); KPipeline(lang_code='a', repo_id='hexgrad/Kokoro-82M'); print('Model downloaded successfully')"
-
 EXPOSE 8000
 
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "app", "--reload-exclude", ".venv/*", "--reload-exclude", "data/*", "--reload-exclude", "logs/*"]

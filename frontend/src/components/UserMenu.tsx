@@ -5,6 +5,16 @@ import { LogIn, UserPlus, CreditCard } from 'lucide-react'
 import { BillingModal } from './BillingModal'
 
 export function UserMenu() {
+  const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+  if (!PUBLISHABLE_KEY) {
+    return null
+  }
+
+  return <UserMenuContent />
+}
+
+function UserMenuContent() {
   const { isSignedIn } = useAuth()
   const [billingOpen, setBillingOpen] = useState(false)
 

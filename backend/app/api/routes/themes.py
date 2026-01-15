@@ -5,13 +5,30 @@ from fastapi.responses import Response, FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
 import tempfile
+from pydantic import BaseModel
 
 from app.schemas.theme import ThemeResponse, ThemeCreate, ThemeUpdate
 from app.services import theme_service
+from app.services.ai_service import AIService
 from app.core.database import get_db
 from app.core.logger import logger
 
 router = APIRouter(prefix="/themes", tags=["themes"])
+ai_service = AIService()
+
+
+class GenerateThemeRequest(BaseModel):
+    """Request model for AI theme generation."""
+    theme_name: str
+    brand_colors: list[str]
+    description: str = ""
+
+
+class GenerateThemeResponse(BaseModel):
+    """Response model for theme generation."""
+    success: bool
+    theme: ThemeResponse | None = None
+    message: str
 
 def get_session() -> Session:
     """Get database session."""
@@ -95,3 +112,57 @@ def export_theme(theme_id: str, db: Session = Depends(get_session)) -> FileRespo
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+@router.post("/generate-ai", response_model=GenerateThemeResponse)
+def generate_theme_with_ai(
+    request: GenerateThemeRequest,
+    db: Session = Depends(get_session)
+) -> GenerateThemeResponse:
+    """Generate a theme using AI based on brand colors and description.
+
+    Args:
+        request: Theme generation parameters
+        db: Database session
+
+    Returns:
+        Generated theme with CSS content
+    """
+    logger.info(f"Generating AI theme: {request.theme_name}")
+
+    try:
+        # Generate CSS using AI
+        css_content = ai_service.generate_theme_css(
+            theme_name=request.theme_name,
+            brand_colors=request.brand_colors,
+            description=request.description
+        )
+
+        if not css_content:
+            return GenerateThemeResponse(
+                success=False,
+                theme=None,
+                message="Failed to generate theme CSS with AI"
+            )
+
+        # Create the theme in the database
+        theme_data = ThemeCreate(
+            name=request.theme_name,
+            description=request.description or f"AI-generated theme with colors: {', '.join(request.brand_colors)}",
+            css_content=css_content,
+            is_custom=True
+        )
+
+        theme = theme_service.create_custom_theme(db, theme_data)
+
+        return GenerateThemeResponse(
+            success=True,
+            theme=theme,
+            message="Theme generated successfully"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to generate AI theme: {e}")
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(409, f"Theme with name '{request.theme_name}' already exists")
+        raise HTTPException(500, f"Failed to generate theme: {str(e)}")
