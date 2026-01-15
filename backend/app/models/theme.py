@@ -10,9 +10,9 @@ class Theme(Base):
     __tablename__ = "themes"
 
     id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False, unique=True)
+    name = Column(String(100), nullable=False, unique=True, index=True)
     description = Column(Text, nullable=True)
-    is_builtin = Column(Boolean, default=False, nullable=False)
+    is_builtin = Column(Boolean, default=False, nullable=False, index=True)
 
     colors = Column(JSON, nullable=False)
     typography = Column(JSON, nullable=False)

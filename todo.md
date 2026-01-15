@@ -19,20 +19,29 @@
 
 ## Summary of Improvements (2026-01-15)
 
-**Backend Code Quality:**
+**Backend Code Quality (Morning):**
 - Extracted duplicate AI client calls into centralized `_call_ai()` helper
 - Added proper error handling and logging for AI responses
 - Pre-compiled regex patterns for 20-30% performance improvement
 - Introduced `SlideData` TypedDict for type-safe video exports
 - Improved type hints across video export service methods
 
-**Frontend Performance:**
+**Frontend Performance (Morning):**
 - Optimized slide parsing with `useMemo` to prevent redundant operations
 - Cached parsed content to reduce unnecessary re-renders
 - Improved component render efficiency
 
-**Testing:**
+**Testing (Morning):**
 - Created comprehensive test suite for refactored AI service methods
 - Added type safety validation tests for video export service
 - All tests passing (123 tests total)
 - Improved code coverage for critical paths
+
+**Backend Code Quality (Afternoon):**
+- Fixed Pydantic v2 deprecated `Config` class in AssetResponse schema
+- Extracted duplicate session management to shared `get_db_session()` utility
+- Refactored `AIService.generate_outline()` into smaller focused functions
+- Refactored `AIService.generate_slide_batch()` into smaller focused functions
+- Added database indexes on frequently queried columns for performance
+- Added folder existence validation in presentation service
+- All 123 tests passing after refactoring

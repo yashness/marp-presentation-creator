@@ -11,8 +11,8 @@ class Folder(Base):
     __tablename__ = "folders"
 
     id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    parent_id = Column(String(36), ForeignKey("folders.id"), nullable=True)
+    name = Column(String(100), nullable=False, index=True)
+    parent_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 

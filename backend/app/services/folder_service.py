@@ -2,12 +2,10 @@
 
 from datetime import datetime
 import uuid
-from contextlib import contextmanager
-from typing import Generator
 from sqlalchemy.orm import Session
 from app.models.folder import Folder
 from app.schemas.folder import FolderCreate, FolderResponse, FolderUpdate
-from app.core.database import SessionLocal
+from app.core.database import get_db_session
 from app.core.logger import logger
 from app.core.validators import is_safe_filename
 
@@ -17,18 +15,6 @@ def generate_id() -> str:
 def validate_folder_id(folder_id: str) -> None:
     if not is_safe_filename(folder_id):
         raise ValueError("Invalid folder ID")
-
-@contextmanager
-def get_session() -> Generator[Session, None, None]:
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 def to_response(folder: Folder) -> FolderResponse:
     return FolderResponse(
@@ -67,18 +53,18 @@ def get_folder_by_id(session: Session, folder_id: str) -> Folder | None:
     return session.query(Folder).filter(Folder.id == folder_id).first()
 
 def create_folder(data: FolderCreate) -> FolderResponse:
-    with get_session() as session:
+    with get_db_session() as session:
         folder = create_db_folder(session, data)
         logger.info(f"Created folder: {folder.id}")
         return to_response(folder)
 
 def get_folder(folder_id: str) -> FolderResponse | None:
-    with get_session() as session:
+    with get_db_session() as session:
         folder = get_folder_by_id(session, folder_id)
         return to_response(folder) if folder else None
 
 def list_folders(parent_id: str | None = None) -> list[FolderResponse]:
-    with get_session() as session:
+    with get_db_session() as session:
         query = session.query(Folder)
         if parent_id is not None:
             query = query.filter(Folder.parent_id == parent_id)
@@ -88,7 +74,7 @@ def list_folders(parent_id: str | None = None) -> list[FolderResponse]:
         return [to_response(f) for f in folders]
 
 def list_all_folders() -> list[FolderResponse]:
-    with get_session() as session:
+    with get_db_session() as session:
         folders = session.query(Folder).all()
         return [to_response(f) for f in folders]
 
@@ -100,7 +86,7 @@ def apply_updates(folder: Folder, data: FolderUpdate) -> None:
     folder.updated_at = datetime.now()
 
 def update_folder(folder_id: str, data: FolderUpdate) -> FolderResponse | None:
-    with get_session() as session:
+    with get_db_session() as session:
         folder = get_folder_by_id(session, folder_id)
         if not folder:
             return None
@@ -117,7 +103,7 @@ def update_folder(folder_id: str, data: FolderUpdate) -> FolderResponse | None:
         return to_response(folder)
 
 def delete_folder(folder_id: str) -> bool:
-    with get_session() as session:
+    with get_db_session() as session:
         folder = get_folder_by_id(session, folder_id)
         if not folder:
             return False

@@ -184,47 +184,34 @@ class AIService:
         return bullets
 
 
-    def generate_outline(
+    def _build_constraint_block(
         self,
-        description: str,
-        slide_count: Optional[int] = None,
-        subtopic_count: Optional[int] = None,
-        audience: Optional[str] = None,
-        flavor: Optional[str] = None,
-        narration_instructions: Optional[str] = None,
-        comment_max_ratio: Optional[float] = None
-    ) -> Optional[PresentationOutline]:
-        """Generate presentation outline from description.
+        slide_count: Optional[int],
+        subtopic_count: Optional[int],
+        audience: Optional[str],
+        flavor: Optional[str],
+        narration_instructions: Optional[str],
+        comment_max_ratio: Optional[float]
+    ) -> str:
+        """Build constraint block for outline generation."""
+        constraint_lines = []
+        if slide_count:
+            constraint_lines.append(f"- Desired slide count: {slide_count}")
+        if subtopic_count:
+            constraint_lines.append(f"- Desired subtopic count: {subtopic_count}")
+        if audience:
+            constraint_lines.append(f"- Target audience: {audience}")
+        if flavor:
+            constraint_lines.append(f"- Extra flavor/angle: {flavor}")
+        if narration_instructions:
+            constraint_lines.append(f"- Narration instructions: {narration_instructions}")
+        if comment_max_ratio:
+            constraint_lines.append(f"- Narration length target: <= {int(comment_max_ratio * 100)}% of slide text")
+        return "\n".join(constraint_lines) if constraint_lines else "None provided."
 
-        Args:
-            description: User's description of what they want
-
-        Returns:
-            Presentation outline with slides
-        """
-        if not self.client:
-            logger.error("AI client not initialized")
-            return None
-
-        try:
-            constraint_lines = []
-            if slide_count:
-                constraint_lines.append(f"- Desired slide count: {slide_count}")
-            if subtopic_count:
-                constraint_lines.append(f"- Desired subtopic count: {subtopic_count}")
-            if audience:
-                constraint_lines.append(f"- Target audience: {audience}")
-            if flavor:
-                constraint_lines.append(f"- Extra flavor/angle: {flavor}")
-            if narration_instructions:
-                constraint_lines.append(f"- Narration instructions: {narration_instructions}")
-            if comment_max_ratio:
-                constraint_lines.append(f"- Narration length target: <= {int(comment_max_ratio * 100)}% of slide text")
-            constraint_block = "\n".join(constraint_lines) if constraint_lines else "None provided."
-
-            slide_count_hint = f"{slide_count} slides" if slide_count else "5-8 slides"
-
-            prompt = f"""You are an expert educator creating a presentation outline. Your goal is to create narration that TEACHES the content, not just announces it.
+    def _create_outline_prompt(self, description: str, constraint_block: str, slide_count_hint: str) -> str:
+        """Create the prompt for outline generation."""
+        return f"""You are an expert educator creating a presentation outline. Your goal is to create narration that TEACHES the content, not just announces it.
 
 Topic: {description}
 
@@ -274,6 +261,29 @@ CRITICAL NARRATION REQUIREMENTS:
 
 Do not include markdown formatting, frontmatter, or code fences in your response."""
 
+    def generate_outline(
+        self,
+        description: str,
+        slide_count: Optional[int] = None,
+        subtopic_count: Optional[int] = None,
+        audience: Optional[str] = None,
+        flavor: Optional[str] = None,
+        narration_instructions: Optional[str] = None,
+        comment_max_ratio: Optional[float] = None
+    ) -> Optional[PresentationOutline]:
+        """Generate presentation outline from description."""
+        if not self.client:
+            logger.error("AI client not initialized")
+            return None
+
+        try:
+            constraint_block = self._build_constraint_block(
+                slide_count, subtopic_count, audience, flavor,
+                narration_instructions, comment_max_ratio
+            )
+            slide_count_hint = f"{slide_count} slides" if slide_count else "5-8 slides"
+            prompt = self._create_outline_prompt(description, constraint_block, slide_count_hint)
+
             content = self._call_ai(prompt, max_tokens=4000, context="Generate outline")
             if not content:
                 return None
@@ -281,6 +291,7 @@ Do not include markdown formatting, frontmatter, or code fences in your response
             data = self._extract_outline_json(content)
             if not data:
                 return None
+
             outline = PresentationOutline(**data)
             if narration_instructions:
                 outline.narration_instructions = narration_instructions
@@ -336,7 +347,18 @@ Do not include slide separators (`---`)."""
             logger.error(f"Failed to generate slide content: {e}")
             return f"# {slide_outline.title}\n\n" + "\n".join(f"- {point}" for point in slide_outline.content_points)
 
-    def generate_slide_batch(
+    def _create_fallback_slides(self, slides: list[SlideOutline]) -> str:
+        """Create fallback slides when AI generation fails."""
+        chunks = []
+        for slide in slides:
+            content = f"# {slide.title}\n\n" + "\n".join(f"- {point}" for point in slide.content_points)
+            comment = self._sanitize_slide_comment(slide.notes or "")
+            if comment:
+                content += f"\n\n<!--\n{comment}\n-->"
+            chunks.append(content)
+        return "\n\n---\n\n".join(chunks)
+
+    def _create_batch_prompt(
         self,
         slides: list[SlideOutline],
         theme: str,
@@ -344,17 +366,7 @@ Do not include slide separators (`---`)."""
         batch_total: int,
         narration_instructions: Optional[str]
     ) -> str:
-        """Generate markdown for a batch of slides with per-slide comments."""
-        if not self.client:
-            chunks = []
-            for slide in slides:
-                content = f"# {slide.title}\n\n" + "\n".join(f"- {point}" for point in slide.content_points)
-                comment = self._sanitize_slide_comment(slide.notes or "")
-                if comment:
-                    content += f"\n\n<!--\n{comment}\n-->"
-                chunks.append(content)
-            return "\n\n---\n\n".join(chunks)
-
+        """Create prompt for batch slide generation."""
         slide_lines = []
         for idx, slide in enumerate(slides, start=1):
             notes = slide.notes or ""
@@ -366,7 +378,7 @@ Do not include slide separators (`---`)."""
         slide_block = "\n\n".join(slide_lines)
         narration_hint = narration_instructions or "Teach the content clearly and succinctly."
 
-        prompt = f"""You are creating Marp markdown slides with teaching-focused narration. This is batch {batch_index} of {batch_total}.
+        return f"""You are creating Marp markdown slides with teaching-focused narration. This is batch {batch_index} of {batch_total}.
 
 Theme: {theme}
 
@@ -417,17 +429,25 @@ EXAMPLES OF GOOD vs BAD NARRATION:
 
 Create narration that directly teaches the content as audio, with zero meta-language or announcement phrases."""
 
+    def generate_slide_batch(
+        self,
+        slides: list[SlideOutline],
+        theme: str,
+        batch_index: int,
+        batch_total: int,
+        narration_instructions: Optional[str]
+    ) -> str:
+        """Generate markdown for a batch of slides with per-slide comments."""
+        if not self.client:
+            return self._create_fallback_slides(slides)
+
+        prompt = self._create_batch_prompt(
+            slides, theme, batch_index, batch_total, narration_instructions
+        )
+
         content = self._call_ai(prompt, max_tokens=1400, context=f"Generate batch {batch_index}/{batch_total}")
         if not content:
-            # Fallback to simple generation
-            chunks = []
-            for slide in slides:
-                slide_content = f"# {slide.title}\n\n" + "\n".join(f"- {point}" for point in slide.content_points)
-                comment = self._sanitize_slide_comment(slide.notes or "")
-                if comment:
-                    slide_content += f"\n\n<!--\n{comment}\n-->"
-                chunks.append(slide_content)
-            return "\n\n---\n\n".join(chunks)
+            return self._create_fallback_slides(slides)
 
         return self._sanitize_slide_markdown(content)
 

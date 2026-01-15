@@ -14,11 +14,11 @@ class Presentation(Base):
     __tablename__ = "presentations"
 
     id = Column(String(36), primary_key=True)
-    title = Column(String(200), nullable=False)
+    title = Column(String(200), nullable=False, index=True)
     content = Column(Text, nullable=False)
-    theme_id = Column(String(50), nullable=True)
-    folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    theme_id = Column(String(50), nullable=True, index=True)
+    folder_id = Column(String(36), ForeignKey("folders.id"), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
     folder = relationship("Folder", back_populates="presentations")

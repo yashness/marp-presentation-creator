@@ -2,13 +2,12 @@
 
 from datetime import datetime
 import uuid
-from contextlib import contextmanager
-from typing import Generator
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, Query
 from app.models.presentation import Presentation
+from app.models.folder import Folder
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
-from app.core.database import SessionLocal
+from app.core.database import get_db_session
 from app.core.logger import logger
 from app.core.validators import is_safe_filename
 
@@ -18,18 +17,6 @@ def generate_id() -> str:
 def validate_presentation_id(pres_id: str) -> None:
     if not is_safe_filename(pres_id):
         raise ValueError("Invalid presentation ID")
-
-@contextmanager
-def get_session() -> Generator[Session, None, None]:
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 def to_response(pres: Presentation) -> PresentationResponse:
     return PresentationResponse(
@@ -58,7 +45,15 @@ def persist_presentation(session: Session, pres: Presentation) -> Presentation:
     session.refresh(pres)
     return pres
 
+def validate_folder_exists(session: Session, folder_id: str | None) -> None:
+    """Validate that folder exists if folder_id is provided."""
+    if folder_id:
+        folder = session.query(Folder).filter(Folder.id == folder_id).first()
+        if not folder:
+            raise ValueError(f"Folder with id {folder_id} does not exist")
+
 def create_db_presentation(session: Session, data: PresentationCreate) -> Presentation:
+    validate_folder_exists(session, data.folder_id)
     pres = build_presentation(data)
     return persist_presentation(session, pres)
 
@@ -66,18 +61,18 @@ def get_presentation_by_id(session: Session, pres_id: str) -> Presentation | Non
     return session.query(Presentation).filter(Presentation.id == pres_id).first()
 
 def create_presentation(data: PresentationCreate) -> PresentationResponse:
-    with get_session() as session:
+    with get_db_session() as session:
         pres = create_db_presentation(session, data)
         logger.info(f"Created presentation: {pres.id}")
         return to_response(pres)
 
 def get_presentation(pres_id: str) -> PresentationResponse | None:
-    with get_session() as session:
+    with get_db_session() as session:
         pres = get_presentation_by_id(session, pres_id)
         return to_response(pres) if pres else None
 
 def list_presentations() -> list[PresentationResponse]:
-    with get_session() as session:
+    with get_db_session() as session:
         presentations = session.query(Presentation).all()
         return [to_response(p) for p in presentations]
 
@@ -90,7 +85,7 @@ def build_search_filters(session: Session, query: str, theme_id: str | None) -> 
     return q
 
 def search_presentations(query: str, theme_id: str | None = None) -> list[PresentationResponse]:
-    with get_session() as session:
+    with get_db_session() as session:
         q = build_search_filters(session, query, theme_id)
         return [to_response(p) for p in q.all()]
 
@@ -104,10 +99,11 @@ def apply_updates(pres: Presentation, data: PresentationUpdate) -> None:
     pres.updated_at = datetime.now()
 
 def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationResponse | None:
-    with get_session() as session:
+    with get_db_session() as session:
         pres = get_presentation_by_id(session, pres_id)
         if not pres:
             return None
+        validate_folder_exists(session, data.folder_id)
         apply_updates(pres, data)
         session.flush()
         session.refresh(pres)
@@ -115,7 +111,7 @@ def update_presentation(pres_id: str, data: PresentationUpdate) -> PresentationR
         return to_response(pres)
 
 def duplicate_presentation(pres_id: str) -> PresentationResponse | None:
-    with get_session() as session:
+    with get_db_session() as session:
         existing = get_presentation_by_id(session, pres_id)
         if not existing:
             return None
@@ -134,7 +130,7 @@ def duplicate_presentation(pres_id: str) -> PresentationResponse | None:
         return to_response(new_pres)
 
 def delete_presentation(pres_id: str) -> bool:
-    with get_session() as session:
+    with get_db_session() as session:
         pres = get_presentation_by_id(session, pres_id)
         if not pres:
             return False
