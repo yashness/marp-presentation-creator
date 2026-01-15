@@ -12,6 +12,6 @@
 - ✅ Add elements/shortcuts as we type for the slide to add AI text or add AI generated image (Command Palette with Cmd/Ctrl+K shortcut for quick AI commands)
 - ✅ Add login feature with Clerk (sign in/sign up modals, user menu in sidebar)
 - ✅ Add billing with Clerk (pricing tiers modal, manage billing button)
-- Add theme creator with AI, where we can upload our brand assets/colors/screenshots. 
+- ✅ Add theme creator with AI, where we can upload our brand assets/colors/screenshots (AI Theme Creator modal with brand colors and style description)
 - Allow customizing with logo/assets
 - Structuring presentations as workspace/folders
