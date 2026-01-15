@@ -22,7 +22,12 @@ The Marp Presentation Builder is a full-stack application that enables users to 
 - `app/api/routes/`: API endpoints
 - `app/schemas/`: Pydantic data models
 - `app/services/`: Business logic layer
-- `app/models/`: (Future) Database models
+  - `ai_service.py`: AI-powered presentation generation
+  - `comment_processor.py`: Comment length enforcement and narration
+  - `video_export_service.py`: Video export pipeline (TTS + slides)
+  - `presentation_service.py`: CRUD operations
+  - `folder_service.py`: Folder organization
+- `app/models/`: Database models (SQLAlchemy)
 
 **Data Storage**:
 - File system: Markdown files (.md) for presentation content
@@ -41,10 +46,17 @@ The Marp Presentation Builder is a full-stack application that enables users to 
 - API integration
 
 **Key Components**:
-- Editor: Monaco/CodeMirror for Markdown editing
-- Preview: Iframe-based Marp rendering
-- Theme Selector: Visual theme picker
-- Presentation List: CRUD interface
+- Editor: Monaco for Markdown editing with syntax highlighting
+- Preview: Iframe-based Marp rendering with live updates
+- Theme Selector: Visual theme picker and custom theme creator
+- Presentation Sidebar: Hierarchical folder tree with drag-drop
+- AI Generation Modal: Multi-step presentation generation workflow
+- Asset Manager: Upload and manage logos/images
+
+**Key Utilities**:
+- `lib/dragDropValidation.ts`: Type-safe drag-drop data validation
+- `hooks/usePresentations.ts`: Presentation CRUD operations
+- `hooks/useApiHandler.ts`: Centralized API error handling
 
 **State Management**:
 - TanStack Query for server state
@@ -125,10 +137,23 @@ User clicks Export
 
 ### Code Quality
 
-- Functions ≤ 10 lines
-- Type hints throughout
+- Functions around 10 lines (strong preference, not strict)
+- Type hints throughout (Python + TypeScript)
 - Self-documenting code (minimal comments)
+- Separation of concerns via dedicated modules
 - Comprehensive test coverage
+
+### Recent Refactoring (2026-01)
+
+**Backend**:
+- Extracted `CommentProcessor` class from `ai_service.py` for better testability
+- Split `export_video()` into stage functions: `_prepare_presentation()`, `_generate_video_segments()`, `_finalize_export()`
+- Reduced function complexity and improved error handling
+
+**Frontend**:
+- Added type-safe drag-drop validation utility (`dragDropValidation.ts`)
+- Replaced unsafe `JSON.parse` with validated `parseDragData()`
+- Created helper functions: `createPresentationDragData()`, `createFolderDragData()`
 
 ## Security Considerations
 
