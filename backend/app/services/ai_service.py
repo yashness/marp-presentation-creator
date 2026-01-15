@@ -117,9 +117,6 @@ class AIService:
 
     def _sanitize_slide_markdown(self, text: str) -> str:
         cleaned = text or ""
-        fenced = re.search(r"```(?:markdown|md)?\s*([\s\S]*?)\s*```", cleaned, re.IGNORECASE)
-        if fenced:
-            cleaned = fenced.group(1)
         cleaned = self._strip_outer_code_fence(cleaned)
         cleaned = self._strip_frontmatter(cleaned)
         return cleaned.strip()
@@ -202,14 +199,39 @@ class AIService:
 
 
     @staticmethod
+    def _build_slide_narration(
+        heading: str,
+        focus: str,
+        index: int,
+        total: int,
+        prev_heading: str = "",
+        next_heading: str = ""
+    ) -> str:
+        """Generate fallback narration for a slide."""
+        parts = []
+
+        if index == 0:
+            parts.append(f"Let's explore {heading.lower()}.")
+        elif index == total - 1:
+            parts.append(f"To wrap up, let's look at {heading.lower()}.")
+        else:
+            parts.append(f"Now let's discuss {heading.lower()}.")
+
+        if focus:
+            parts.append(focus)
+
+        return " ".join(parts)
+
+    @staticmethod
     def _enforce_comment_length(
         comment: str,
         slide_text: str,
+        fallback_comment: str,
         max_ratio: Optional[float]
     ) -> str:
         """Limit comment length if max_ratio is specified."""
         if not comment:
-            return ""
+            return fallback_comment
         if not max_ratio:
             return comment.strip()
 
@@ -218,7 +240,18 @@ class AIService:
             return comment.strip()
 
         max_len = max(1, int(slide_len * max_ratio))
-        return AIService._truncate_comment(comment, max_len)
+        comment_len = len(AIService._strip_markdown_for_length(comment))
+
+        if comment_len <= max_len:
+            return comment.strip()
+
+        # If comment is too long, use fallback
+        fallback_len = len(AIService._strip_markdown_for_length(fallback_comment))
+        if fallback_len <= max_len:
+            return fallback_comment
+
+        # If even fallback is too long, truncate it
+        return AIService._truncate_comment(fallback_comment, max_len)
 
     def generate_outline(
         self,
@@ -392,9 +425,9 @@ Do not include slide separators (`---`)."""
         for idx, slide in enumerate(slides, start=1):
             notes = slide.notes or ""
             slide_lines.append(
-                f"Slide {idx} title: {slide.title}\n"
-                f"Slide {idx} points: {', '.join(slide.content_points)}\n"
-                f"Slide {idx} notes: {notes}"
+                f"Outline item {idx} title: {slide.title}\n"
+                f"Outline item {idx} points: {', '.join(slide.content_points)}\n"
+                f"Outline item {idx} notes: {notes}"
             )
         slide_block = "\n\n".join(slide_lines)
         narration_hint = narration_instructions or "Teach the content clearly and succinctly."
@@ -415,16 +448,20 @@ FORMAT REQUIREMENTS:
 - Output slides separated by `---`
 - Each slide MUST have a narration comment: <!-- your teaching narration -->
 - Slide content: clean markdown with 3-5 bullets, ~8 lines max
+- Use varied layouts across the deck (title-only, quote, list, image, comparison, short paragraph)
+- Include a mermaid diagram when it fits the topic
 - No frontmatter, no code fences, no meta-commentary
 
 NARRATION REQUIREMENTS (CRITICAL):
 - TEACH the concepts: explain WHY, HOW, and WHAT IT MEANS
 - Use natural, conversational language (like a podcast or lecture)
 - Connect ideas across slides to build a cohesive narrative
-- 2-4 sentences, but make them substantive and meaningful
+- 1-2 sentences, ~20-40 words, and no longer than the slide text
 - Each narration should deepen understanding, not summarize bullets
 - Build on previous concepts, foreshadow next ideas naturally
 - Assume the listener can't see the slide - your narration should teach standalone
+- If an outline item is dense, split it into 2 slides with continuation titles and narrate each separately
+- First slide of the deck should feel like a warm intro; last slide should feel like a clear outro and summary
 
 EXAMPLES OF GOOD NARRATION:
 ❌ BAD: "Here we focus on Refraction and how light bends. Next we'll look at examples."
@@ -492,13 +529,40 @@ paginate: true
             # Extract slide content (everything except the comment)
             block_body = re.sub(r"<!--\s*[\s\S]*?\s*-->", "", block).strip()
 
-            # If AI didn't generate narration, log warning and skip comment
+            heading = self._extract_heading(block_body)
+            bullets = self._extract_bullets(block_body)
+            focus = bullets[0] if bullets else ""
+            prev_heading = self._extract_heading(blocks[idx - 1]) if idx > 0 else ""
+            next_heading = self._extract_heading(blocks[idx + 1]) if idx + 1 < len(blocks) else ""
+
             if not comment:
-                logger.warning(f"Slide {idx + 1} missing narration - AI did not generate comment")
-                slides_content.append(block_body)
-            else:
-                block_with_comment = f"{block_body}\n\n<!--\n{comment}\n-->"
-                slides_content.append(block_with_comment)
+                logger.warning(f"Slide {idx + 1} missing narration - adding fallback")
+                comment = self._build_slide_narration(
+                    heading=heading,
+                    focus=focus,
+                    index=idx,
+                    total=len(blocks),
+                    prev_heading=prev_heading,
+                    next_heading=next_heading
+                )
+
+            fallback_comment = self._build_slide_narration(
+                heading=heading,
+                focus=focus,
+                index=idx,
+                total=len(blocks),
+                prev_heading=prev_heading,
+                next_heading=next_heading
+            )
+            comment = self._enforce_comment_length(
+                comment,
+                block_body,
+                fallback_comment,
+                outline.comment_max_ratio
+            )
+
+            block_with_comment = f"{block_body}\n\n<!--\n{comment}\n-->"
+            slides_content.append(block_with_comment)
 
         return frontmatter + "\n\n---\n\n".join(slides_content)
 

@@ -84,11 +84,15 @@ class VideoExportService:
             # Use Marp CLI to convert markdown to image
             from app.services.marp_service import get_marp_command_parts, ensure_theme_css, MARP_CONFIG_PATH
 
+            # Marp with --images png creates files with numbered extensions
+            # We specify the output file without extension, Marp adds -001.png, -002.png, etc
+            output_prefix = output_path.with_suffix('')
+
             cmd = get_marp_command_parts() + [
                 str(temp_md_path),
                 "--images", "png",
                 "--allow-local-files",
-                "-o", str(output_path.parent)
+                "-o", str(output_prefix)
             ]
 
             if MARP_CONFIG_PATH.exists():
@@ -98,6 +102,7 @@ class VideoExportService:
                 ensure_theme_css(theme_id)
                 cmd.extend(["--theme", theme_id])
 
+            logger.info(f"Running Marp command: {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -105,25 +110,36 @@ class VideoExportService:
                 timeout=30
             )
 
+            logger.info(f"Marp command completed with return code: {result.returncode}")
+            if result.stdout:
+                logger.info(f"Marp stdout: {result.stdout}")
+            if result.stderr:
+                logger.info(f"Marp stderr: {result.stderr}")
+
             temp_md_path.unlink(missing_ok=True)
 
             if result.returncode != 0:
                 logger.error(f"Marp image export failed (code {result.returncode}): {result.stderr}")
-                if result.stdout:
-                    logger.error(f"Marp stdout: {result.stdout}")
                 logger.error(f"Marp cmd: {' '.join(cmd)}")
                 logger.error(f"Slide markdown size: {len(slide_content)} chars")
                 logger.error(f"Slide markdown head: {slide_content[:240]}")
                 return False
 
-            # Marp creates filename based on input, rename to expected output
-            candidates = list(output_path.parent.glob(f"{temp_md_path.stem}*.png"))
-            if candidates:
-                candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-                candidates[0].rename(output_path)
+            # Marp creates files like output.001 (PNG without .png extension) when using --images png
+            # We need to find and rename to add the .png extension
+            output_prefix = output_path.with_suffix('')
+            marp_output = Path(str(output_prefix) + ".001")
+
+            logger.info(f"Looking for Marp output at: {marp_output}")
+
+            if marp_output.exists():
+                logger.info(f"Renaming {marp_output} to {output_path}")
+                marp_output.rename(output_path)
                 return True
 
-            return output_path.exists()
+            logger.error(f"Marp output not found. Expected: {marp_output}")
+            logger.error(f"Output directory contents: {list(output_path.parent.glob('*'))}")
+            return False
 
         except Exception as e:
             logger.error(f"Failed to render slide to image: {e}")
@@ -213,21 +229,36 @@ class VideoExportService:
         try:
             duration = self._get_audio_duration(audio_path) if audio_path else default_duration
 
+            # Build FFmpeg command with correct argument order:
+            # 1. Global options
+            # 2. Input files (with their options before each -i)
+            # 3. Output options (filters, codecs, etc.)
+            # 4. Output file
+
             cmd = [
                 "ffmpeg", "-y",
                 "-loop", "1",
-                "-i", str(image_path),
+                "-i", str(image_path)
+            ]
+
+            # Add audio input
+            if audio_path:
+                cmd.extend(["-i", str(audio_path)])
+            else:
+                cmd.extend(["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"])
+
+            # Add output options AFTER all inputs
+            cmd.extend([
                 "-t", str(duration),
                 "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
                 "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
-                "-r", "30"
-            ]
+                "-r", "30",
+                "-c:a", "aac"
+            ])
 
             if audio_path:
-                cmd.extend(["-i", str(audio_path), "-c:a", "aac", "-shortest"])
-            else:
-                cmd.extend(["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-c:a", "aac", "-t", str(duration)])
+                cmd.append("-shortest")
 
             cmd.append(str(output_path))
 

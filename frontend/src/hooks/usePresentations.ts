@@ -27,8 +27,8 @@ export function usePresentations(searchQuery: string, selectedTheme: string | nu
     withReload(async () => createPresentation({ title, content, theme_id }), loadPresentations)(),
     [loadPresentations]
   )
-  const updateOp = useCallback((id: string, title: string, content: string, theme_id: string | null) =>
-    withReload(async () => updatePresentation(id, { title, content, theme_id }), loadPresentations)(),
+  const updateOp = useCallback((id: string, title?: string, content?: string, theme_id?: string | null, folder_id?: string | null) =>
+    withReload(async () => updatePresentation(id, { title, content, theme_id, folder_id }), loadPresentations)(),
     [loadPresentations]
   )
   const removeOp = useCallback((id: string) =>

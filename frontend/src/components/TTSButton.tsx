@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Volume2, Loader2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
@@ -18,6 +18,54 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
   const [showOptions, setShowOptions] = useState(false)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [audioAvailable, setAudioAvailable] = useState(false)
+  const [storedHash, setStoredHash] = useState<string | null>(null)
+
+  const commentHash = useMemo(() => {
+    let hash = 0
+    for (let i = 0; i < commentText.length; i += 1) {
+      hash = (hash * 31 + commentText.charCodeAt(i)) >>> 0
+    }
+    return `${hash}`
+  }, [commentText])
+
+  const storageKey = presentationId ? `tts:${presentationId}:${slideIndex}` : null
+
+  useEffect(() => {
+    if (!storageKey) {
+      setStoredHash(null)
+      return
+    }
+    setStoredHash(localStorage.getItem(storageKey))
+  }, [storageKey])
+
+  useEffect(() => {
+    if (!presentationId) {
+      setAudioAvailable(false)
+      setAudioUrl(null)
+      return
+    }
+    const controller = new AbortController()
+    const audioEndpoint = `${API_BASE_URL}/api/tts/${presentationId}/slides/${slideIndex}/audio`
+    fetch(audioEndpoint, { method: 'HEAD', signal: controller.signal })
+      .then((res) => {
+        if (res.ok) {
+          const cacheBustedUrl = `${audioEndpoint}?t=${Date.now()}`
+          setAudioAvailable(true)
+          setAudioUrl(cacheBustedUrl)
+        } else {
+          setAudioAvailable(false)
+          setAudioUrl(null)
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setAudioAvailable(false)
+          setAudioUrl(null)
+        }
+      })
+    return () => controller.abort()
+  }, [presentationId, slideIndex])
 
   const handleGenerateAudio = async () => {
     if (!presentationId || !commentText || !commentText.trim()) {
@@ -50,6 +98,11 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
           ? `${resolvedUrl}&t=${Date.now()}`
           : `${resolvedUrl}?t=${Date.now()}`
         setAudioUrl(cacheBustedUrl)
+        setAudioAvailable(true)
+        if (storageKey) {
+          localStorage.setItem(storageKey, commentHash)
+          setStoredHash(commentHash)
+        }
         onAudioGenerated?.(resolvedUrl)
         setStatusMessage('Audio ready.')
       } else {
@@ -131,6 +184,13 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
       )}
       {statusMessage && (
         <p className="text-xs text-slate-600">{statusMessage}</p>
+      )}
+      {audioAvailable && (
+        <p
+          className={`text-xs ${storedHash && storedHash !== commentHash ? 'text-amber-600' : 'text-emerald-600'}`}
+        >
+          {storedHash && storedHash !== commentHash ? 'Audio available (comment changed)' : 'Audio available'}
+        </p>
       )}
     </div>
   )

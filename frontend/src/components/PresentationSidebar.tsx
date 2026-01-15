@@ -24,6 +24,7 @@ interface PresentationSidebarProps {
   onCreateFolder: (name: string, parentId: string | null) => void
   onUpdateFolder: (id: string, name: string) => void
   onDeleteFolder: (id: string) => void
+  onMovePresentation?: (presentationId: string, folderId: string | null) => void
 }
 
 export function PresentationSidebar({
@@ -42,6 +43,7 @@ export function PresentationSidebar({
   onCreateFolder,
   onUpdateFolder,
   onDeleteFolder,
+  onMovePresentation,
 }: PresentationSidebarProps) {
   const [isAssetManagerOpen, setIsAssetManagerOpen] = useState(false)
 
@@ -91,6 +93,7 @@ export function PresentationSidebar({
             onCreateFolder={onCreateFolder}
             onUpdateFolder={onUpdateFolder}
             onDeleteFolder={onDeleteFolder}
+            onMovePresentation={onMovePresentation}
           />
         </div>
 

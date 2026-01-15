@@ -11,6 +11,7 @@ interface FolderTreeProps {
   onCreateFolder: (name: string, parentId: string | null) => void
   onUpdateFolder: (id: string, name: string) => void
   onDeleteFolder: (id: string) => void
+  onMovePresentation?: (presentationId: string, folderId: string | null) => void
 }
 
 interface FolderNodeProps {
@@ -21,6 +22,7 @@ interface FolderNodeProps {
   onCreateFolder: (name: string, parentId: string | null) => void
   onUpdateFolder: (id: string, name: string) => void
   onDeleteFolder: (id: string) => void
+  onMovePresentation?: (presentationId: string, folderId: string | null) => void
 }
 
 function FolderNode({
@@ -30,13 +32,15 @@ function FolderNode({
   onSelectFolder,
   onCreateFolder,
   onUpdateFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  onMovePresentation
 }: FolderNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(folder.name)
   const [isCreating, setIsCreating] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const children = folders.filter(f => f.parent_id === folder.id)
   const hasChildren = children.length > 0
@@ -57,12 +61,42 @@ function FolderNode({
     }
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'))
+      if (data.type === 'presentation' && onMovePresentation) {
+        onMovePresentation(data.id, folder.id)
+      }
+    } catch (err) {
+      console.error('Failed to parse drag data:', err)
+    }
+  }
+
   return (
     <div className="select-none">
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-100 cursor-pointer group ${
           selectedFolderId === folder.id ? 'bg-primary-50 text-primary-700' : 'text-slate-700'
-        }`}
+        } ${isDragOver ? 'ring-2 ring-primary-400 bg-primary-100' : ''}`}
         onClick={() => onSelectFolder(folder.id)}
       >
         <button
@@ -176,6 +210,7 @@ function FolderNode({
               onCreateFolder={onCreateFolder}
               onUpdateFolder={onUpdateFolder}
               onDeleteFolder={onDeleteFolder}
+              onMovePresentation={onMovePresentation}
             />
           ))}
         </div>
@@ -190,10 +225,12 @@ export function FolderTree({
   onSelectFolder,
   onCreateFolder,
   onUpdateFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  onMovePresentation
 }: FolderTreeProps) {
   const [isCreatingRoot, setIsCreatingRoot] = useState(false)
   const [newRootName, setNewRootName] = useState('')
+  const [isDragOverAll, setIsDragOverAll] = useState(false)
 
   const rootFolders = folders.filter(f => !f.parent_id)
 
@@ -202,6 +239,33 @@ export function FolderTree({
       onCreateFolder(newRootName.trim(), null)
       setNewRootName('')
       setIsCreatingRoot(false)
+    }
+  }
+
+  const handleDragOverAll = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOverAll(true)
+  }
+
+  const handleDragLeaveAll = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOverAll(false)
+  }
+
+  const handleDropAll = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOverAll(false)
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'))
+      if (data.type === 'presentation' && onMovePresentation) {
+        onMovePresentation(data.id, null)
+      }
+    } catch (err) {
+      console.error('Failed to parse drag data:', err)
     }
   }
 
@@ -247,9 +311,12 @@ export function FolderTree({
       )}
 
       <div
+        onDragOver={handleDragOverAll}
+        onDragLeave={handleDragLeaveAll}
+        onDrop={handleDropAll}
         className={`px-2 py-1.5 rounded-md hover:bg-slate-100 cursor-pointer flex items-center gap-2 ${
           selectedFolderId === null ? 'bg-primary-50 text-primary-700' : 'text-slate-700'
-        }`}
+        } ${isDragOverAll ? 'ring-2 ring-primary-400 bg-primary-100' : ''}`}
         onClick={() => onSelectFolder(null)}
       >
         <Folder className="w-4 h-4 text-slate-400" />
@@ -266,6 +333,7 @@ export function FolderTree({
           onCreateFolder={onCreateFolder}
           onUpdateFolder={onUpdateFolder}
           onDeleteFolder={onDeleteFolder}
+          onMovePresentation={onMovePresentation}
         />
       ))}
     </div>

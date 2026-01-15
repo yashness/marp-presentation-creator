@@ -194,6 +194,14 @@ function App() {
     }
   }, [handleApiCall, selectedFolderId])
 
+  const handleMovePresentation = useCallback(async (presentationId: string, folderId: string | null) => {
+    await handleApiCall(
+      () => update(presentationId, undefined, undefined, undefined, folderId),
+      'Presentation moved',
+      'Failed to move presentation'
+    )
+  }, [handleApiCall, update])
+
   // On initial load: if URL has /slides/<slug-uuid> try to select that; else pick most recent.
   useEffect(() => {
     if (!autoSelectRef.current || editor.selectedId || presentations.length === 0) return
@@ -258,6 +266,7 @@ function App() {
           onCreateFolder={handleCreateFolder}
           onUpdateFolder={handleUpdateFolder}
           onDeleteFolder={handleDeleteFolder}
+          onMovePresentation={handleMovePresentation}
         />
 
         <EditorPanel

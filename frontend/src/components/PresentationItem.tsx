@@ -12,9 +12,19 @@ interface PresentationItemProps {
 }
 
 export function PresentationItem({ presentation, isSelected, onSelect, onDelete, onDuplicate }: PresentationItemProps) {
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'presentation',
+      id: presentation.id
+    }))
+  }
+
   return (
     <li className="group" onDoubleClick={() => onSelect(presentation)}>
       <div
+        draggable
+        onDragStart={handleDragStart}
         onClick={() => onSelect(presentation)}
         className={`cursor-pointer p-3 rounded-lg transition-all shadow-sm hover:shadow-md ${
           isSelected

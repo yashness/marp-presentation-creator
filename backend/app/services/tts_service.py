@@ -126,7 +126,8 @@ class TTSService:
             sf.write(str(filepath), audio_data, 24000)
 
             logger.info(f"Audio generated successfully: {filepath}")
-            return str(filepath.relative_to(self.audio_dir.parent))
+            # Return absolute path for use in FFmpeg and other tools
+            return str(filepath)
 
         except Exception as e:
             # Fallback if default voice asset is missing on HF
