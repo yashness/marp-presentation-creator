@@ -26,4 +26,4 @@
   - ✅ Database migration script
   - ✅ Frontend folder tree component
   - ✅ Update presentation sidebar with folders
-  - ⏳ Drag-drop presentations into folders (optional enhancement)
+  - ✅ Drag-drop presentations into folders

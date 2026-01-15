@@ -32,6 +32,7 @@ A presentation builder that combines Markdown (Marp) with a visual editing exper
 - Monaco editor for Markdown editing
 - Real-time preview with Marp rendering
 - Export to PDF, HTML, PPTX, and MP4 video formats
+- Folder organization with drag-and-drop support for presentations
 
 ## AI-Powered Features
 - **AI Presentation Generation**: Generate complete presentations from a description using Claude AI
