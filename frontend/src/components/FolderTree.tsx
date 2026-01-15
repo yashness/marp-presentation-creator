@@ -3,7 +3,7 @@ import { Folder, ChevronRight, ChevronDown, FolderPlus, Edit2, Trash2 } from 'lu
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { Folder as FolderType } from '../api/client'
-import { parseDragData } from '../lib/dragDropValidation'
+import { useDragDrop } from '../hooks/useDragDrop'
 
 interface FolderTreeProps {
   folders: FolderType[]
@@ -41,10 +41,18 @@ function FolderNode({
   const [editName, setEditName] = useState(folder.name)
   const [isCreating, setIsCreating] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [isDragOver, setIsDragOver] = useState(false)
 
   const children = folders.filter(f => f.parent_id === folder.id)
   const hasChildren = children.length > 0
+
+  const { isDragOver, dragHandlers } = useDragDrop({
+    onDrop: (item) => {
+      if (item.type === 'presentation' && onMovePresentation) {
+        onMovePresentation(item.id, folder.id)
+      }
+    },
+    acceptedTypes: ['presentation'],
+  })
 
   const handleRename = () => {
     if (editName.trim()) {
@@ -62,35 +70,10 @@ function FolderNode({
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-
-    const data = parseDragData(e.dataTransfer)
-    if (data && data.type === 'presentation' && onMovePresentation) {
-      onMovePresentation(data.id, folder.id)
-    }
-  }
-
   return (
     <div className="select-none">
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        {...dragHandlers}
         className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-100 cursor-pointer group ${
           selectedFolderId === folder.id ? 'bg-primary-50 text-primary-700' : 'text-slate-700'
         } ${isDragOver ? 'ring-2 ring-primary-400 bg-primary-100' : ''}`}
@@ -227,38 +210,23 @@ export function FolderTree({
 }: FolderTreeProps) {
   const [isCreatingRoot, setIsCreatingRoot] = useState(false)
   const [newRootName, setNewRootName] = useState('')
-  const [isDragOverAll, setIsDragOverAll] = useState(false)
 
   const rootFolders = folders.filter(f => !f.parent_id)
+
+  const { isDragOver: isDragOverAll, dragHandlers: allDragHandlers } = useDragDrop({
+    onDrop: (item) => {
+      if (item.type === 'presentation' && onMovePresentation) {
+        onMovePresentation(item.id, null)
+      }
+    },
+    acceptedTypes: ['presentation'],
+  })
 
   const handleCreateRoot = () => {
     if (newRootName.trim()) {
       onCreateFolder(newRootName.trim(), null)
       setNewRootName('')
       setIsCreatingRoot(false)
-    }
-  }
-
-  const handleDragOverAll = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOverAll(true)
-  }
-
-  const handleDragLeaveAll = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOverAll(false)
-  }
-
-  const handleDropAll = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOverAll(false)
-
-    const data = parseDragData(e.dataTransfer)
-    if (data && data.type === 'presentation' && onMovePresentation) {
-      onMovePresentation(data.id, null)
     }
   }
 
@@ -304,9 +272,7 @@ export function FolderTree({
       )}
 
       <div
-        onDragOver={handleDragOverAll}
-        onDragLeave={handleDragLeaveAll}
-        onDrop={handleDropAll}
+        {...allDragHandlers}
         className={`px-2 py-1.5 rounded-md hover:bg-slate-100 cursor-pointer flex items-center gap-2 ${
           selectedFolderId === null ? 'bg-primary-50 text-primary-700' : 'text-slate-700'
         } ${isDragOverAll ? 'ring-2 ring-primary-400 bg-primary-100' : ''}`}
