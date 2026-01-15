@@ -13,5 +13,8 @@
 - ✅ Add login feature with Clerk (sign in/sign up modals, user menu in sidebar)
 - ✅ Add billing with Clerk (pricing tiers modal, manage billing button)
 - ✅ Add theme creator with AI, where we can upload our brand assets/colors/screenshots (AI Theme Creator modal with brand colors and style description)
+- ✅ Wrap frontend in QueryClientProvider, fix CORS defaults for 5173, and confirm UI loads via Playwright (dev + Docker)
+- ✅ Load Azure Anthropic credentials from root/backend .env, configure SDK for Azure Foundry, and verify /api/ai/status + API flows
+- ✅ Validate API + UI locally and again via docker compose --profile dev up
 - Allow customizing with logo/assets
 - Structuring presentations as workspace/folders

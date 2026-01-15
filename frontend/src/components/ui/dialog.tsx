@@ -60,6 +60,8 @@ export function DialogContent({ className, children, ...props }: DialogContentPr
 
       {/* Content */}
       <div
+        role="dialog"
+        aria-modal="true"
         className={cn(
           "relative bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg",
           "border border-primary-100 animate-in fade-in zoom-in-95",
