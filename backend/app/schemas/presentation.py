@@ -5,6 +5,7 @@ class PresentationBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     content: str = Field(min_length=1)
     theme_id: str | None = None
+    folder_id: str | None = None
 
     @field_validator("title")
     @classmethod
@@ -27,6 +28,7 @@ class PresentationUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
     theme_id: str | None = None
+    folder_id: str | None = None
 
 class PresentationResponse(PresentationBase):
     model_config = ConfigDict(from_attributes=True)
