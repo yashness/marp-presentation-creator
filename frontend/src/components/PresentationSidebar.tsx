@@ -2,6 +2,7 @@ import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { PresentationItem } from './PresentationItem'
+import { UserMenu } from './UserMenu'
 import { Plus, Presentation as PresentationIcon, Sparkles } from 'lucide-react'
 
 interface PresentationSidebarProps {
@@ -68,6 +69,10 @@ export function PresentationSidebar({
           />
         ))}
       </ul>
+
+      <div className="p-4 border-t border-primary-100/50 bg-white/60 backdrop-blur-sm">
+        <UserMenu />
+      </div>
     </div>
   )
 }

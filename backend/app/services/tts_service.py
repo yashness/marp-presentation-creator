@@ -25,22 +25,37 @@ class TTSService:
         """
         self.audio_dir = Path(audio_dir)
         self.audio_dir.mkdir(parents=True, exist_ok=True)
+        self._pipeline = None
+        self._initialized = False
+
+    def _ensure_pipeline(self) -> bool:
+        """Ensure pipeline is initialized (lazy loading).
+
+        Returns:
+            True if pipeline is ready, False otherwise
+        """
+        if self._initialized:
+            return self._pipeline is not None
+
+        self._initialized = True
 
         if not KOKORO_AVAILABLE:
             logger.error("Kokoro TTS is not available. Audio generation will be disabled.")
-            return
+            return False
 
         try:
-            # Initialize with American English by default
-            self.pipeline = KPipeline(lang_code='a')
+            logger.info("Initializing Kokoro TTS pipeline...")
+            self._pipeline = KPipeline(lang_code='a', repo_id='hexgrad/Kokoro-82M')
             logger.info("Kokoro TTS initialized successfully")
+            return True
         except Exception as e:
             logger.error(f"Failed to initialize Kokoro TTS: {e}")
-            self.pipeline = None
+            self._pipeline = None
+            return False
 
     def is_available(self) -> bool:
         """Check if TTS service is available."""
-        return KOKORO_AVAILABLE and self.pipeline is not None
+        return KOKORO_AVAILABLE and self._ensure_pipeline()
 
     def generate_audio(
         self,
@@ -83,7 +98,7 @@ class TTSService:
             logger.info(f"Generating audio for slide {slide_index} with voice '{voice}' and speed {speed}")
 
             # Generate speech - pipeline returns a generator
-            generator = self.pipeline(
+            generator = self._pipeline(
                 text,
                 voice=voice,
                 speed=speed,
