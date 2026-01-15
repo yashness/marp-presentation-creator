@@ -41,6 +41,7 @@ A presentation builder that combines Markdown (Marp) with a visual editing exper
 - **Command Palette**: Quick access to AI features with Cmd/Ctrl+K keyboard shortcut
 - **Text-to-Speech**: Generate audio narration for slide comments with Kokoro TTS
 - **Video Export**: Combine slides with AI-generated narration into MP4 videos
+- **Asset Manager**: Upload and manage logos and images for use in presentations
 
 ## Configuration
 
