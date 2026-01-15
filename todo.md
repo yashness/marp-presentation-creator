@@ -16,5 +16,14 @@
 - ✅ Wrap frontend in QueryClientProvider, fix CORS defaults for 5173, and confirm UI loads via Playwright (dev + Docker)
 - ✅ Load Azure Anthropic credentials from root/backend .env, configure SDK for Azure Foundry, and verify /api/ai/status + API flows
 - ✅ Validate API + UI locally and again via docker compose --profile dev up
-- Allow customizing with logo/assets
-- Structuring presentations as workspace/folders
+- ✅ Allow customizing with logo/assets (Asset Manager implemented)
+- 🚧 Structuring presentations as workspace/folders (models/schemas done, needs API routes + service + frontend + migration)
+  - ✅ Folder model with parent/child relationships
+  - ✅ Presentation model updated with folder_id
+  - ✅ Folder and presentation schemas updated
+  - ⏳ Folder service implementation
+  - ⏳ Folder API endpoints (CRUD)
+  - ⏳ Database migration script
+  - ⏳ Frontend folder tree component
+  - ⏳ Update presentation sidebar with folders
+  - ⏳ Drag-drop presentations into folders
