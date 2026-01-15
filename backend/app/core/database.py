@@ -26,7 +26,7 @@ SessionLocal = sessionmaker(
 )
 
 def init_db() -> None:
-    from app.models import Base, Presentation, Theme
+    from app.models import Base, Presentation, Theme, Folder
     logger.info(f"Initializing database at {DB_PATH}")
     Base.metadata.create_all(bind=engine)
 

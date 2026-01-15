@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import type { Presentation } from '../api/client'
+import type { Presentation, Folder } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { PresentationItem } from './PresentationItem'
 import { UserMenu } from './UserMenu'
 import { AssetManagerModal } from './AssetManagerModal'
+import { FolderTree } from './FolderTree'
 import { Plus, Presentation as PresentationIcon, Sparkles, Image } from 'lucide-react'
 
 interface PresentationSidebarProps {
   presentations: Presentation[]
+  folders: Folder[]
   selectedId: string | null
+  selectedFolderId: string | null
   searchQuery: string
   onSearchChange: (query: string) => void
   onSelect: (pres: Presentation) => void
@@ -17,11 +20,17 @@ interface PresentationSidebarProps {
   onDuplicate: (id: string) => void
   onNewPresentation: () => void
   onAIGenerate?: () => void
+  onSelectFolder: (folderId: string | null) => void
+  onCreateFolder: (name: string, parentId: string | null) => void
+  onUpdateFolder: (id: string, name: string) => void
+  onDeleteFolder: (id: string) => void
 }
 
 export function PresentationSidebar({
   presentations,
+  folders,
   selectedId,
+  selectedFolderId,
   searchQuery,
   onSearchChange,
   onSelect,
@@ -29,8 +38,16 @@ export function PresentationSidebar({
   onDuplicate,
   onNewPresentation,
   onAIGenerate,
+  onSelectFolder,
+  onCreateFolder,
+  onUpdateFolder,
+  onDeleteFolder,
 }: PresentationSidebarProps) {
   const [isAssetManagerOpen, setIsAssetManagerOpen] = useState(false)
+
+  const filteredPresentations = selectedFolderId
+    ? presentations.filter(p => p.folder_id === selectedFolderId)
+    : presentations
 
   return (
     <div className="h-[calc(100vh-64px)] border-r border-slate-200 bg-white flex flex-col shadow-sm">
@@ -65,18 +82,31 @@ export function PresentationSidebar({
         />
       </div>
 
-      <ul className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50">
-        {presentations.map(p => (
-          <PresentationItem
-            key={p.id}
-            presentation={p}
-            isSelected={selectedId === p.id}
-            onSelect={onSelect}
-            onDelete={onDelete}
-            onDuplicate={onDuplicate}
+      <div className="flex-1 overflow-y-auto bg-slate-50">
+        <div className="p-3 border-b border-slate-200 bg-white">
+          <FolderTree
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onSelectFolder={onSelectFolder}
+            onCreateFolder={onCreateFolder}
+            onUpdateFolder={onUpdateFolder}
+            onDeleteFolder={onDeleteFolder}
           />
-        ))}
-      </ul>
+        </div>
+
+        <ul className="p-3 space-y-2">
+          {filteredPresentations.map(p => (
+            <PresentationItem
+              key={p.id}
+              presentation={p}
+              isSelected={selectedId === p.id}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+            />
+          ))}
+        </ul>
+      </div>
 
       <div className="p-4 border-t border-slate-200 bg-white">
         <UserMenu />

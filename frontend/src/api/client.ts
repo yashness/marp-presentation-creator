@@ -17,6 +17,7 @@ export interface Presentation {
   title: string
   content: string
   theme_id?: string | null
+  folder_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -25,12 +26,14 @@ export interface PresentationCreate {
   title: string
   content: string
   theme_id?: string | null
+  folder_id?: string | null
 }
 
 export interface PresentationUpdate {
   title?: string
   content?: string
   theme_id?: string | null
+  folder_id?: string | null
 }
 
 async function checkResponse(response: Response): Promise<void> {
@@ -363,4 +366,54 @@ export async function generateImage(
   }
 
   return result.image_data
+}
+
+export interface Folder {
+  id: string
+  name: string
+  parent_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FolderCreate {
+  name: string
+  parent_id?: string | null
+}
+
+export interface FolderUpdate {
+  name?: string
+  parent_id?: string | null
+}
+
+export async function fetchFolders(parentId?: string | null, all?: boolean): Promise<Folder[]> {
+  const params: Record<string, string> = {}
+  if (parentId !== undefined && parentId !== null) params.parent_id = parentId
+  if (all) params.all = 'true'
+  const url = buildUrl('/folders', params)
+  const response = await fetch(url)
+  return handleResponse<Folder[]>(response)
+}
+
+export async function createFolder(data: FolderCreate): Promise<Folder> {
+  const response = await fetch(buildUrl('/folders'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  return handleResponse<Folder>(response)
+}
+
+export async function updateFolder(id: string, data: FolderUpdate): Promise<Folder> {
+  const response = await fetch(buildUrl(`/folders/${id}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  return handleResponse<Folder>(response)
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  const response = await fetch(buildUrl(`/folders/${id}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
 }

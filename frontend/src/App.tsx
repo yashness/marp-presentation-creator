@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import type { Presentation } from './api/client'
-import { getPreview } from './api/client'
+import type { Presentation, Folder } from './api/client'
+import { getPreview, fetchFolders, createFolder, updateFolder, deleteFolder } from './api/client'
 import { PresentationSidebar } from './components/PresentationSidebar'
 import { EditorPanel } from './components/EditorPanel'
 import { PreviewPanel } from './components/PreviewPanel'
@@ -19,6 +19,8 @@ function App() {
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [showAIModal, setShowAIModal] = useState(false)
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
@@ -150,6 +152,48 @@ function App() {
     }
   }, [hasUserInput, autosaveStatus])
 
+  // Load folders on mount
+  useEffect(() => {
+    fetchFolders(undefined, true).then(setFolders).catch(console.error)
+  }, [])
+
+  // Folder handlers
+  const handleCreateFolder = useCallback(async (name: string, parentId: string | null) => {
+    const result = await handleApiCall(
+      () => createFolder({ name, parent_id: parentId }),
+      'Folder created',
+      'Failed to create folder'
+    )
+    if (result) {
+      setFolders(prev => [...prev, result])
+    }
+  }, [handleApiCall])
+
+  const handleUpdateFolder = useCallback(async (id: string, name: string) => {
+    const result = await handleApiCall(
+      () => updateFolder(id, { name }),
+      'Folder renamed',
+      'Failed to rename folder'
+    )
+    if (result) {
+      setFolders(prev => prev.map(f => f.id === id ? result : f))
+    }
+  }, [handleApiCall])
+
+  const handleDeleteFolder = useCallback(async (id: string) => {
+    const result = await handleApiCall(
+      () => deleteFolder(id),
+      'Folder deleted',
+      'Failed to delete folder'
+    )
+    if (result !== undefined) {
+      setFolders(prev => prev.filter(f => f.id !== id))
+      if (selectedFolderId === id) {
+        setSelectedFolderId(null)
+      }
+    }
+  }, [handleApiCall, selectedFolderId])
+
   // On initial load: if URL has /slides/<slug-uuid> try to select that; else pick most recent.
   useEffect(() => {
     if (!autoSelectRef.current || editor.selectedId || presentations.length === 0) return
@@ -184,7 +228,9 @@ function App() {
       <main className="grid grid-cols-1 xl:grid-cols-[280px,1.1fr,1.1fr] min-h-[calc(100vh-64px)]">
         <PresentationSidebar
           presentations={presentations}
+          folders={folders}
           selectedId={editor.selectedId}
+          selectedFolderId={selectedFolderId}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onSelect={handleSelect}
@@ -208,6 +254,10 @@ function App() {
             window.history.replaceState({}, '', '/slides/new')
           }}
           onAIGenerate={() => setShowAIModal(true)}
+          onSelectFolder={setSelectedFolderId}
+          onCreateFolder={handleCreateFolder}
+          onUpdateFolder={handleUpdateFolder}
+          onDeleteFolder={handleDeleteFolder}
         />
 
         <EditorPanel

@@ -17,13 +17,13 @@
 - ✅ Load Azure Anthropic credentials from root/backend .env, configure SDK for Azure Foundry, and verify /api/ai/status + API flows
 - ✅ Validate API + UI locally and again via docker compose --profile dev up
 - ✅ Allow customizing with logo/assets (Asset Manager implemented)
-- 🚧 Structuring presentations as workspace/folders (models/schemas done, needs API routes + service + frontend + migration)
+- ✅ Structuring presentations as workspace/folders
   - ✅ Folder model with parent/child relationships
   - ✅ Presentation model updated with folder_id
   - ✅ Folder and presentation schemas updated
-  - ⏳ Folder service implementation
-  - ⏳ Folder API endpoints (CRUD)
-  - ⏳ Database migration script
-  - ⏳ Frontend folder tree component
-  - ⏳ Update presentation sidebar with folders
-  - ⏳ Drag-drop presentations into folders
+  - ✅ Folder service implementation
+  - ✅ Folder API endpoints (CRUD)
+  - ✅ Database migration script
+  - ✅ Frontend folder tree component
+  - ✅ Update presentation sidebar with folders
+  - ⏳ Drag-drop presentations into folders (optional enhancement)
