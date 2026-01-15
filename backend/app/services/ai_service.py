@@ -12,6 +12,11 @@ from loguru import logger
 from .comment_processor import CommentProcessor
 
 
+# Pre-compiled regex patterns for performance
+JSON_CODE_FENCE_PATTERN = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
+MARKDOWN_CODE_FENCE_PATTERN = re.compile(r"^```(?:markdown|md)?\s*([\s\S]*?)\s*```$", re.IGNORECASE)
+
+
 class SlideOutline(BaseModel):
     """Outline for a single slide."""
     title: str
@@ -63,6 +68,33 @@ class AIService:
                 http_client=http_client,
             )
 
+    def _call_ai(
+        self,
+        prompt: str,
+        max_tokens: int = 4000,
+        context: str = "AI request"
+    ) -> Optional[str]:
+        """Centralized AI client call with error handling."""
+        if not self.client:
+            logger.error(f"{context}: AI client not initialized")
+            return None
+
+        try:
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            if not response.content:
+                logger.error(f"{context}: Empty response from AI")
+                return None
+
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"{context}: AI call failed - {e}")
+            return None
+
     def _extract_outline_json(self, raw_content: str) -> Optional[dict]:
         """Attempt to parse outline JSON from model response."""
         if not raw_content:
@@ -81,13 +113,14 @@ class AIService:
             logger.debug(f"raw_decode failed: {e}")
 
         # Try to find JSON within code fences
-        fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
+        fenced = JSON_CODE_FENCE_PATTERN.search(cleaned)
         if fenced:
             try:
                 parsed = json.loads(fenced.group(1))
                 logger.debug("Successfully parsed JSON from code fence")
                 return parsed
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                logger.debug(f"Code fence JSON parsing failed: {e}")
                 pass
 
         # Last resort: try the whole cleaned string
@@ -106,7 +139,7 @@ class AIService:
     def _strip_outer_code_fence(text: str) -> str:
         if not text:
             return text
-        fenced = re.match(r"^```(?:markdown|md)?\s*([\s\S]*?)\s*```$", text.strip(), re.IGNORECASE)
+        fenced = MARKDOWN_CODE_FENCE_PATTERN.match(text.strip())
         if fenced:
             return fenced.group(1).strip()
         return text.strip()
@@ -241,13 +274,10 @@ CRITICAL NARRATION REQUIREMENTS:
 
 Do not include markdown formatting, frontmatter, or code fences in your response."""
 
-            response = self.client.messages.create(
-                model=self.deployment,
-                max_tokens=4000,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            content = self._call_ai(prompt, max_tokens=4000, context="Generate outline")
+            if not content:
+                return None
 
-            content = response.content[0].text if response.content else ""
             data = self._extract_outline_json(content)
             if not data:
                 return None
@@ -296,13 +326,11 @@ Create engaging markdown with:
 Return only the slide markdown content (no frontmatter, no code fences, no commentary).
 Do not include slide separators (`---`)."""
 
-            response = self.client.messages.create(
-                model=self.deployment,
-                max_tokens=500,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            content = self._call_ai(prompt, max_tokens=500, context="Generate slide content")
+            if not content:
+                return f"# {slide_outline.title}\n\n" + "\n".join(f"- {point}" for point in slide_outline.content_points)
 
-            return self._sanitize_slide_markdown(response.content[0].text)
+            return self._sanitize_slide_markdown(content)
 
         except Exception as e:
             logger.error(f"Failed to generate slide content: {e}")
@@ -389,12 +417,19 @@ EXAMPLES OF GOOD vs BAD NARRATION:
 
 Create narration that directly teaches the content as audio, with zero meta-language or announcement phrases."""
 
-        response = self.client.messages.create(
-            model=self.deployment,
-            max_tokens=1400,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return self._sanitize_slide_markdown(response.content[0].text)
+        content = self._call_ai(prompt, max_tokens=1400, context=f"Generate batch {batch_index}/{batch_total}")
+        if not content:
+            # Fallback to simple generation
+            chunks = []
+            for slide in slides:
+                slide_content = f"# {slide.title}\n\n" + "\n".join(f"- {point}" for point in slide.content_points)
+                comment = self._sanitize_slide_comment(slide.notes or "")
+                if comment:
+                    slide_content += f"\n\n<!--\n{comment}\n-->"
+                chunks.append(slide_content)
+            return "\n\n---\n\n".join(chunks)
+
+        return self._sanitize_slide_markdown(content)
 
     def generate_full_presentation(
         self,

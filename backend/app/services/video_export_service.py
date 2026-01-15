@@ -5,10 +5,17 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 from loguru import logger
 
 from app.services.tts_service import TTSService
+
+
+class SlideData(TypedDict):
+    """Type definition for parsed slide data."""
+    index: int
+    content: str
+    comment: str
 
 
 class VideoExportService:
@@ -39,9 +46,9 @@ class VideoExportService:
             return False, f"marp CLI check failed: {e}"
         return True, "OK"
 
-    def _parse_slides(self, content: str) -> list[dict]:
+    def _parse_slides(self, content: str) -> list[SlideData]:
         """Parse markdown content into individual slides."""
-        slides = []
+        slides: list[SlideData] = []
         frontmatter_match = re.match(r"^---\n[\s\S]*?\n---\s*", content)
         body = content[frontmatter_match.end():] if frontmatter_match else content
         normalized_body = body.lstrip("\n")
@@ -305,7 +312,7 @@ class VideoExportService:
             logger.error(f"Failed to concatenate videos: {e}")
             return False
 
-    def _prepare_presentation(self, content: str) -> Optional[list]:
+    def _prepare_presentation(self, content: str) -> Optional[list[SlideData]]:
         """Parse and validate presentation slides."""
         slides = self._parse_slides(content)
         if not slides:
@@ -316,7 +323,7 @@ class VideoExportService:
 
     def _generate_video_segments(
         self,
-        slides: list,
+        slides: list[SlideData],
         image_paths: list[Path],
         audio_paths: list[Optional[Path]],
         presentation_id: str,

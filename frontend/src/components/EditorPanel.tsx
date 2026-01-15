@@ -85,16 +85,23 @@ export function EditorPanel({
   const lastSerializedRef = useRef<string | null>(null)
   const updateTimeoutRef = useRef<number | null>(null)
 
-  useEffect(() => {
+  // Memoize parsed slides to avoid re-parsing on every render
+  const parsedContent = useMemo(() => {
     if (content === lastSerializedRef.current) {
+      return null
+    }
+    return parseSlides(content)
+  }, [content])
+
+  useEffect(() => {
+    if (!parsedContent) {
       return
     }
-    const parsed = parseSlides(content)
-    setParsedFrontmatter(parsed.frontmatter)
-    setEditableSlides(parsed.slides.length
-      ? parsed.slides
+    setParsedFrontmatter(parsedContent.frontmatter)
+    setEditableSlides(parsedContent.slides.length
+      ? parsedContent.slides
       : [{ id: 'slide-0', content: '# New Slide', comment: '' }])
-  }, [content])
+  }, [parsedContent])
 
   useEffect(() => {
     return () => {
