@@ -305,6 +305,57 @@ class VideoExportService:
             logger.error(f"Failed to concatenate videos: {e}")
             return False
 
+    def _prepare_presentation(self, content: str) -> Optional[list]:
+        """Parse and validate presentation slides."""
+        slides = self._parse_slides(content)
+        if not slides:
+            logger.error("No slides found in presentation")
+            return None
+        logger.info(f"Found {len(slides)} slides")
+        return slides
+
+    def _generate_video_segments(
+        self,
+        slides: list,
+        image_paths: list[Path],
+        audio_paths: list[Optional[Path]],
+        presentation_id: str,
+        slide_duration: float
+    ) -> Optional[list[Path]]:
+        """Create individual video segments from slides."""
+        segments_dir = self.temp_dir / presentation_id / "segments"
+        segments_dir.mkdir(parents=True, exist_ok=True)
+
+        segment_paths = []
+        for idx, (img_path, audio_path) in enumerate(zip(image_paths, audio_paths)):
+            segment_path = segments_dir / f"segment_{idx:03d}.mp4"
+            if self._create_video_segment(img_path, audio_path, segment_path, slide_duration):
+                segment_paths.append(segment_path)
+                logger.info(f"Created segment {idx + 1}/{len(slides)}")
+
+        if len(segment_paths) != len(slides):
+            logger.error("Failed to create all video segments")
+            return None
+
+        return segment_paths
+
+    def _finalize_export(self, segment_paths: list[Path], presentation_id: str) -> Optional[Path]:
+        """Concatenate segments and cleanup temporary files."""
+        output_path = self.video_dir / f"{presentation_id}.mp4"
+
+        if not self._concatenate_videos(segment_paths, output_path):
+            logger.error("Failed to concatenate video segments")
+            return None
+
+        logger.info(f"Video exported successfully: {output_path}")
+
+        # Cleanup temp files
+        temp_pres_dir = self.temp_dir / presentation_id
+        if temp_pres_dir.exists():
+            shutil.rmtree(temp_pres_dir)
+
+        return output_path
+
     def export_video(
         self,
         presentation_id: str,
@@ -324,19 +375,15 @@ class VideoExportService:
         try:
             logger.info(f"Starting video export for presentation {presentation_id}")
 
-            # Parse slides
-            slides = self._parse_slides(content)
+            # Stage 1: Prepare presentation
+            slides = self._prepare_presentation(content)
             if not slides:
-                logger.error("No slides found in presentation")
                 return None
 
-            logger.info(f"Found {len(slides)} slides")
-
-            # Generate TTS audio for slides with comments
+            # Stage 2: Generate assets
             logger.info("Generating audio for slide comments...")
             audio_paths = self._generate_slide_audio(slides, presentation_id, voice, speed)
 
-            # Create slide images
             logger.info("Rendering slides to images...")
             image_paths = self._create_slide_images(content, theme_id, presentation_id)
 
@@ -344,37 +391,17 @@ class VideoExportService:
                 logger.error("Failed to create all slide images")
                 return None
 
-            # Create video segments
+            # Stage 3: Create video segments
             logger.info("Creating video segments...")
-            segments_dir = self.temp_dir / presentation_id / "segments"
-            segments_dir.mkdir(parents=True, exist_ok=True)
-
-            segment_paths = []
-            for idx, (img_path, audio_path) in enumerate(zip(image_paths, audio_paths)):
-                segment_path = segments_dir / f"segment_{idx:03d}.mp4"
-                if self._create_video_segment(img_path, audio_path, segment_path, slide_duration):
-                    segment_paths.append(segment_path)
-                    logger.info(f"Created segment {idx + 1}/{len(slides)}")
-
-            if len(segment_paths) != len(slides):
-                logger.error("Failed to create all video segments")
+            segment_paths = self._generate_video_segments(
+                slides, image_paths, audio_paths, presentation_id, slide_duration
+            )
+            if not segment_paths:
                 return None
 
-            # Concatenate segments
+            # Stage 4: Finalize export
             logger.info("Concatenating video segments...")
-            output_path = self.video_dir / f"{presentation_id}.mp4"
-            if self._concatenate_videos(segment_paths, output_path):
-                logger.info(f"Video exported successfully: {output_path}")
-
-                # Cleanup temp files
-                temp_pres_dir = self.temp_dir / presentation_id
-                if temp_pres_dir.exists():
-                    shutil.rmtree(temp_pres_dir)
-
-                return output_path
-            else:
-                logger.error("Failed to concatenate video segments")
-                return None
+            return self._finalize_export(segment_paths, presentation_id)
 
         except Exception as e:
             logger.error(f"Video export failed: {e}")

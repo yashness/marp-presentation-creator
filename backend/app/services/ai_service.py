@@ -9,6 +9,8 @@ from anthropic import Anthropic
 from pydantic import BaseModel
 from loguru import logger
 
+from .comment_processor import CommentProcessor
+
 
 class SlideOutline(BaseModel):
     """Outline for a single slide."""
@@ -130,18 +132,6 @@ class AIService:
         return cleaned.strip()
 
 
-    @staticmethod
-    def _limit_comment_length(comment: str, slide_content: str, max_ratio: float) -> str:
-        slide_len = AIService._measure_slide_text_length(slide_content)
-        if slide_len <= 0:
-            return ""
-        ratio = max(0.1, min(1.0, max_ratio))
-        max_len = min(slide_len, max(1, int(slide_len * ratio)))
-        if max_len <= 0:
-            return ""
-        if len(comment) <= max_len:
-            return comment.strip()
-        return AIService._truncate_comment(comment, max_len)
 
     @staticmethod
     def _extract_heading(text: str) -> str:
@@ -160,98 +150,6 @@ class AIService:
                 bullets.append(stripped[2:].strip())
         return bullets
 
-    @staticmethod
-    def _strip_markdown_for_length(text: str) -> str:
-        cleaned = re.sub(r"```[\s\S]*?```", "", text)
-        cleaned = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", cleaned)
-        cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
-        cleaned = re.sub(r"^\s*[-*+]\s+", "", cleaned, flags=re.MULTILINE)
-        cleaned = re.sub(r"[#>*`_~]", "", cleaned)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        return cleaned
-
-    @staticmethod
-    def _measure_slide_text_length(text: str) -> int:
-        cleaned = AIService._strip_markdown_for_length(text)
-        return len(cleaned)
-
-    @staticmethod
-    def _truncate_comment(comment: str, max_len: int) -> str:
-        comment = comment.strip()
-        if len(comment) <= max_len:
-            return comment
-        sentences = re.split(r"(?<=[.!?])\s+", comment)
-        if len(sentences) > 1:
-            collected = []
-            current_len = 0
-            for sentence in sentences:
-                next_len = current_len + len(sentence) + (1 if collected else 0)
-                if next_len > max_len:
-                    break
-                collected.append(sentence)
-                current_len = next_len
-            if collected:
-                return " ".join(collected).strip()
-        trimmed = comment[:max_len].rsplit(" ", 1)[0].strip()
-        if not trimmed:
-            trimmed = comment[:max_len].strip()
-        return trimmed
-
-
-    @staticmethod
-    def _build_slide_narration(
-        heading: str,
-        focus: str,
-        index: int,
-        total: int,
-        prev_heading: str = "",
-        next_heading: str = ""
-    ) -> str:
-        """Generate fallback narration for a slide."""
-        parts = []
-
-        if index == 0:
-            parts.append(f"Let's explore {heading.lower()}.")
-        elif index == total - 1:
-            parts.append(f"To wrap up, let's look at {heading.lower()}.")
-        else:
-            parts.append(f"Now let's discuss {heading.lower()}.")
-
-        if focus:
-            parts.append(focus)
-
-        return " ".join(parts)
-
-    @staticmethod
-    def _enforce_comment_length(
-        comment: str,
-        slide_text: str,
-        fallback_comment: str,
-        max_ratio: Optional[float]
-    ) -> str:
-        """Limit comment length if max_ratio is specified."""
-        if not comment:
-            return fallback_comment
-        if not max_ratio:
-            return comment.strip()
-
-        slide_len = AIService._measure_slide_text_length(slide_text)
-        if slide_len <= 0:
-            return comment.strip()
-
-        max_len = max(1, int(slide_len * max_ratio))
-        comment_len = len(AIService._strip_markdown_for_length(comment))
-
-        if comment_len <= max_len:
-            return comment.strip()
-
-        # If comment is too long, use fallback
-        fallback_len = len(AIService._strip_markdown_for_length(fallback_comment))
-        if fallback_len <= max_len:
-            return fallback_comment
-
-        # If even fallback is too long, truncate it
-        return AIService._truncate_comment(fallback_comment, max_len)
 
     def generate_outline(
         self,
@@ -537,7 +435,7 @@ paginate: true
 
             if not comment:
                 logger.warning(f"Slide {idx + 1} missing narration - adding fallback")
-                comment = self._build_slide_narration(
+                comment = CommentProcessor.build_slide_narration(
                     heading=heading,
                     focus=focus,
                     index=idx,
@@ -546,7 +444,7 @@ paginate: true
                     next_heading=next_heading
                 )
 
-            fallback_comment = self._build_slide_narration(
+            fallback_comment = CommentProcessor.build_slide_narration(
                 heading=heading,
                 focus=focus,
                 index=idx,
@@ -554,7 +452,7 @@ paginate: true
                 prev_heading=prev_heading,
                 next_heading=next_heading
             )
-            comment = self._enforce_comment_length(
+            comment = CommentProcessor.enforce_comment_length(
                 comment,
                 block_body,
                 fallback_comment,

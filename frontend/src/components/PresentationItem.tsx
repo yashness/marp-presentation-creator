@@ -2,6 +2,7 @@ import type { Presentation } from '../api/client'
 import { Button } from './ui/button'
 import { Trash2, Copy } from 'lucide-react'
 import { formatLocalDate } from '../lib/utils'
+import { createPresentationDragData } from '../lib/dragDropValidation'
 
 interface PresentationItemProps {
   presentation: Presentation
@@ -14,10 +15,8 @@ interface PresentationItemProps {
 export function PresentationItem({ presentation, isSelected, onSelect, onDelete, onDuplicate }: PresentationItemProps) {
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'presentation',
-      id: presentation.id
-    }))
+    const dragData = createPresentationDragData(presentation.id)
+    e.dataTransfer.setData('application/json', JSON.stringify(dragData))
   }
 
   return (

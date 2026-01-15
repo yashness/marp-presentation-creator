@@ -3,6 +3,7 @@ import { Folder, ChevronRight, ChevronDown, FolderPlus, Edit2, Trash2 } from 'lu
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { Folder as FolderType } from '../api/client'
+import { parseDragData } from '../lib/dragDropValidation'
 
 interface FolderTreeProps {
   folders: FolderType[]
@@ -78,13 +79,9 @@ function FolderNode({
     e.stopPropagation()
     setIsDragOver(false)
 
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'))
-      if (data.type === 'presentation' && onMovePresentation) {
-        onMovePresentation(data.id, folder.id)
-      }
-    } catch (err) {
-      console.error('Failed to parse drag data:', err)
+    const data = parseDragData(e.dataTransfer)
+    if (data && data.type === 'presentation' && onMovePresentation) {
+      onMovePresentation(data.id, folder.id)
     }
   }
 
@@ -259,13 +256,9 @@ export function FolderTree({
     e.stopPropagation()
     setIsDragOverAll(false)
 
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'))
-      if (data.type === 'presentation' && onMovePresentation) {
-        onMovePresentation(data.id, null)
-      }
-    } catch (err) {
-      console.error('Failed to parse drag data:', err)
+    const data = parseDragData(e.dataTransfer)
+    if (data && data.type === 'presentation' && onMovePresentation) {
+      onMovePresentation(data.id, null)
     }
   }
 
