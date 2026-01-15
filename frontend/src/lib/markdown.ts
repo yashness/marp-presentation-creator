@@ -113,10 +113,10 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
 function parseSlideContent(raw: string, index: number): SlideBlock {
   let comment = ''
   let body = raw
-  const commentMatch = raw.match(/^<!--\s*slide-comment:\n([\s\S]*?)\n-->\s*\n?/i)
+  const commentMatch = raw.match(/<!--\s*(?:slide-comment:)?\s*([\s\S]*?)\s*-->/i)
   if (commentMatch) {
-    comment = commentMatch[1]
-    body = raw.slice(commentMatch[0].length)
+    comment = commentMatch[1].trim()
+    body = raw.replace(commentMatch[0], '').trimStart()
   }
   return {
     id: `slide-${index}`,
@@ -144,7 +144,7 @@ export function parseSlides(content: string): ParsedSlides {
 function buildSlideBlock(slide: SlideBlock): string {
   const parts = []
   if (slide.comment !== undefined && slide.comment !== null && slide.comment.length > 0) {
-    parts.push(`<!-- slide-comment:\n${slide.comment}\n-->`)
+    parts.push(`<!--\n${slide.comment}\n-->`)
   }
   parts.push(slide.content || '# New Slide')
   return parts.join('\n')

@@ -217,7 +217,7 @@ export async function exportPresentationAsVideo(
   options?: VideoExportRequest
 ): Promise<void> {
   const request: VideoExportRequest = {
-    voice: options?.voice || 'af',
+    voice: options?.voice || 'af_bella',
     speed: options?.speed || 1.0,
     slide_duration: options?.slide_duration || 5.0
   }
@@ -249,12 +249,23 @@ export interface SlideOutline {
 export interface PresentationOutline {
   title: string
   slides: SlideOutline[]
+  narration_instructions?: string
+  comment_max_ratio?: number
 }
 
 export interface GenerateOutlineResponse {
   success: boolean
   outline?: PresentationOutline
   message: string
+}
+
+export interface GenerateOutlineOptions {
+  slide_count?: number
+  subtopic_count?: number
+  audience?: string
+  flavor?: string
+  narration_instructions?: string
+  comment_max_ratio?: number
 }
 
 export interface GenerateContentResponse {
@@ -269,11 +280,22 @@ export interface RewriteSlideResponse {
   message: string
 }
 
-export async function generateOutline(description: string): Promise<PresentationOutline> {
+export async function generateOutline(
+  description: string,
+  options?: GenerateOutlineOptions
+): Promise<PresentationOutline> {
   const response = await fetch(buildUrl('/ai/generate-outline'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ description })
+    body: JSON.stringify({
+      description,
+      slide_count: options?.slide_count,
+      subtopic_count: options?.subtopic_count,
+      audience: options?.audience,
+      flavor: options?.flavor,
+      narration_instructions: options?.narration_instructions,
+      comment_max_ratio: options?.comment_max_ratio,
+    })
   })
 
   const result = await handleResponse<GenerateOutlineResponse>(response)

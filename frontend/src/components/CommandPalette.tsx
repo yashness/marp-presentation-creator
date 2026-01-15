@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
-import { Sparkles, ImageIcon, X, Loader2 } from 'lucide-react'
+import { Sparkles, ImageIcon, X, Loader2, FileImage } from 'lucide-react'
 import { generateImage } from '../api/client'
 import { rewriteSlide } from '../api/client'
+import { useQuery } from '@tanstack/react-query'
+
+interface Asset {
+  id: string
+  filename: string
+  original_filename: string
+  content_type: string
+  size: number
+  url: string
+  created_at: string
+}
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -11,11 +22,21 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideContent }: CommandPaletteProps) {
-  const [mode, setMode] = useState<'menu' | 'ai-text' | 'ai-image'>('menu')
+  const [mode, setMode] = useState<'menu' | 'ai-text' | 'ai-image' | 'insert-asset'>('menu')
   const [prompt, setPrompt] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const { data: assets = [] } = useQuery<Asset[]>({
+    queryKey: ['assets'],
+    queryFn: async () => {
+      const res = await fetch('http://localhost:8000/api/assets')
+      if (!res.ok) throw new Error('Failed to fetch assets')
+      return res.json()
+    },
+    enabled: isOpen && mode === 'insert-asset'
+  })
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -84,6 +105,12 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
     }
   }
 
+  const handleInsertAsset = (asset: Asset) => {
+    const markdown = `\n\n![${asset.original_filename}](${asset.url})\n\n`
+    onInsertText(markdown)
+    handleClose()
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (mode === 'ai-text') {
@@ -106,6 +133,7 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
             {mode === 'menu' && 'AI Commands'}
             {mode === 'ai-text' && 'Generate Text with AI'}
             {mode === 'ai-image' && 'Generate Image with AI'}
+            {mode === 'insert-asset' && 'Insert Asset'}
           </h3>
           <button
             onClick={handleClose}
@@ -140,6 +168,19 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
                   <div className="font-medium text-gray-900">Generate Image</div>
                   <div className="text-sm text-gray-500">
                     Create custom images with DALL-E for your slides
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setMode('insert-asset')}
+                className="w-full p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all flex items-start gap-4"
+              >
+                <FileImage className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                <div className="flex-1 text-left">
+                  <div className="font-medium text-gray-900">Insert Uploaded Asset</div>
+                  <div className="text-sm text-gray-500">
+                    Choose from your uploaded logos and images
                   </div>
                 </div>
               </button>
@@ -198,6 +239,53 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
                 </button>
               </div>
             </form>
+          )}
+
+          {mode === 'insert-asset' && (
+            <div className="space-y-4">
+              {assets.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No assets uploaded yet. Upload images in the Asset Manager first.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                  {assets.map((asset) => (
+                    <button
+                      key={asset.id}
+                      onClick={() => handleInsertAsset(asset)}
+                      className="border border-gray-200 rounded-lg overflow-hidden hover:border-primary-400 hover:shadow-md transition-all group"
+                    >
+                      <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {asset.content_type.startsWith('image/') ? (
+                          <img
+                            src={asset.url}
+                            alt={asset.original_filename}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="p-2 bg-white">
+                        <p className="text-xs truncate" title={asset.original_filename}>
+                          {asset.original_filename}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setMode('menu')}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

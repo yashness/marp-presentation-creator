@@ -45,13 +45,18 @@ class TTSService:
 
         try:
             logger.info("Initializing Kokoro TTS pipeline...")
+            # lang_code 'a' uses American dictionary; repo provides default voice set.
             self._pipeline = KPipeline(lang_code='a', repo_id='hexgrad/Kokoro-82M')
             logger.info("Kokoro TTS initialized successfully")
             return True
+        except SystemExit as exc:
+            # Some kokoro dependencies attempt to sys.exit when spaCy model download fails.
+            logger.error(f"Kokoro TTS initialization aborted (dependency missing). Details: {exc}")
         except Exception as e:
             logger.error(f"Failed to initialize Kokoro TTS: {e}")
-            self._pipeline = None
-            return False
+
+        self._pipeline = None
+        return False
 
     def is_available(self) -> bool:
         """Check if TTS service is available."""
@@ -62,8 +67,8 @@ class TTSService:
         text: str,
         presentation_id: str,
         slide_index: int,
-        voice: str = "af",
-        speed: float = 1.0
+        voice: str = "af_bella",
+        speed: float = 1.0,
     ) -> Optional[str]:
         """Generate audio from text.
 
@@ -71,7 +76,7 @@ class TTSService:
             text: Text to convert to speech
             presentation_id: ID of the presentation
             slide_index: Index of the slide
-            voice: Voice to use (default: 'af' - American Female)
+            voice: Voice to use (default: 'af_bella' - American Female)
             speed: Speech speed (default: 1.0)
 
         Returns:
@@ -124,6 +129,7 @@ class TTSService:
             return str(filepath.relative_to(self.audio_dir.parent))
 
         except Exception as e:
+            # Fallback if default voice asset is missing on HF
             logger.error(f"Failed to generate audio: {e}")
             return None
 
@@ -169,7 +175,6 @@ class TTSService:
         """
         # Kokoro TTS voices - actual available voices from the model
         return [
-            "af",           # American Female
             "af_bella",     # American Female - Bella
             "af_heart",     # American Female - Heart
             "af_nicole",    # American Female - Nicole

@@ -13,6 +13,53 @@ from app.services.css_generator import generate_theme_css
 
 THEMES_DIR = Path(__file__).parent.parent.parent / "themes"
 
+DEFAULT_COLORS = ColorConfig(
+    background="#0b1024",
+    text="#e2e8f0",
+    h1="#0ea5e9",
+    h2="#7c3aed",
+    h3="#0ea5e9",
+    link="#38bdf8",
+    code_background="#0f172a",
+    code_text="#e2e8f0",
+    code_block_background="#111827",
+    code_block_text="#e5e7eb",
+)
+
+DEFAULT_TYPOGRAPHY = TypographyConfig(
+    font_family='Sora, "Helvetica Neue", sans-serif',
+    font_size="28px",
+    h1_size="52px",
+    h1_weight="700",
+    h2_size="38px",
+    h2_weight="700",
+    h3_size="30px",
+    h3_weight="600",
+    code_font_family='"JetBrains Mono", monospace',
+)
+
+DEFAULT_SPACING = SpacingConfig(
+    slide_padding="64px",
+    h1_margin_bottom="24px",
+    h2_margin_top="18px",
+    code_padding="2px 10px",
+    code_block_padding="18px",
+    border_radius="10px",
+    code_block_border_radius="12px",
+)
+
+def build_theme_config_with_brand_colors(brand_colors: list[str]) -> tuple[ColorConfig, TypographyConfig, SpacingConfig]:
+    """Build theme configs using defaults with optional brand color accents."""
+    colors = DEFAULT_COLORS.model_copy(deep=True)
+    if brand_colors:
+        primary = brand_colors[0]
+        colors.h1 = primary
+        colors.h3 = primary
+        colors.link = primary
+    if len(brand_colors) > 1:
+        colors.h2 = brand_colors[1]
+    return colors, DEFAULT_TYPOGRAPHY, DEFAULT_SPACING
+
 def load_builtin_css(theme_name: str) -> str:
     """Load CSS content from file for built-in theme."""
     theme_file = THEMES_DIR / f"{theme_name}.css"

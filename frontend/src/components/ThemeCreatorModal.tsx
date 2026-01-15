@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Sparkles, Plus, X } from 'lucide-react'
+import { API_BASE_URL } from '../lib/constants'
 
 interface ThemeCreatorModalProps {
   open: boolean
@@ -46,7 +47,7 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/themes/generate-ai', {
+      const response = await fetch(`${API_BASE_URL}/api/themes/generate-ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,7 +85,7 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary-700 to-secondary-600 bg-clip-text text-transparent flex items-center gap-2">
+          <DialogTitle className="text-2xl font-bold text-primary-700 flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-primary-600" />
             AI Theme Creator
           </DialogTitle>
@@ -170,7 +171,7 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
             <Button
               onClick={handleGenerate}
               disabled={loading || !themeName.trim()}
-              className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600"
+              className="flex-1"
             >
               {loading ? (
                 <>

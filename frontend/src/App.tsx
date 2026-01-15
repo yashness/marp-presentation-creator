@@ -21,7 +21,7 @@ function App() {
   const [showAIModal, setShowAIModal] = useState(false)
   const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
-  const { themes, createTheme, updateTheme, deleteTheme } = useThemes()
+  const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
   const slugPendingRef = useRef<string | null>(null)
   const autoSelectRef = useRef(true)
 
@@ -157,7 +157,7 @@ function App() {
   }, [presentations, editor.selectedId, autoSelectPresentation])
 
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showAIModal && (
         <AIGenerationModal
@@ -165,7 +165,23 @@ function App() {
           onGenerate={handleAIGenerate}
         />
       )}
-      <div className="flex h-screen bg-gradient-to-br from-primary-50/40 via-white to-secondary-50/40">
+
+      <header className="border-b bg-white/90 backdrop-blur px-6 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-md bg-primary-600 text-white font-semibold grid place-items-center">
+            MP
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Marp Presentation Builder</p>
+            <p className="text-base font-semibold text-primary-700">Workspace</p>
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-3 text-sm text-slate-600">
+          <span>Autosave: {autosaveStatus === 'saving' ? 'Saving…' : autosaveStatus === 'saved' ? 'Up to date' : 'Idle'}</span>
+        </div>
+      </header>
+
+      <main className="grid grid-cols-1 xl:grid-cols-[280px,1.1fr,1.1fr] min-h-[calc(100vh-64px)]">
         <PresentationSidebar
           presentations={presentations}
           selectedId={editor.selectedId}
@@ -201,6 +217,7 @@ function App() {
           selectedId={editor.selectedId}
           themes={themes}
           autosaveStatus={autosaveStatus}
+          onReloadThemes={reloadThemes}
           onTitleChange={(title) => { markDirty(); editor.setTitle(title) }}
           onContentChange={(content) => { markDirty(); editor.setContent(content) }}
           onThemeChange={(theme) => {
@@ -230,8 +247,8 @@ function App() {
           selectedId={editor.selectedId}
           previewLoading={editor.previewLoading}
         />
-      </div>
-    </>
+      </main>
+    </div>
   )
 }
 

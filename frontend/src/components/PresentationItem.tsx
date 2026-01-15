@@ -18,8 +18,8 @@ export function PresentationItem({ presentation, isSelected, onSelect, onDelete,
         onClick={() => onSelect(presentation)}
         className={`cursor-pointer p-3 rounded-lg transition-all shadow-sm hover:shadow-md ${
           isSelected
-            ? 'bg-gradient-to-r from-primary-100 to-secondary-100 border-l-4 border-primary-600 ring-2 ring-primary-200'
-            : 'bg-white/70 hover:bg-white border-l-4 border-transparent hover:border-primary-300'
+            ? 'bg-primary-50 border border-primary-200 ring-2 ring-primary-100'
+            : 'bg-white hover:bg-slate-50 border border-slate-200'
         }`}
       >
         <div className="flex items-center justify-between">

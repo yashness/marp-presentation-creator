@@ -16,7 +16,7 @@ video_service = VideoExportService()
 
 class VideoExportRequest(BaseModel):
     """Request model for video export."""
-    voice: str = Field(default="af", description="Voice ID for TTS")
+    voice: str = Field(default="af_bella", description="Voice ID for TTS")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed")
     slide_duration: float = Field(default=5.0, ge=1.0, le=30.0, description="Duration for slides without audio (seconds)")
 

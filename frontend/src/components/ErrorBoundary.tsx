@@ -33,8 +33,8 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-screen items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
-          <div className="max-w-md p-8 bg-white rounded-lg shadow-lg border border-red-200">
+        <div className="flex h-screen items-center justify-center bg-slate-50">
+          <div className="max-w-md p-8 bg-white rounded-lg shadow-lg border border-slate-200">
             <div className="flex items-center gap-3 mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
               <h1 className="text-2xl font-bold text-red-600">Something went wrong</h1>

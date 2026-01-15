@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -14,9 +14,9 @@
   }
 
   body {
-    background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%);
-    color: #0c4a6e;
-    font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f3f6f8;
+    color: #1f2937;
+    font-family: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
     min-height: 100vh;
   }
 }

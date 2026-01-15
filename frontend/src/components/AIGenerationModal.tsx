@@ -13,6 +13,12 @@ interface AIGenerationModalProps {
 export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProps) {
   const [step, setStep] = useState<'input' | 'outline' | 'generating'>('input')
   const [description, setDescription] = useState('')
+  const [slideCount, setSlideCount] = useState('')
+  const [subtopicCount, setSubtopicCount] = useState('')
+  const [audience, setAudience] = useState('')
+  const [flavor, setFlavor] = useState('')
+  const [narrationInstructions, setNarrationInstructions] = useState('')
+  const [commentMaxRatio, setCommentMaxRatio] = useState('')
   const [outline, setOutline] = useState<PresentationOutline | null>(null)
   const [editingSlide, setEditingSlide] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +34,20 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
     setError(null)
 
     try {
-      const result = await generateOutline(description)
+      const parsedSlideCount = slideCount ? Number(slideCount) : undefined
+      const parsedSubtopicCount = subtopicCount ? Number(subtopicCount) : undefined
+      const parsedCommentRatio = commentMaxRatio ? Number(commentMaxRatio) / 100 : undefined
+      const safeCommentRatio = parsedCommentRatio !== undefined && Number.isFinite(parsedCommentRatio)
+        ? Math.min(1, Math.max(0.1, parsedCommentRatio))
+        : undefined
+      const result = await generateOutline(description, {
+        slide_count: Number.isFinite(parsedSlideCount) ? parsedSlideCount : undefined,
+        subtopic_count: Number.isFinite(parsedSubtopicCount) ? parsedSubtopicCount : undefined,
+        audience: audience.trim() || undefined,
+        flavor: flavor.trim() || undefined,
+        narration_instructions: narrationInstructions.trim() || undefined,
+        comment_max_ratio: safeCommentRatio,
+      })
       setOutline(result)
       setStep('outline')
     } catch (err) {
@@ -99,8 +118,8 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="p-2 rounded-lg bg-primary-100 text-primary-700 border border-primary-200">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">AI Presentation Generator</h2>
@@ -129,6 +148,68 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
                   placeholder="E.g., 'Introduction to Machine Learning for beginners' or 'Q4 2024 Sales Report'"
                   className="w-full h-32 px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Optional tuning</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Slide count</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={slideCount}
+                      onChange={(e) => setSlideCount(e.target.value)}
+                      placeholder="e.g., 8"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Subtopic count</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={subtopicCount}
+                      onChange={(e) => setSubtopicCount(e.target.value)}
+                      placeholder="e.g., 4"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Target audience</label>
+                    <Input
+                      value={audience}
+                      onChange={(e) => setAudience(e.target.value)}
+                      placeholder="e.g., Product managers, beginners"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Extra flavor / angle</label>
+                    <Input
+                      value={flavor}
+                      onChange={(e) => setFlavor(e.target.value)}
+                      placeholder="e.g., practical, story-driven, skeptical"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Narration instructions</label>
+                    <Input
+                      value={narrationInstructions}
+                      onChange={(e) => setNarrationInstructions(e.target.value)}
+                      placeholder="e.g., upbeat, teach like a workshop, avoid jargon"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Max narration length (% of slide text)</label>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={100}
+                      value={commentMaxRatio}
+                      onChange={(e) => setCommentMaxRatio(e.target.value)}
+                      placeholder="90"
+                    />
+                  </div>
+                </div>
               </div>
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -212,7 +293,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
                             <textarea
                               value={slide.notes || ''}
                               onChange={(e) => updateSlide(index, { notes: e.target.value })}
-                              placeholder="Speaker notes (optional)"
+                              placeholder="Audio narration (auto-generated; edit if needed)"
                               className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm"
                             />
                           </>

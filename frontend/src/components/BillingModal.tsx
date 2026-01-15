@@ -111,7 +111,7 @@ function BillingModalContent({ open, onOpenChange }: BillingModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-primary-700 to-secondary-600 bg-clip-text text-transparent">
+          <DialogTitle className="text-3xl font-bold text-primary-700">
             Choose Your Plan
           </DialogTitle>
           <DialogDescription className="text-lg">
@@ -134,14 +134,14 @@ function BillingModalContent({ open, onOpenChange }: BillingModalProps) {
                 }`}
               >
                 {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-sm">
                     Most Popular
                   </div>
                 )}
 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`p-2 rounded-lg ${tier.popular ? 'bg-gradient-to-br from-primary-500 to-secondary-500' : 'bg-primary-100'}`}>
-                    <Icon className={`w-6 h-6 ${tier.popular ? 'text-white' : 'text-primary-600'}`} />
+                  <div className={`p-2 rounded-lg ${tier.popular ? 'bg-primary-600' : 'bg-primary-100'}`}>
+                    <Icon className={`w-6 h-6 ${tier.popular ? 'text-white' : 'text-primary-700'}`} />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">{tier.name}</h3>
@@ -168,11 +168,7 @@ function BillingModalContent({ open, onOpenChange }: BillingModalProps) {
                 <Button
                   onClick={() => handleSubscribe(tier.name)}
                   disabled={loading || tier.name === 'Free'}
-                  className={`w-full ${
-                    tier.popular
-                      ? 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600'
-                      : ''
-                  }`}
+                  className="w-full"
                   variant={tier.popular ? 'default' : 'outline'}
                 >
                   {isLoading ? 'Processing...' : tier.name === 'Free' ? 'Current Plan' : 'Subscribe'}

@@ -17,7 +17,7 @@ tts_service = TTSService()
 class TTSRequest(BaseModel):
     """Request model for TTS generation."""
     text: str = Field(..., description="Text to convert to speech")
-    voice: str = Field(default="af", description="Voice ID to use")
+    voice: str = Field(default="af_bella", description="Voice ID to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed (0.5-2.0)")
 
 

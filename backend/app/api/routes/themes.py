@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.schemas.theme import ThemeResponse, ThemeCreate, ThemeUpdate
 from app.services import theme_service
+from app.services.theme_service import build_theme_config_with_brand_colors
 from app.services.ai_service import AIService
 from app.core.database import get_db
 from app.core.logger import logger
@@ -146,11 +147,13 @@ def generate_theme_with_ai(
             )
 
         # Create the theme in the database
+        colors, typography, spacing = build_theme_config_with_brand_colors(request.brand_colors)
         theme_data = ThemeCreate(
             name=request.theme_name,
             description=request.description or f"AI-generated theme with colors: {', '.join(request.brand_colors)}",
-            css_content=css_content,
-            is_custom=True
+            colors=colors,
+            typography=typography,
+            spacing=spacing
         )
 
         theme = theme_service.create_custom_theme(db, theme_data)

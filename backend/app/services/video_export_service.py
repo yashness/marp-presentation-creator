@@ -30,24 +30,36 @@ class VideoExportService:
         """Check if required tools are installed."""
         if not shutil.which("ffmpeg"):
             return False, "ffmpeg not installed"
+        try:
+            from app.services.marp_service import get_marp_command_parts
+            marp_cmd = get_marp_command_parts()[0]
+            if not shutil.which(marp_cmd) and not Path(marp_cmd).exists():
+                return False, f"marp CLI not found: {marp_cmd}"
+        except Exception as e:
+            return False, f"marp CLI check failed: {e}"
         return True, "OK"
 
     def _parse_slides(self, content: str) -> list[dict]:
         """Parse markdown content into individual slides."""
         slides = []
-        slide_parts = re.split(r'^---\s*$', content, flags=re.MULTILINE)
+        frontmatter_match = re.match(r"^---\n[\s\S]*?\n---\s*", content)
+        body = content[frontmatter_match.end():] if frontmatter_match else content
+        normalized_body = body.lstrip("\n")
+        slide_parts = re.split(r"\n---\s*\n", normalized_body) if normalized_body else []
 
         for idx, part in enumerate(slide_parts):
             if not part.strip():
                 continue
 
-            # Extract comment if present (lines starting with <!--)
-            comment_match = re.search(r'<!--\s*(.+?)\s*-->', part, re.DOTALL)
+            comment_match = re.search(r"<!--\s*(?:slide-comment:)?\s*([\s\S]*?)\s*-->\s*\n?", part, re.IGNORECASE)
             comment = comment_match.group(1).strip() if comment_match else ""
+            content_only = part
+            if comment_match:
+                content_only = part[:comment_match.start()] + part[comment_match.end():]
 
             slides.append({
-                "index": idx,
-                "content": part.strip(),
+                "index": len(slides),
+                "content": content_only.strip(),
                 "comment": comment
             })
 
@@ -96,13 +108,19 @@ class VideoExportService:
             temp_md_path.unlink(missing_ok=True)
 
             if result.returncode != 0:
-                logger.error(f"Marp image export failed: {result.stderr}")
+                logger.error(f"Marp image export failed (code {result.returncode}): {result.stderr}")
+                if result.stdout:
+                    logger.error(f"Marp stdout: {result.stdout}")
+                logger.error(f"Marp cmd: {' '.join(cmd)}")
+                logger.error(f"Slide markdown size: {len(slide_content)} chars")
+                logger.error(f"Slide markdown head: {slide_content[:240]}")
                 return False
 
             # Marp creates filename based on input, rename to expected output
-            generated_path = output_path.parent / f"{temp_md_path.stem}.001.png"
-            if generated_path.exists():
-                generated_path.rename(output_path)
+            candidates = list(output_path.parent.glob(f"{temp_md_path.stem}*.png"))
+            if candidates:
+                candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                candidates[0].rename(output_path)
                 return True
 
             return output_path.exists()
@@ -261,7 +279,7 @@ class VideoExportService:
         presentation_id: str,
         content: str,
         theme_id: Optional[str] = None,
-        voice: str = "af",
+        voice: str = "af_bella",
         speed: float = 1.0,
         slide_duration: float = 5.0
     ) -> Optional[Path]:

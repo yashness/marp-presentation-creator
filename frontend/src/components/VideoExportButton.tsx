@@ -11,7 +11,7 @@ interface VideoExportButtonProps {
 export function VideoExportButton({ presentationId, presentationTitle }: VideoExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [voice, setVoice] = useState('af')
+  const [voice, setVoice] = useState('af_bella')
   const [speed, setSpeed] = useState(1.0)
   const [slideDuration, setSlideDuration] = useState(5.0)
 
@@ -69,10 +69,17 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
               onChange={(e) => setVoice(e.target.value)}
               className="w-full px-3 py-2 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              <option value="af">Female (American)</option>
-              <option value="am">Male (American)</option>
-              <option value="bf">Female (British)</option>
-              <option value="bm">Male (British)</option>
+              <option value="af_bella">AF - Bella</option>
+              <option value="af_heart">AF - Heart</option>
+              <option value="af_nicole">AF - Nicole</option>
+              <option value="af_sarah">AF - Sarah</option>
+              <option value="af_sky">AF - Sky</option>
+              <option value="am_adam">AM - Adam</option>
+              <option value="am_michael">AM - Michael</option>
+              <option value="bf_emma">BF - Emma</option>
+              <option value="bf_isabella">BF - Isabella</option>
+              <option value="bm_george">BM - George</option>
+              <option value="bm_lewis">BM - Lewis</option>
             </select>
           </div>
 

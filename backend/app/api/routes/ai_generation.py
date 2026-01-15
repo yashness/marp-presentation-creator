@@ -14,6 +14,12 @@ ai_service = AIService()
 class GenerateOutlineRequest(BaseModel):
     """Request model for generating outline."""
     description: str = Field(..., min_length=10, description="Description of the presentation")
+    slide_count: int | None = Field(default=None, ge=1, le=30, description="Desired slide count")
+    subtopic_count: int | None = Field(default=None, ge=1, le=20, description="Desired subtopic count")
+    audience: str | None = Field(default=None, description="Target audience")
+    flavor: str | None = Field(default=None, description="Extra flavor or angle")
+    narration_instructions: str | None = Field(default=None, description="Narration style instructions")
+    comment_max_ratio: float | None = Field(default=None, ge=0.1, le=1.0, description="Max narration length ratio")
 
 
 class GenerateOutlineResponse(BaseModel):
@@ -78,7 +84,15 @@ async def generate_outline(request: GenerateOutlineRequest) -> GenerateOutlineRe
     """
     logger.info(f"Generating outline for: {request.description[:50]}...")
 
-    outline = ai_service.generate_outline(request.description)
+    outline = ai_service.generate_outline(
+        request.description,
+        slide_count=request.slide_count,
+        subtopic_count=request.subtopic_count,
+        audience=request.audience,
+        flavor=request.flavor,
+        narration_instructions=request.narration_instructions,
+        comment_max_ratio=request.comment_max_ratio
+    )
 
     if not outline:
         return GenerateOutlineResponse(
