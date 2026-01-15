@@ -218,18 +218,26 @@ Respond in JSON format:
 }}
 
 CRITICAL NARRATION REQUIREMENTS:
-- TEACH the concepts, don't just read or announce what's on the slide
-- Explain WHY things matter, HOW they work, WHAT the implications are
-- Use natural, conversational language as if explaining to a student
-- Build a cohesive narrative that flows across slides like a lecture or podcast
-- Each narration should stand alone but also connect to the overall story
-- 2-4 sentences per slide, but make every sentence meaningful
-- First slide: Set context and preview what we'll learn
-- Middle slides: Explain concepts deeply, build understanding
-- Last slide: Synthesize key insights and reinforce takeaways
+- The narration IS the audio content. It must TEACH the concepts, not announce or transition.
+- NEVER use meta-phrases like: "Let's", "Here's", "Let me", "We'll", "This presentation", "Today we'll"
+- NEVER reference the presentation, slides, or visuals
+- Instead, directly explain WHY things matter, HOW they work, WHAT the implications are
+- Use natural, conversational teaching language as if explaining to a student in a lecture
+- Build a cohesive narrative that flows like an expert podcast or lecture
+- Each narration should work standalone as audio - assume listener can't see the slide
+- 2-3 sentences per slide that directly teach the core concepts
+- First slide: State the key insight or context (no "welcome" or meta-commentary)
+- Middle slides: Explain concepts deeply with reasoning
+- Last slide: Synthesize insights without saying "we covered" or "in summary"
 
-BAD (announces): "We just covered X. Here we focus on Y and Z. Next we'll look at A."
-GOOD (teaches): "Understanding Y is crucial because it determines how Z behaves in real systems. This principle explains why A happens."
+❌ BAD: "We just covered X. Here we focus on Y and Z. Next we'll look at A."
+✅ GOOD: "Understanding Y is crucial because it determines how Z behaves in real systems. This principle explains why A happens."
+
+❌ BAD: "Welcome to this presentation on Machine Learning."
+✅ GOOD: "Machine learning enables computers to learn patterns from data without being explicitly programmed for every scenario."
+
+❌ BAD: "Here's something remarkable about plants."
+✅ GOOD: "Plants solve a problem that animals can't by capturing energy directly from the sun and transforming it into fuel through photosynthesis."
 
 Do not include markdown formatting, frontmatter, or code fences in your response."""
 
@@ -350,25 +358,36 @@ FORMAT REQUIREMENTS:
 - Include a mermaid diagram when it fits the topic
 - No frontmatter, no code fences, no meta-commentary
 
-NARRATION REQUIREMENTS (CRITICAL):
-- TEACH the concepts: explain WHY, HOW, and WHAT IT MEANS
-- Use natural, conversational language (like a podcast or lecture)
-- Connect ideas across slides to build a cohesive narrative
-- 1-2 sentences, ~20-40 words, and no longer than the slide text
-- Each narration should deepen understanding, not summarize bullets
-- Build on previous concepts, foreshadow next ideas naturally
-- Assume the listener can't see the slide - your narration should teach standalone
+NARRATION REQUIREMENTS (ABSOLUTELY CRITICAL):
+- TEACH the actual concepts from the slide content - explain WHY, HOW, and WHAT IT MEANS
+- The narration IS the audio content. It must teach, not announce or transition.
+- NEVER use meta-phrases like: "Let's", "Here's", "Let me", "Now we'll", "Next we'll", "This slide"
+- NEVER reference the presentation, slides, or diagram itself
+- Instead, directly explain the concepts as if teaching a student in a lecture
+- Use natural, conversational language (like a podcast or expert lecture)
+- 1-2 sentences that directly teach the slide's core concepts
+- Length should be concise but substantive - roughly similar to slide text length
+- Each narration should work standalone as audio - assume listener can't see the slide
+- Build on previous concepts naturally, without explicitly referencing "previous slides"
 - If an outline item is dense, split it into 2 slides with continuation titles and narrate each separately
-- First slide of the deck should feel like a warm intro; last slide should feel like a clear outro and summary
 
-EXAMPLES OF GOOD NARRATION:
-❌ BAD: "Here we focus on Refraction and how light bends. Next we'll look at examples."
-✅ GOOD: "When light moves from air into water, it slows down and bends at the boundary. This bending - refraction - follows a precise mathematical relationship that lets us predict exactly how much the light path will change based on the materials involved."
+EXAMPLES OF GOOD vs BAD NARRATION:
+❌ BAD: "Let's explore Refraction and how light bends. Next we'll look at examples."
+✅ GOOD: "When light moves from air into water, it slows down and bends at the boundary. This bending follows a precise mathematical relationship."
 
-❌ BAD: "We just covered reflection. Now we'll discuss types of reflection."
-✅ GOOD: "Not all reflections look the same. A smooth mirror gives you a sharp image because every light ray bounces at the same predictable angle. But rough surfaces scatter light in all directions, which is why you can't see your reflection in a brick wall even though it's also reflecting light."
+❌ BAD: "Here's why acceleration matters more than the absolute number."
+✅ GOOD: "Acceleration matters more than the absolute number because it reveals whether we're approaching stability or accelerating toward crisis."
 
-Create engaging, educational narration that makes the content come alive."""
+❌ BAD: "Let me be direct about what warming does to a planet."
+✅ GOOD: "Higher temperatures trigger cascading changes: ice sheets melt, sea levels rise, and weather patterns intensify."
+
+❌ BAD: "This slide covers the water cycle."
+✅ GOOD: "Water continuously cycles through evaporation, condensation, and precipitation, driven by solar energy heating Earth's surface."
+
+❌ BAD: "The diagram shows us the two pathways."
+✅ GOOD: "In the natural state, enough greenhouse gas keeps temperatures stable, but excess CO2 shifts the balance and traps more heat."
+
+Create narration that directly teaches the content as audio, with zero meta-language or announcement phrases."""
 
         response = self.client.messages.create(
             model=self.deployment,

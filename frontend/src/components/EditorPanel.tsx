@@ -303,17 +303,17 @@ export function EditorPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col gap-4 p-6 overflow-hidden bg-white border-l border-slate-200 h-[calc(100vh-64px)]">
+    <div className="flex-1 flex flex-col gap-4 p-6 overflow-hidden bg-white rounded-xl border border-slate-200 shadow-lg h-full">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-md bg-primary-100 text-primary-700 grid place-items-center border border-primary-200">
-            <LayoutTemplate className="w-5 h-5" />
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 grid place-items-center border border-primary-300 shadow-sm">
+            <LayoutTemplate className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Presentation Builder</h1>
-            <p className="text-sm text-slate-600 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900">Editor</h1>
+            <p className="text-sm text-slate-500 flex items-center gap-2">
               <Info className="w-4 h-4" />
-              Structured slides or raw Markdown—your choice.
+              Craft your slides with precision
             </p>
           </div>
         </div>

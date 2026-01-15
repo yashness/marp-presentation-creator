@@ -237,7 +237,10 @@ export async function exportPresentationAsVideo(
     throw new Error(result.message || 'Video export failed')
   }
 
-  const downloadResponse = await fetch(`${API_BASE}${result.video_url}`)
+  const downloadUrl = result.video_url.startsWith('http')
+    ? result.video_url
+    : `${API_BASE_URL}${result.video_url}`
+  const downloadResponse = await fetch(downloadUrl)
   const blob = await handleBlobResponse(downloadResponse)
   const safeTitle = title?.trim() ? title.trim() : 'presentation'
   downloadBlob(blob, `${safeTitle}.mp4`)

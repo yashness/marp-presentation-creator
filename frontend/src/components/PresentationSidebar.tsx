@@ -52,10 +52,12 @@ export function PresentationSidebar({
     : presentations
 
   return (
-    <div className="h-[calc(100vh-64px)] border-r border-slate-200 bg-white flex flex-col shadow-sm">
-      <div className="p-5 border-b border-slate-200 space-y-2">
-        <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2 mb-2">
-          <PresentationIcon className="w-5 h-5 text-primary-600" />
+    <div className="h-full bg-white rounded-xl border border-slate-200 flex flex-col shadow-lg overflow-hidden">
+      <div className="p-6 border-b border-slate-200 space-y-3 bg-gradient-to-b from-white to-slate-50">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 mb-3">
+          <div className="p-2 bg-primary-100 rounded-lg">
+            <PresentationIcon className="w-5 h-5 text-primary-600" />
+          </div>
           Library
         </h2>
         <Button onClick={onNewPresentation} className="w-full">
@@ -74,7 +76,7 @@ export function PresentationSidebar({
         </Button>
       </div>
 
-      <div className="p-4 border-b border-slate-200">
+      <div className="p-5 border-b border-slate-200 bg-white">
         <Input
           type="text"
           placeholder="Search presentations..."
@@ -85,7 +87,7 @@ export function PresentationSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto bg-slate-50">
-        <div className="p-3 border-b border-slate-200 bg-white">
+        <div className="p-4 border-b border-slate-200 bg-white">
           <FolderTree
             folders={folders}
             selectedFolderId={selectedFolderId}

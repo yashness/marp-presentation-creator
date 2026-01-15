@@ -106,17 +106,15 @@ class CommentProcessor:
         prev_heading: str = "",
         next_heading: str = ""
     ) -> str:
-        """Generate fallback narration for a slide based on context."""
+        """Generate fallback narration for a slide based on content."""
+        if not focus:
+            return heading
+
         parts = []
-
         if index == 0:
-            parts.append(f"Let's explore {heading.lower()}.")
+            parts.append(f"{heading}.")
         elif index == total - 1:
-            parts.append(f"To wrap up, let's look at {heading.lower()}.")
-        else:
-            parts.append(f"Now let's discuss {heading.lower()}.")
+            parts.append(f"Finally, {heading.lower()}.")
 
-        if focus:
-            parts.append(focus)
-
-        return " ".join(parts)
+        parts.append(focus)
+        return " ".join(parts) if parts else focus

@@ -209,7 +209,7 @@ function App() {
   }, [presentations, editor.selectedId, autoSelectPresentation])
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showAIModal && (
         <AIGenerationModal
@@ -218,22 +218,27 @@ function App() {
         />
       )}
 
-      <header className="border-b bg-white/90 backdrop-blur px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-md bg-primary-600 text-white font-semibold grid place-items-center">
+      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm px-8 py-4 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold text-lg grid place-items-center shadow-lg">
             MP
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">Marp Presentation Builder</p>
-            <p className="text-base font-semibold text-primary-700">Workspace</p>
+            <p className="text-xs uppercase tracking-wider font-medium text-slate-500">Marp Presentation</p>
+            <p className="text-lg font-bold text-primary-700">Builder</p>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-3 text-sm text-slate-600">
-          <span>Autosave: {autosaveStatus === 'saving' ? 'Saving…' : autosaveStatus === 'saved' ? 'Up to date' : 'Idle'}</span>
+        <div className="hidden sm:flex items-center gap-4">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100">
+            <div className={`h-2 w-2 rounded-full ${autosaveStatus === 'saving' ? 'bg-yellow-500 animate-pulse' : autosaveStatus === 'saved' ? 'bg-green-500' : 'bg-slate-400'}`} />
+            <span className="text-sm font-medium text-slate-700">
+              {autosaveStatus === 'saving' ? 'Saving…' : autosaveStatus === 'saved' ? 'Saved' : 'Ready'}
+            </span>
+          </div>
         </div>
       </header>
 
-      <main className="grid grid-cols-1 xl:grid-cols-[280px,1.1fr,1.1fr] min-h-[calc(100vh-64px)]">
+      <main className="grid grid-cols-1 xl:grid-cols-[320px,1fr,1fr] gap-6 p-6 min-h-[calc(100vh-80px)]">
         <PresentationSidebar
           presentations={presentations}
           folders={folders}

@@ -9,15 +9,15 @@ interface PreviewPanelProps {
 
 export function PreviewPanel({ preview, selectedId, previewLoading }: PreviewPanelProps) {
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-white border-x border-slate-200 p-6 overflow-hidden">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 rounded-md bg-primary-100 text-primary-700 border border-primary-200">
-          <Eye className="w-5 h-5" />
+    <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-lg p-6 overflow-hidden">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 grid place-items-center border border-primary-300 shadow-sm">
+          <Eye className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-semibold text-slate-900">Live Preview</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Preview</h2>
       </div>
       <div className="flex-1 overflow-auto">
-        <div className="bg-slate-50 rounded-xl border border-slate-200 shadow-sm p-6 max-w-5xl mx-auto">
+        <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-200 shadow-inner p-8 max-w-6xl mx-auto min-h-full">
           {previewLoading ? (
             <LoadingSpinner />
           ) : selectedId && preview ? (
