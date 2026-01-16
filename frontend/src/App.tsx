@@ -38,6 +38,10 @@ import {
   IconHistory,
   IconTemplate,
   IconShare,
+  IconMenu2,
+  IconX,
+  IconEye,
+  IconCode,
 } from '@tabler/icons-react'
 
 function App() {
@@ -67,6 +71,8 @@ function App() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor')
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
   const slugPendingRef = useRef<string | null>(null)
@@ -459,12 +465,24 @@ function App() {
         presentationTitle={editor.title || 'Untitled Presentation'}
       />
 
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Collapsible Presentations Sidebar */}
       <motion.aside
         initial={false}
         animate={{ width: sidebarCollapsed ? 64 : 280 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-lg relative z-50"
+        className={cn(
+          "h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-lg relative z-50",
+          "fixed lg:relative inset-y-0 left-0 transform transition-transform lg:transform-none",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
       >
         {/* Logo & Collapse Toggle */}
         <div className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3">
@@ -714,9 +732,16 @@ function App() {
       {/* Main Content: Editor + Preview */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200 truncate max-w-md">
+        <header className="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden h-9 w-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-500"
+            >
+              {mobileMenuOpen ? <IconX className="w-5 h-5" /> : <IconMenu2 className="w-5 h-5" />}
+            </button>
+            <h1 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px] sm:max-w-md">
               {editor.title || 'Untitled Presentation'}
             </h1>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800">
@@ -733,11 +758,34 @@ function App() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Mobile view toggle */}
+            <div className="lg:hidden flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
+              <button
+                onClick={() => setMobileView('editor')}
+                className={cn(
+                  "h-8 w-8 rounded-md grid place-items-center transition-colors",
+                  mobileView === 'editor' ? "bg-white dark:bg-slate-700 shadow-sm text-primary-600" : "text-slate-500"
+                )}
+                title="Editor"
+              >
+                <IconCode className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setMobileView('preview')}
+                className={cn(
+                  "h-8 w-8 rounded-md grid place-items-center transition-colors",
+                  mobileView === 'preview' ? "bg-white dark:bg-slate-700 shadow-sm text-primary-600" : "text-slate-500"
+                )}
+                title="Preview"
+              >
+                <IconEye className="w-4 h-4" />
+              </button>
+            </div>
             <button
               onClick={() => setShowShareModal(true)}
               disabled={!editor.selectedId}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-100 hover:bg-sky-200 dark:bg-sky-900/30 dark:hover:bg-sky-800/50 disabled:opacity-50 disabled:cursor-not-allowed text-sky-700 dark:text-sky-300 text-sm font-medium transition-all"
+              className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg bg-sky-100 hover:bg-sky-200 dark:bg-sky-900/30 dark:hover:bg-sky-800/50 disabled:opacity-50 disabled:cursor-not-allowed text-sky-700 dark:text-sky-300 text-sm font-medium transition-all"
               title="Share presentation"
             >
               <IconShare className="w-4 h-4" />
@@ -746,7 +794,7 @@ function App() {
             <button
               onClick={() => setShowVersionHistory(true)}
               disabled={!editor.selectedId}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 text-sm font-medium transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 text-sm font-medium transition-all"
               title="Version History (Cmd/Ctrl+Z to undo)"
             >
               <IconHistory className="w-4 h-4" />
@@ -764,21 +812,25 @@ function App() {
         </header>
 
         {/* Editor + Preview Grid */}
-        <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-hidden">
-          <EditorPanel
-            title={editor.title}
-            content={editor.content}
-            selectedTheme={editor.selectedTheme}
-            selectedId={editor.selectedId}
-            themes={themes}
-            autosaveStatus={autosaveStatus}
-            onReloadThemes={reloadThemes}
-            onTitleChange={(title) => { markDirty(); editor.setTitle(title) }}
-            onContentChange={(content) => { markDirty(); editor.setContent(content) }}
-            onThemeChange={(theme) => {
-              markDirty()
-              editor.setSelectedTheme(theme || null)
-            }}
+        <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 p-2 sm:p-4 overflow-hidden">
+          <div className={cn(
+            "h-full overflow-hidden",
+            mobileView === 'preview' ? "hidden lg:block" : "block"
+          )}>
+            <EditorPanel
+              title={editor.title}
+              content={editor.content}
+              selectedTheme={editor.selectedTheme}
+              selectedId={editor.selectedId}
+              themes={themes}
+              autosaveStatus={autosaveStatus}
+              onReloadThemes={reloadThemes}
+              onTitleChange={(title) => { markDirty(); editor.setTitle(title) }}
+              onContentChange={(content) => { markDirty(); editor.setContent(content) }}
+              onThemeChange={(theme) => {
+                markDirty()
+                editor.setSelectedTheme(theme || null)
+              }}
             onExport={editor.exportPresentation}
             onCreateTheme={(data) => handleApiCall(
               () => createTheme(data),
@@ -795,13 +847,19 @@ function App() {
               'Theme deleted',
               'Failed to delete theme'
             )}
-          />
+            />
+          </div>
 
-          <PreviewPanel
-            preview={editor.preview}
-            selectedId={editor.selectedId}
-            previewLoading={editor.previewLoading}
-          />
+          <div className={cn(
+            "h-full overflow-hidden",
+            mobileView === 'editor' ? "hidden lg:block" : "block"
+          )}>
+            <PreviewPanel
+              preview={editor.preview}
+              selectedId={editor.selectedId}
+              previewLoading={editor.previewLoading}
+            />
+          </div>
         </main>
       </div>
 
