@@ -8,6 +8,7 @@ from app.models.slide_audio import SlideAudio
 from app.models.video_export import VideoExport
 from app.models.chat_conversation import ChatConversation, ChatMessage
 from app.models.presentation_version import PresentationVersion
+from app.models.template import Template
 
 __all__ = [
     "Presentation",
@@ -19,5 +20,6 @@ __all__ = [
     "ChatConversation",
     "ChatMessage",
     "PresentationVersion",
+    "Template",
     "Base",
 ]

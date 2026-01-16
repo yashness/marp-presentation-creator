@@ -8,6 +8,8 @@ import { AIGenerationModal } from './components/AIGenerationModal'
 import { AssetManagerModal } from './components/AssetManagerModal'
 import { AIChatPanel } from './components/AIChatPanel'
 import { VersionHistoryPanel } from './components/VersionHistoryPanel'
+import { TemplateLibrary } from './components/TemplateLibrary'
+import type { Template } from './api/client'
 import { createVersion } from './api/client'
 import type { RestoreVersionResponse } from './api/client'
 import { usePresentations } from './hooks/usePresentations'
@@ -32,6 +34,7 @@ import {
   IconCopy,
   IconMessageCircle,
   IconHistory,
+  IconTemplate,
 } from '@tabler/icons-react'
 
 function App() {
@@ -43,6 +46,7 @@ function App() {
   const [showAssetModal, setShowAssetModal] = useState(false)
   const [showAIChat, setShowAIChat] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -281,6 +285,19 @@ function App() {
     window.history.replaceState({}, '', '/slides/new')
   }, [editor])
 
+  const handleTemplateSelect = useCallback((template: Template) => {
+    editor.clearSelection()
+    editor.setTitle(template.name)
+    editor.setContent(template.content)
+    if (template.theme_id) {
+      editor.setSelectedTheme(template.theme_id)
+    }
+    setHasUserInput(true)
+    setAutosaveEnabled(true)
+    autoSelectRef.current = false
+    window.history.replaceState({}, '', '/slides/new')
+  }, [editor])
+
   const handleDuplicate = useCallback(async (id: string) => {
     const result = await handleApiCall(
       () => duplicate(id),
@@ -413,6 +430,12 @@ function App() {
         onRestore={handleVersionRestore}
       />
 
+      <TemplateLibrary
+        open={showTemplateLibrary}
+        onClose={() => setShowTemplateLibrary(false)}
+        onSelect={handleTemplateSelect}
+      />
+
       {/* Collapsible Presentations Sidebar */}
       <motion.aside
         initial={false}
@@ -496,6 +519,17 @@ function App() {
           >
             <IconMessageCircle className="w-4 h-4 shrink-0" />
             {!sidebarCollapsed && <span className="text-sm">AI Chat</span>}
+          </button>
+          <button
+            onClick={() => setShowTemplateLibrary(true)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconTemplate className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">Templates</span>}
           </button>
         </div>
 

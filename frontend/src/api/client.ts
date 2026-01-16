@@ -949,6 +949,43 @@ export async function getAgentTools(): Promise<{ tools: AgentTool[] }> {
   return handleResponse<{ tools: AgentTool[] }>(response)
 }
 
+// Template API
+export interface Template {
+  id: string
+  name: string
+  description: string | null
+  category: string
+  content: string
+  theme_id: string | null
+  thumbnail_url: string | null
+  is_builtin: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateCategory {
+  name: string
+  description: string
+  count: number
+}
+
+export async function fetchTemplates(category?: string): Promise<Template[]> {
+  const params: Record<string, string> = {}
+  if (category) params.category = category
+  const response = await fetch(buildUrl('/templates', params))
+  return handleResponse<Template[]>(response)
+}
+
+export async function fetchTemplateCategories(): Promise<TemplateCategory[]> {
+  const response = await fetch(buildUrl('/templates/categories'))
+  return handleResponse<TemplateCategory[]>(response)
+}
+
+export async function getTemplate(templateId: string): Promise<Template> {
+  const response = await fetch(buildUrl(`/templates/${templateId}`))
+  return handleResponse<Template>(response)
+}
+
 // Streaming agent with SSE
 export function streamAgent(
   request: AgentRequest,

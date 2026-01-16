@@ -27,9 +27,12 @@ SessionLocal = sessionmaker(
 )
 
 def init_db() -> None:
-    from app.models import Base, Presentation, Theme, Folder
+    from app.models import Base, Presentation, Theme, Folder, Template
+    from app.services.template_service import init_builtin_templates
     logger.info(f"Initializing database at {DB_PATH}")
     Base.metadata.create_all(bind=engine)
+    with get_db_session() as db:
+        init_builtin_templates(db)
 
 def get_db() -> Session:
     return SessionLocal()

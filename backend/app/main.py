@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.api.routes import presentations, themes, tts, video_export, ai_generation, assets, folders, chat, scraper, conversations, versions, agent
+from app.api.routes import presentations, themes, tts, video_export, ai_generation, assets, folders, chat, scraper, conversations, versions, agent, templates
 from app.core.config import settings, config
 from app.core.logger import logger
 from app.core.rate_limiter import limiter
@@ -47,6 +47,7 @@ app.include_router(scraper.router, prefix="/api")
 app.include_router(conversations.router, prefix="/api")
 app.include_router(versions.router, prefix="/api")
 app.include_router(agent.router, prefix="/api")
+app.include_router(templates.router, prefix="/api")
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
