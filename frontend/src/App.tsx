@@ -11,6 +11,7 @@ import { VersionHistoryPanel } from './components/VersionHistoryPanel'
 import { TemplateLibrary } from './components/TemplateLibrary'
 import { ShareModal } from './components/ShareModal'
 import { SharedViewer } from './components/SharedViewer'
+import { CollaborationPanel } from './components/CollaborationPanel'
 import type { Template } from './api/client'
 import { createVersion } from './api/client'
 import type { RestoreVersionResponse } from './api/client'
@@ -759,6 +760,15 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Collaboration Panel */}
+            <div className="hidden sm:block">
+              <CollaborationPanel
+                presentationId={editor.selectedId}
+                content={editor.content}
+                onContentChange={(content) => { markDirty(); editor.setContent(content) }}
+              />
+            </div>
+
             {/* Mobile view toggle */}
             <div className="lg:hidden flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
               <button
