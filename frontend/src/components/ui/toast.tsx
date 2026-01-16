@@ -1,13 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { useToast, type Toast } from '../../contexts/ToastContext'
 
-export type ToastType = 'success' | 'error' | 'info'
-
-export interface Toast {
-  id: string
-  message: string
-  type: ToastType
-}
+export { useToast } from '../../contexts/ToastContext'
+export type { Toast, ToastType } from '../../contexts/ToastContext'
 
 interface ToastItemProps {
   toast: Toast
@@ -60,17 +56,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   )
 }
 
-export function useToast() {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  function showToast(message: string, type: ToastType = 'info') {
-    const id = Date.now().toString()
-    setToasts((prev) => [...prev, { id, message, type }])
-  }
-
-  function dismissToast(id: string) {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }
-
-  return { toasts, showToast, dismissToast }
+export function ToastRoot() {
+  const { toasts, dismissToast } = useToast()
+  return <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 }

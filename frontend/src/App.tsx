@@ -1,11 +1,15 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { Presentation, Folder } from './api/client'
 import { getPreview, fetchFolders, createFolder, updateFolder, deleteFolder } from './api/client'
+import { parseSlides, serializeSlides } from './lib/markdown'
 import { EditorPanel } from './components/EditorPanel'
 import { PreviewPanel } from './components/PreviewPanel'
 import { AIGenerationModal } from './components/AIGenerationModal'
 import { AssetManagerModal } from './components/AssetManagerModal'
-import { ToastContainer, useToast } from './components/ui/toast'
+import { AIChatPanel } from './components/AIChatPanel'
+import { VersionHistoryPanel } from './components/VersionHistoryPanel'
+import { createVersion } from './api/client'
+import type { RestoreVersionResponse } from './api/client'
 import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { useApiHandler } from './hooks/useApiHandler'
@@ -26,6 +30,8 @@ import {
   IconDotsVertical,
   IconTrash,
   IconCopy,
+  IconMessageCircle,
+  IconHistory,
 } from '@tabler/icons-react'
 
 function App() {
@@ -35,11 +41,12 @@ function App() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [showAIModal, setShowAIModal] = useState(false)
   const [showAssetModal, setShowAssetModal] = useState(false)
+  const [showAIChat, setShowAIChat] = useState(false)
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
-  const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
   const slugPendingRef = useRef<string | null>(null)
@@ -159,6 +166,113 @@ function App() {
     autoSelectRef.current = false
   }, [editor])
 
+  // Get current slide info from content
+  const getCurrentSlideInfo = useCallback(() => {
+    const parsed = parseSlides(editor.content)
+    return { slides: parsed.slides, count: parsed.slides.length }
+  }, [editor.content])
+
+  // Handle applying content to current slide
+  const handleApplyToCurrentSlide = useCallback((content: string) => {
+    editor.setContent(content)
+    markDirty()
+  }, [editor, markDirty])
+
+  // Handle creating new presentation from chat
+  const handleCreateNewPresentationFromChat = useCallback((content: string, title: string) => {
+    editor.clearSelection()
+    editor.setTitle(title)
+    editor.setContent(content)
+    setHasUserInput(true)
+    setAutosaveEnabled(true)
+    autoSelectRef.current = false
+  }, [editor])
+
+  // Handle inserting a new slide
+  const handleInsertSlide = useCallback((content: string, afterIndex: number) => {
+    const parsed = parseSlides(editor.content)
+    // Insert new slide after the specified index
+    const newSlide = {
+      id: `slide-${Date.now()}`,
+      content: content,
+      comment: ''
+    }
+    const updatedSlides = [...parsed.slides]
+    updatedSlides.splice(afterIndex + 1, 0, newSlide)
+    editor.setContent(serializeSlides(parsed.frontmatter, updatedSlides))
+    markDirty()
+  }, [editor, markDirty])
+
+  // Handle version restore
+  const handleVersionRestore = useCallback((data: RestoreVersionResponse) => {
+    editor.setTitle(data.title)
+    editor.setContent(data.content)
+    if (data.theme_id) {
+      editor.setSelectedTheme(data.theme_id)
+    }
+    setHasUserInput(true)
+  }, [editor])
+
+  // Save checkpoint before major changes (exposed for external use)
+  const _saveCheckpoint = useCallback(async (name?: string) => {
+    if (!editor.selectedId) return
+    await handleApiCall(
+      () => createVersion(editor.selectedId!, name),
+      'Checkpoint saved',
+      'Failed to save checkpoint'
+    )
+  }, [editor.selectedId, handleApiCall])
+
+  // Export checkpoint function for potential use
+  void _saveCheckpoint
+
+  // Handle theme creation from chat
+  const handleCreateThemeFromChat = useCallback(async (colors: string[], name: string, description: string) => {
+    // Build theme payload from extracted colors
+    const themeData = {
+      name,
+      description: description || `Theme created with colors: ${colors.join(', ')}`,
+      colors: {
+        background: '#0b1024',
+        text: '#e2e8f0',
+        h1: colors[0] || '#0ea5e9',
+        h2: colors[1] || '#7c3aed',
+        h3: colors[2] || colors[0] || '#0ea5e9',
+        link: colors[3] || colors[0] || '#38bdf8',
+        code_background: '#0f172a',
+        code_text: '#e2e8f0',
+        code_block_background: '#111827',
+        code_block_text: '#e5e7eb',
+      },
+      typography: {
+        font_family: 'Sora, "Helvetica Neue", sans-serif',
+        font_size: '28px',
+        h1_size: '52px',
+        h1_weight: '700',
+        h2_size: '38px',
+        h2_weight: '700',
+        h3_size: '30px',
+        h3_weight: '600',
+        code_font_family: '"JetBrains Mono", monospace',
+      },
+      spacing: {
+        slide_padding: '64px',
+        h1_margin_bottom: '24px',
+        h2_margin_top: '18px',
+        code_padding: '2px 10px',
+        code_block_padding: '18px',
+        border_radius: '10px',
+        code_block_border_radius: '12px',
+      }
+    }
+    await handleApiCall(
+      () => createTheme(themeData),
+      `Theme "${name}" created`,
+      'Failed to create theme'
+    )
+    reloadThemes()
+  }, [handleApiCall, createTheme, reloadThemes])
+
   const handleNewPresentation = useCallback(() => {
     editor.clearSelection()
     setHasUserInput(false)
@@ -194,6 +308,19 @@ function App() {
   useEffect(() => {
     fetchFolders(undefined, true).then(setFolders).catch(console.error)
   }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpenId) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-menu-container]')) {
+        setMenuOpenId(null)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [menuOpenId])
 
   // Folder handlers - prefixed with _ as they're defined for future use
   const _handleCreateFolder = useCallback(async (name: string, parentId: string | null) => {
@@ -252,7 +379,6 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-secondary-50 dark:bg-secondary-900 flex overflow-hidden">
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {showAIModal && (
         <AIGenerationModal
@@ -266,12 +392,33 @@ function App() {
         onClose={() => setShowAssetModal(false)}
       />
 
+      <AIChatPanel
+        isOpen={showAIChat}
+        onClose={() => setShowAIChat(false)}
+        currentSlide={editor.content}
+        currentSlideIndex={0}
+        totalSlides={getCurrentSlideInfo().count}
+        presentationTitle={editor.title}
+        onApplyToCurrentSlide={handleApplyToCurrentSlide}
+        onCreateNewPresentation={handleCreateNewPresentationFromChat}
+        onInsertSlide={handleInsertSlide}
+        onCreateTheme={handleCreateThemeFromChat}
+      />
+
+      <VersionHistoryPanel
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        presentationId={editor.selectedId}
+        presentationTitle={editor.title || 'Untitled Presentation'}
+        onRestore={handleVersionRestore}
+      />
+
       {/* Collapsible Presentations Sidebar */}
       <motion.aside
         initial={false}
         animate={{ width: sidebarCollapsed ? 64 : 280 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-lg relative z-20"
+        className="h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-lg relative z-50"
       >
         {/* Logo & Collapse Toggle */}
         <div className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3">
@@ -338,6 +485,17 @@ function App() {
           >
             <IconPhoto className="w-4 h-4 shrink-0" />
             {!sidebarCollapsed && <span className="text-sm">Assets</span>}
+          </button>
+          <button
+            onClick={() => setShowAIChat(true)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-sm",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconMessageCircle className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">AI Chat</span>}
           </button>
         </div>
 
@@ -432,7 +590,7 @@ function App() {
                       {new Date(p.updated_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="relative">
+                  <div className="relative" data-menu-container>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -520,6 +678,15 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowVersionHistory(true)}
+              disabled={!editor.selectedId}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 text-sm font-medium transition-all"
+              title="Version History (Cmd/Ctrl+Z to undo)"
+            >
+              <IconHistory className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+            </button>
+            <button
               onClick={() => editor.selectedId && editor.exportPresentation('pdf')}
               disabled={!editor.selectedId}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium shadow-md transition-all"
@@ -572,13 +739,6 @@ function App() {
         </main>
       </div>
 
-      {/* Click outside to close menu */}
-      {menuOpenId && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setMenuOpenId(null)}
-        />
-      )}
     </div>
   )
 }

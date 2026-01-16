@@ -1,13 +1,49 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Sparkles, Plus, X, Upload, Image, Loader2 } from 'lucide-react'
+import { Sparkles, X, Upload, Image, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { API_BASE_URL } from '../lib/constants'
 
-interface ColorNames {
-  [key: string]: string
+// All 10 theme color properties with labels and descriptions
+const THEME_COLOR_PROPERTIES = [
+  { key: 'background', label: 'Background', description: 'Slide background color' },
+  { key: 'text', label: 'Text', description: 'Main body text color' },
+  { key: 'h1', label: 'Heading 1', description: 'Primary heading color' },
+  { key: 'h2', label: 'Heading 2', description: 'Secondary heading color' },
+  { key: 'h3', label: 'Heading 3', description: 'Tertiary heading color' },
+  { key: 'link', label: 'Links', description: 'Hyperlink color' },
+  { key: 'code_background', label: 'Inline Code BG', description: 'Inline code background' },
+  { key: 'code_text', label: 'Inline Code Text', description: 'Inline code text color' },
+  { key: 'code_block_background', label: 'Code Block BG', description: 'Code block background' },
+  { key: 'code_block_text', label: 'Code Block Text', description: 'Code block text color' },
+] as const
+
+interface ThemeColors {
+  background: string
+  text: string
+  h1: string
+  h2: string
+  h3: string
+  link: string
+  code_background: string
+  code_text: string
+  code_block_background: string
+  code_block_text: string
+}
+
+const DEFAULT_THEME_COLORS: ThemeColors = {
+  background: '#0b1024',
+  text: '#e2e8f0',
+  h1: '#0ea5e9',
+  h2: '#7c3aed',
+  h3: '#0ea5e9',
+  link: '#38bdf8',
+  code_background: '#0f172a',
+  code_text: '#e2e8f0',
+  code_block_background: '#111827',
+  code_block_text: '#e5e7eb',
 }
 
 interface ThemeCreatorModalProps {
@@ -19,30 +55,37 @@ interface ThemeCreatorModalProps {
 export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeCreatorModalProps) {
   const [themeName, setThemeName] = useState('')
   const [description, setDescription] = useState('')
-  const [colors, setColors] = useState<string[]>(['#3B82F6', '#8B5CF6'])
-  const [colorNames, setColorNames] = useState<ColorNames>({})
+  const [themeColors, setThemeColors] = useState<ThemeColors>({ ...DEFAULT_THEME_COLORS })
+  const [extractedColors, setExtractedColors] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const addColor = () => {
-    if (colors.length < 6) {
-      setColors([...colors, '#000000'])
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setThemeName('')
+      setDescription('')
+      setThemeColors({ ...DEFAULT_THEME_COLORS })
+      setExtractedColors([])
+      setError(null)
+      setPreviewImage(null)
+      setShowAdvanced(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
+  }, [open])
+
+  const updateColor = (key: keyof ThemeColors, value: string) => {
+    setThemeColors(prev => ({ ...prev, [key]: value }))
   }
 
-  const removeColor = (index: number) => {
-    if (colors.length > 1) {
-      setColors(colors.filter((_, i) => i !== index))
-    }
-  }
-
-  const updateColor = (index: number, value: string) => {
-    const newColors = [...colors]
-    newColors[index] = value
-    setColors(newColors)
+  const applyExtractedColor = (colorKey: keyof ThemeColors, extractedColor: string) => {
+    updateColor(colorKey, extractedColor)
   }
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,8 +120,30 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
       const data = await response.json()
 
       if (data.success && data.colors.length > 0) {
-        setColors(data.colors)
-        setColorNames(data.color_names || {})
+        setExtractedColors(data.colors)
+
+        // Auto-apply first few colors to theme
+        const colors = data.colors
+        if (colors[0]) updateColor('h1', colors[0])
+        if (colors[1]) updateColor('h2', colors[1])
+        if (colors[2]) updateColor('link', colors[2])
+        if (colors[3]) updateColor('h3', colors[3])
+
+        // Detect if it's a dark or light theme based on first color
+        if (colors[0]) {
+          const hex = colors[0].replace('#', '')
+          const r = parseInt(hex.substr(0, 2), 16)
+          const g = parseInt(hex.substr(2, 2), 16)
+          const b = parseInt(hex.substr(4, 2), 16)
+          const brightness = (r * 299 + g * 587 + b * 114) / 1000
+
+          // If the dominant color is dark, use it as background
+          if (brightness < 128 && colors.length > 1) {
+            updateColor('background', colors[0])
+            updateColor('text', '#e2e8f0')
+          }
+        }
+
         if (data.description && !description) {
           setDescription(data.description)
         }
@@ -111,7 +176,7 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
 
   const clearPreview = () => {
     setPreviewImage(null)
-    setColorNames({})
+    setExtractedColors([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -127,12 +192,16 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
     setError(null)
 
     try {
+      // Get brand colors from the theme colors (h1, h2, h3 are the main accent colors)
+      const brandColors = [themeColors.h1, themeColors.h2, themeColors.h3, themeColors.link]
+        .filter((c, i, arr) => arr.indexOf(c) === i) // unique
+
       const response = await fetch(`${API_BASE_URL}/api/themes/generate-ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           theme_name: themeName,
-          brand_colors: colors,
+          brand_colors: brandColors,
           description: description,
         }),
       })
@@ -145,10 +214,9 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
       const data = await response.json()
 
       if (data.success) {
-        // Reset form
         setThemeName('')
         setDescription('')
-        setColors(['#3B82F6', '#8B5CF6'])
+        setThemeColors({ ...DEFAULT_THEME_COLORS })
         onThemeCreated?.()
         onOpenChange(false)
       } else {
@@ -161,16 +229,45 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
     }
   }
 
+  // Simple preview of the theme
+  const ThemePreview = () => (
+    <div
+      className="rounded-lg p-4 border"
+      style={{ backgroundColor: themeColors.background, borderColor: themeColors.h1 + '40' }}
+    >
+      <h1 style={{ color: themeColors.h1, fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+        Heading 1
+      </h1>
+      <h2 style={{ color: themeColors.h2, fontSize: '14px', fontWeight: '600', marginBottom: '6px' }}>
+        Heading 2
+      </h2>
+      <p style={{ color: themeColors.text, fontSize: '12px', marginBottom: '6px' }}>
+        Regular text content with <a style={{ color: themeColors.link }}>a link</a>.
+      </p>
+      <code
+        style={{
+          backgroundColor: themeColors.code_background,
+          color: themeColors.code_text,
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '11px'
+        }}
+      >
+        inline code
+      </code>
+    </div>
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-primary-700 flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-primary-600" />
             AI Theme Creator
           </DialogTitle>
           <DialogDescription>
-            Generate a custom Marp theme based on your brand colors and style
+            Generate a custom Marp theme. Upload a screenshot to extract colors automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -181,132 +278,179 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
             </div>
           )}
 
-          {/* Image Upload Section */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Image className="w-4 h-4 inline mr-1" />
-              Extract Colors from Screenshot
-            </label>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              className="border-2 border-dashed border-primary-300 rounded-lg p-4 text-center hover:border-primary-500 transition-colors cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              {extracting ? (
-                <div className="flex items-center justify-center gap-2 py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-primary-600" />
-                  <span className="text-primary-600">Analyzing image...</span>
-                </div>
-              ) : previewImage ? (
-                <div className="relative">
-                  <img
-                    src={previewImage}
-                    alt="Preview"
-                    className="max-h-32 mx-auto rounded"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => { e.stopPropagation(); clearPreview(); }}
-                    className="absolute top-0 right-0 text-red-600 hover:bg-red-50"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="py-4">
-                  <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">
-                    Drop a screenshot or click to upload
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    AI will extract the color palette automatically
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Theme Name *</label>
-            <Input
-              value={themeName}
-              onChange={(e) => setThemeName(e.target.value)}
-              placeholder="e.g., My Brand Theme"
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Brand Colors *</label>
-            <div className="space-y-2">
-              {colors.map((color, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => updateColor(index, e.target.value)}
-                    className="w-12 h-10 rounded border border-primary-200 cursor-pointer"
-                  />
-                  <Input
-                    value={color}
-                    onChange={(e) => updateColor(index, e.target.value)}
-                    placeholder="#000000"
-                    className="flex-1"
-                  />
-                  {colorNames[color.toUpperCase()] && (
-                    <span className="text-xs text-gray-500 min-w-[80px]">
-                      {colorNames[color.toUpperCase()]}
-                    </span>
-                  )}
-                  {colors.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeColor(index)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {colors.length < 8 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addColor}
-                  className="w-full"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Column - Settings */}
+            <div className="space-y-4">
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  <Image className="w-4 h-4 inline mr-1" />
+                  Extract Colors from Screenshot
+                </label>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  className="border-2 border-dashed border-primary-300 rounded-lg p-3 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Color
-                </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  {extracting ? (
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary-600" />
+                      <span className="text-primary-600 text-sm">Analyzing...</span>
+                    </div>
+                  ) : previewImage ? (
+                    <div className="relative">
+                      <img src={previewImage} alt="Preview" className="max-h-20 mx-auto rounded" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); clearPreview(); }}
+                        className="absolute top-0 right-0 text-red-600 hover:bg-red-50 h-6 w-6 p-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      <Upload className="w-6 h-6 mx-auto text-gray-400 mb-1" />
+                      <p className="text-xs text-gray-500">Drop or click to upload</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Extracted Colors Palette */}
+              {extractedColors.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Extracted Colors</label>
+                  <div className="flex flex-wrap gap-2">
+                    {extractedColors.map((color, i) => (
+                      <div
+                        key={i}
+                        className="group relative w-8 h-8 rounded-lg border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Click a theme color below, then select from extracted colors</p>
+                </div>
               )}
+
+              {/* Theme Name */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Theme Name *</label>
+                <Input
+                  value={themeName}
+                  onChange={(e) => setThemeName(e.target.value)}
+                  placeholder="e.g., My Brand Theme"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Style Description</label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g., Modern and minimal, professional..."
+                  rows={2}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Right Column - Colors & Preview */}
+            <div className="space-y-4">
+              {/* Primary Colors */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Theme Colors</label>
+                <div className="space-y-2">
+                  {THEME_COLOR_PROPERTIES.slice(0, 6).map(({ key, label, description }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <div className="relative">
+                        <input
+                          type="color"
+                          value={themeColors[key]}
+                          onChange={(e) => updateColor(key, e.target.value)}
+                          className="w-8 h-8 rounded border border-primary-200 cursor-pointer"
+                        />
+                        {extractedColors.length > 0 && (
+                          <div className="absolute left-10 top-0 flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                            {extractedColors.slice(0, 5).map((ec, i) => (
+                              <button
+                                key={i}
+                                onClick={() => applyExtractedColor(key, ec)}
+                                className="w-4 h-4 rounded border border-white shadow-sm hover:scale-125 transition-transform"
+                                style={{ backgroundColor: ec }}
+                                title={`Apply ${ec}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Input
+                        value={themeColors[key]}
+                        onChange={(e) => updateColor(key, e.target.value)}
+                        className="flex-1 h-8 text-xs font-mono"
+                      />
+                      <span className="text-xs text-gray-500 w-20 truncate" title={description}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Advanced Colors Toggle */}
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+              >
+                {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showAdvanced ? 'Hide' : 'Show'} code colors
+              </button>
+
+              {showAdvanced && (
+                <div className="space-y-2">
+                  {THEME_COLOR_PROPERTIES.slice(6).map(({ key, label, description }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={themeColors[key]}
+                        onChange={(e) => updateColor(key, e.target.value)}
+                        className="w-8 h-8 rounded border border-primary-200 cursor-pointer"
+                      />
+                      <Input
+                        value={themeColors[key]}
+                        onChange={(e) => updateColor(key, e.target.value)}
+                        className="flex-1 h-8 text-xs font-mono"
+                      />
+                      <span className="text-xs text-gray-500 w-24 truncate" title={description}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Preview */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Preview</label>
+                <ThemePreview />
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Style Description (Optional)
-            </label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g., Modern and minimal, professional corporate, creative and bold..."
-              rows={3}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t">
             <Button
               onClick={handleGenerate}
               disabled={loading || !themeName.trim()}
@@ -314,27 +458,23 @@ export function ThemeCreatorModal({ open, onOpenChange, onThemeCreated }: ThemeC
             >
               {loading ? (
                 <>
-                  <span className="animate-spin mr-2">⏳</span>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 mr-2" />
                   Generate Theme
                 </>
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            AI will generate a complete Marp theme CSS based on your inputs
+            AI will generate a complete Marp theme CSS based on your color selections
           </p>
         </div>
       </DialogContent>

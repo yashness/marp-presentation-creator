@@ -27,8 +27,12 @@ const secondaryVariant = {
 
 export const FileUpload = ({
   onChange,
+  multiple = true,
+  accept,
 }: {
   onChange?: (files: File[]) => void;
+  multiple?: boolean;
+  accept?: Record<string, string[]>;
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,8 +47,9 @@ export const FileUpload = ({
   };
 
   const { getRootProps, isDragActive } = useDropzone({
-    multiple: false,
+    multiple,
     noClick: true,
+    accept: accept || { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'] },
     onDrop: handleFileChange,
     onDropRejected: (error) => {
       console.log(error);
@@ -62,7 +67,15 @@ export const FileUpload = ({
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
-          onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
+          multiple={multiple}
+          accept={accept ? Object.keys(accept).join(',') : 'image/*'}
+          onChange={(e) => {
+            handleFileChange(Array.from(e.target.files || []))
+            // Reset input to allow re-uploading the same file
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ''
+            }
+          }}
           className="hidden"
         />
         <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">

@@ -345,6 +345,44 @@ export async function rewriteSlide(currentContent: string, instruction: string):
   return result.content
 }
 
+export interface RewriteSelectedTextResponse {
+  success: boolean
+  content?: string
+  rewritten_text?: string
+  message: string
+}
+
+export async function rewriteSelectedText(
+  fullContent: string,
+  selectedText: string,
+  instruction: string,
+  selectionStart: number,
+  selectionEnd: number
+): Promise<{ content: string; rewrittenText: string }> {
+  const response = await fetch(buildUrl('/ai/rewrite-selected-text'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      full_content: fullContent,
+      selected_text: selectedText,
+      instruction,
+      selection_start: selectionStart,
+      selection_end: selectionEnd
+    })
+  })
+
+  const result = await handleResponse<RewriteSelectedTextResponse>(response)
+
+  if (!result.success || !result.content) {
+    throw new Error(result.message || 'Failed to rewrite selected text')
+  }
+
+  return {
+    content: result.content,
+    rewrittenText: result.rewritten_text || ''
+  }
+}
+
 export interface RegenerateCommentResponse {
   success: boolean
   comment?: string
@@ -486,6 +524,111 @@ export async function performSlideOperation(
   return { content: result.content, slides: result.slides }
 }
 
+// Layout types and operations
+export interface LayoutInfo {
+  name: string
+  icon: string
+  description: string
+  html: string
+}
+
+export interface LayoutsResponse {
+  layouts: Record<string, LayoutInfo>
+  diagrams?: Record<string, LayoutInfo>
+  callouts: Record<string, LayoutInfo>
+}
+
+export async function getLayouts(): Promise<LayoutsResponse> {
+  const response = await fetch(buildUrl('/ai/layouts'))
+  return handleResponse<LayoutsResponse>(response)
+}
+
+export async function applyLayout(content: string, layoutType: string): Promise<string> {
+  const response = await fetch(buildUrl('/ai/apply-layout'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, layout_type: layoutType })
+  })
+
+  const result = await handleResponse<{ success: boolean; content?: string; message: string }>(response)
+
+  if (!result.success || !result.content) {
+    throw new Error(result.message || 'Failed to apply layout')
+  }
+
+  return result.content
+}
+
+export async function duplicateAndRewrite(content: string, newTopic: string): Promise<string> {
+  const response = await fetch(buildUrl('/ai/duplicate-rewrite'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, new_topic: newTopic })
+  })
+
+  const result = await handleResponse<{ success: boolean; content?: string; message: string }>(response)
+
+  if (!result.success || !result.content) {
+    throw new Error(result.message || 'Failed to rewrite')
+  }
+
+  return result.content
+}
+
+export async function rearrangeSlides(slides: string[]): Promise<string[]> {
+  const response = await fetch(buildUrl('/ai/rearrange-slides'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slides })
+  })
+
+  const result = await handleResponse<{ success: boolean; slides?: string[]; message: string }>(response)
+
+  if (!result.success || !result.slides) {
+    throw new Error(result.message || 'Failed to rearrange')
+  }
+
+  return result.slides
+}
+
+export type TransformStyle = 'story' | 'teaching' | 'pitch' | 'workshop' | 'technical' | 'executive'
+
+export async function transformStyle(slides: string[], style: TransformStyle): Promise<string[]> {
+  const response = await fetch(buildUrl('/ai/transform-style'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slides, style })
+  })
+
+  const result = await handleResponse<{ success: boolean; slides?: string[]; message: string }>(response)
+
+  if (!result.success || !result.slides) {
+    throw new Error(result.message || 'Failed to transform')
+  }
+
+  return result.slides
+}
+
+export async function rewriteForTopic(
+  slides: string[],
+  newTopic: string,
+  keepStyle: boolean = true
+): Promise<string[]> {
+  const response = await fetch(buildUrl('/ai/rewrite-for-topic'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slides, new_topic: newTopic, keep_style: keepStyle })
+  })
+
+  const result = await handleResponse<{ success: boolean; slides?: string[]; message: string }>(response)
+
+  if (!result.success || !result.slides) {
+    throw new Error(result.message || 'Failed to rewrite')
+  }
+
+  return result.slides
+}
+
 export interface Folder {
   id: string
   name: string
@@ -534,4 +677,340 @@ export async function updateFolder(id: string, data: FolderUpdate): Promise<Fold
 export async function deleteFolder(id: string): Promise<void> {
   const response = await fetch(buildUrl(`/folders/${id}`), { method: 'DELETE' })
   return handleVoidResponse(response)
+}
+
+// Async Video Export with Polling
+export interface VideoExportStartResponse {
+  job_id: string
+  message: string
+}
+
+export interface VideoJobProgress {
+  job_id: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  progress: number
+  current_stage: string
+  total_slides: number
+  processed_slides: number
+  error: string | null
+  video_url: string | null
+}
+
+export interface VideoExistsResponse {
+  exists: boolean
+  video_url: string | null
+  file_size: number | null
+  active_job_id: string | null
+}
+
+export async function startVideoExportAsync(
+  id: string,
+  options?: VideoExportRequest
+): Promise<VideoExportStartResponse> {
+  const request: VideoExportRequest = {
+    voice: options?.voice || 'af_bella',
+    speed: options?.speed || 1.0,
+    slide_duration: options?.slide_duration || 5.0
+  }
+
+  const response = await fetch(buildUrl(`/video/${id}/export-async`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  })
+
+  return handleResponse<VideoExportStartResponse>(response)
+}
+
+export async function getVideoJobProgress(jobId: string): Promise<VideoJobProgress> {
+  const response = await fetch(buildUrl(`/video/job/${jobId}/progress`))
+  return handleResponse<VideoJobProgress>(response)
+}
+
+export async function cancelVideoJob(jobId: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(buildUrl(`/video/job/${jobId}/cancel`), { method: 'POST' })
+  return handleResponse<{ success: boolean; message: string }>(response)
+}
+
+export async function checkVideoExists(presentationId: string): Promise<VideoExistsResponse> {
+  const response = await fetch(buildUrl(`/video/${presentationId}/exists`))
+  return handleResponse<VideoExistsResponse>(response)
+}
+
+// Chat API for streaming AI responses
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[]
+  context?: string | null
+  mode?: 'general' | 'outline' | 'slide' | 'refine'
+  current_slide?: string | null
+}
+
+export interface ChatStatusResponse {
+  available: boolean
+  streaming: boolean
+  modes: string[]
+}
+
+export async function getChatStatus(): Promise<ChatStatusResponse> {
+  const response = await fetch(buildUrl('/chat/status'))
+  return handleResponse<ChatStatusResponse>(response)
+}
+
+// URL Scraping API
+export interface ScrapeResponse {
+  success: boolean
+  url: string
+  title?: string | null
+  description?: string | null
+  content?: string | null
+  site_name?: string | null
+  content_type?: string | null
+  error?: string | null
+}
+
+export async function scrapeUrl(url: string, maxContentLength: number = 10000): Promise<ScrapeResponse> {
+  const response = await fetch(buildUrl('/scraper'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, max_content_length: maxContentLength })
+  })
+  return handleResponse<ScrapeResponse>(response)
+}
+
+// Conversation Persistence API
+export interface Conversation {
+  id: string
+  presentation_id: string | null
+  mode: string
+  created_at: string
+  updated_at: string
+  messages?: ConversationMessage[]
+}
+
+export interface ConversationMessage {
+  id: string
+  role: string
+  content: string
+  thinking?: string | null
+  message_order: number
+  extra_data?: Record<string, unknown> | null
+  created_at: string
+}
+
+export async function createConversation(
+  presentationId?: string | null,
+  mode: string = 'general'
+): Promise<Conversation> {
+  const response = await fetch(buildUrl('/conversations'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ presentation_id: presentationId, mode })
+  })
+  return handleResponse<Conversation>(response)
+}
+
+export async function listConversations(
+  presentationId?: string | null,
+  limit: number = 20
+): Promise<Conversation[]> {
+  const params: Record<string, string> = { limit: String(limit) }
+  if (presentationId) params.presentation_id = presentationId
+  const response = await fetch(buildUrl('/conversations', params))
+  return handleResponse<Conversation[]>(response)
+}
+
+export async function getConversation(conversationId: string): Promise<Conversation> {
+  const response = await fetch(buildUrl(`/conversations/${conversationId}`))
+  return handleResponse<Conversation>(response)
+}
+
+export async function addMessageToConversation(
+  conversationId: string,
+  role: string,
+  content: string,
+  thinking?: string | null,
+  extraData?: Record<string, unknown> | null
+): Promise<ConversationMessage> {
+  const response = await fetch(buildUrl(`/conversations/${conversationId}/messages`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role, content, thinking, extra_data: extraData })
+  })
+  return handleResponse<ConversationMessage>(response)
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const response = await fetch(buildUrl(`/conversations/${conversationId}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
+}
+
+// Presentation Versioning API
+export interface PresentationVersion {
+  id: string
+  presentation_id: string
+  version_number: number
+  title: string
+  content: string
+  theme_id?: string | null
+  checkpoint_name?: string | null
+  created_at: string
+}
+
+export interface RestoreVersionResponse {
+  id: string
+  title: string
+  content: string
+  theme_id?: string | null
+  restored_from: number
+}
+
+export async function createVersion(
+  presentationId: string,
+  checkpointName?: string | null
+): Promise<PresentationVersion> {
+  const response = await fetch(buildUrl('/versions'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ presentation_id: presentationId, checkpoint_name: checkpointName })
+  })
+  return handleResponse<PresentationVersion>(response)
+}
+
+export async function listVersions(presentationId: string): Promise<PresentationVersion[]> {
+  const response = await fetch(buildUrl(`/versions/presentation/${presentationId}`))
+  return handleResponse<PresentationVersion[]>(response)
+}
+
+export async function getVersion(versionId: string): Promise<PresentationVersion> {
+  const response = await fetch(buildUrl(`/versions/${versionId}`))
+  return handleResponse<PresentationVersion>(response)
+}
+
+export async function restoreVersion(versionId: string): Promise<RestoreVersionResponse> {
+  const response = await fetch(buildUrl(`/versions/${versionId}/restore`), { method: 'POST' })
+  return handleResponse<RestoreVersionResponse>(response)
+}
+
+export async function deleteVersion(versionId: string): Promise<void> {
+  const response = await fetch(buildUrl(`/versions/${versionId}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
+}
+
+// Agent API for agentic workflows
+export interface AgentRequest {
+  message: string
+  presentation_id?: string | null
+  conversation_id?: string | null
+}
+
+export interface AgentToolUse {
+  name: string
+  input: Record<string, unknown>
+}
+
+export interface AgentResponse {
+  response: string
+  tool_uses: AgentToolUse[]
+  success: boolean
+}
+
+export interface AgentTool {
+  name: string
+  description: string
+  input_schema: Record<string, unknown>
+}
+
+export interface AgentStatusResponse {
+  available: boolean
+  tools: string[]
+}
+
+export async function runAgent(request: AgentRequest): Promise<AgentResponse> {
+  const response = await fetch(buildUrl('/agent/run'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  })
+  return handleResponse<AgentResponse>(response)
+}
+
+export async function getAgentStatus(): Promise<AgentStatusResponse> {
+  const response = await fetch(buildUrl('/agent/status'))
+  return handleResponse<AgentStatusResponse>(response)
+}
+
+export async function getAgentTools(): Promise<{ tools: AgentTool[] }> {
+  const response = await fetch(buildUrl('/agent/tools'))
+  return handleResponse<{ tools: AgentTool[] }>(response)
+}
+
+// Streaming agent with SSE
+export function streamAgent(
+  request: AgentRequest,
+  callbacks: {
+    onText?: (content: string) => void
+    onToolUse?: (name: string, input: Record<string, unknown>) => void
+    onToolResult?: (name: string, result: unknown) => void
+    onDone?: (response: string) => void
+    onError?: (message: string) => void
+  }
+): () => void {
+  const controller = new AbortController()
+
+  fetch(buildUrl('/agent/stream'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    signal: controller.signal
+  }).then(async response => {
+    if (!response.ok) {
+      callbacks.onError?.(`HTTP ${response.status}`)
+      return
+    }
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+
+    if (!reader) {
+      callbacks.onError?.('No response body')
+      return
+    }
+
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.content) callbacks.onText?.(data.content)
+            if (data.name && data.input) callbacks.onToolUse?.(data.name, data.input)
+            if (data.result) callbacks.onToolResult?.(data.name, data.result)
+            if (data.response) callbacks.onDone?.(data.response)
+            if (data.message && line.includes('error')) callbacks.onError?.(data.message)
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+  }).catch(error => {
+    if (error.name !== 'AbortError') {
+      callbacks.onError?.(error.message)
+    }
+  })
+
+  return () => controller.abort()
 }

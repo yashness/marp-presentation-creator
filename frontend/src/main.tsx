@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ToastProvider } from './contexts/ToastContext'
+import { ToastRoot } from './components/ui/toast'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 const queryClient = new QueryClient()
@@ -16,15 +18,18 @@ if (!PUBLISHABLE_KEY) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        {PUBLISHABLE_KEY ? (
-          <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+      <ToastProvider>
+        <ErrorBoundary>
+          {PUBLISHABLE_KEY ? (
+            <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+              <App />
+            </ClerkProvider>
+          ) : (
             <App />
-          </ClerkProvider>
-        ) : (
-          <App />
-        )}
-      </ErrorBoundary>
+          )}
+        </ErrorBoundary>
+        <ToastRoot />
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

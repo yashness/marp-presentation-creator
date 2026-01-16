@@ -1,22 +1,23 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from './ui/button'
-import { Video, Settings, Download, RefreshCw } from 'lucide-react'
-import { exportPresentationAsVideo } from '../api/client'
+import { Video, Settings, Download, RefreshCw, X, Loader2 } from 'lucide-react'
+import {
+  startVideoExportAsync,
+  getVideoJobProgress,
+  cancelVideoJob,
+  checkVideoExists,
+  type VideoJobProgress,
+  type VideoExistsResponse,
+} from '../api/client'
 import { API_BASE_URL } from '../lib/constants'
+import { useToast } from '../contexts/ToastContext'
 
 interface VideoExportButtonProps {
   presentationId: string | null
   presentationTitle: string
 }
 
-interface VideoExistsResponse {
-  exists: boolean
-  video_url?: string
-  file_size?: number
-}
-
 export function VideoExportButton({ presentationId, presentationTitle }: VideoExportButtonProps) {
-  const [isExporting, setIsExporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [voice, setVoice] = useState('af_bella')
   const [speed, setSpeed] = useState(1.0)
@@ -24,7 +25,20 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
   const [existingVideo, setExistingVideo] = useState<VideoExistsResponse | null>(null)
   const [isChecking, setIsChecking] = useState(false)
 
-  const checkVideoExists = useCallback(async () => {
+  // Job tracking state
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null)
+  const [jobProgress, setJobProgress] = useState<VideoJobProgress | null>(null)
+  const pollingRef = useRef<number | null>(null)
+  const { showToast } = useToast()
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+  }, [])
+
+  const checkVideoStatus = useCallback(async () => {
     if (!presentationId) {
       setExistingVideo(null)
       return
@@ -32,41 +46,91 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
 
     setIsChecking(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/video/${presentationId}/exists`)
-      if (response.ok) {
-        const data: VideoExistsResponse = await response.json()
-        setExistingVideo(data)
+      const data = await checkVideoExists(presentationId)
+      setExistingVideo(data)
+
+      // If there's an active job, start polling
+      if (data.active_job_id && !currentJobId) {
+        setCurrentJobId(data.active_job_id)
       }
     } catch (error) {
       console.error('Failed to check video status:', error)
     } finally {
       setIsChecking(false)
     }
-  }, [presentationId])
+  }, [presentationId, currentJobId])
 
   useEffect(() => {
-    checkVideoExists()
-  }, [checkVideoExists])
+    checkVideoStatus()
+  }, [checkVideoStatus])
+
+  // Polling for job progress
+  useEffect(() => {
+    if (!currentJobId) {
+      stopPolling()
+      return
+    }
+
+    const pollProgress = async () => {
+      try {
+        const progress = await getVideoJobProgress(currentJobId)
+        setJobProgress(progress)
+
+        if (progress.status === 'completed') {
+          stopPolling()
+          setCurrentJobId(null)
+          setJobProgress(null)
+          showToast('Video export completed', 'success')
+          checkVideoStatus()
+        } else if (progress.status === 'failed') {
+          stopPolling()
+          setCurrentJobId(null)
+          showToast(progress.error || 'Video export failed', 'error')
+        } else if (progress.status === 'cancelled') {
+          stopPolling()
+          setCurrentJobId(null)
+          setJobProgress(null)
+          showToast('Video export cancelled', 'info')
+        }
+      } catch (error) {
+        console.error('Failed to get job progress:', error)
+      }
+    }
+
+    pollProgress()
+    pollingRef.current = window.setInterval(pollProgress, 1500)
+
+    return () => stopPolling()
+  }, [currentJobId, stopPolling, checkVideoStatus, showToast])
 
   const handleExport = async () => {
     if (!presentationId) return
 
-    setIsExporting(true)
     setShowSettings(false)
 
     try {
-      await exportPresentationAsVideo(presentationId, presentationTitle, {
+      const response = await startVideoExportAsync(presentationId, {
         voice,
         speed,
         slide_duration: slideDuration
       })
-      // Refresh video status after export
-      await checkVideoExists()
+      setCurrentJobId(response.job_id)
+      showToast('Video export started', 'info')
     } catch (error) {
       console.error('Video export failed:', error)
-      alert(error instanceof Error ? error.message : 'Video export failed')
-    } finally {
-      setIsExporting(false)
+      showToast(error instanceof Error ? error.message : 'Failed to start export', 'error')
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!currentJobId) return
+
+    try {
+      await cancelVideoJob(currentJobId)
+      showToast('Cancelling export...', 'info')
+    } catch (error) {
+      console.error('Failed to cancel job:', error)
+      showToast('Failed to cancel export', 'error')
     }
   }
 
@@ -88,10 +152,37 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  const isExporting = currentJobId !== null
+
   return (
     <div className="relative">
       <div className="flex gap-2">
-        {existingVideo?.exists ? (
+        {isExporting && jobProgress ? (
+          <div className="flex items-center gap-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+            <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
+            <div className="flex flex-col min-w-[120px]">
+              <span className="text-xs font-medium text-primary-700">{jobProgress.current_stage}</span>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-primary-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-600 transition-all duration-300"
+                    style={{ width: `${jobProgress.progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-primary-600">{jobProgress.progress}%</span>
+              </div>
+            </div>
+            <Button
+              onClick={handleCancel}
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+              title="Cancel export"
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ) : existingVideo?.exists ? (
           <>
             <Button
               onClick={handleDownload}
@@ -107,33 +198,29 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
               onClick={handleExport}
               variant="ghost"
               size="icon"
-              disabled={!presentationId || isExporting}
+              disabled={!presentationId}
               className="w-8 h-8"
               title="Re-export video"
             >
-              {isExporting ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
+              <RefreshCw className="w-4 h-4" />
             </Button>
           </>
         ) : (
           <Button
             onClick={handleExport}
             variant="outline"
-            disabled={!presentationId || isExporting}
+            disabled={!presentationId}
             className="flex items-center gap-2"
           >
             <Video className="w-4 h-4" />
-            {isExporting ? 'Exporting...' : 'MP4'}
+            MP4
           </Button>
         )}
         <Button
           onClick={() => setShowSettings(!showSettings)}
           variant="ghost"
           size="icon"
-          disabled={!presentationId}
+          disabled={!presentationId || isExporting}
           className="w-8 h-8"
         >
           <Settings className="w-4 h-4" />

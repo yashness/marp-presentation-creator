@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, useCallback, useRef, useTransition } from
 import Editor from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 import type { Theme, ThemeCreatePayload, SlideOperation } from '../api/client'
-import { rewriteSlide, regenerateComment, regenerateAllComments, generateCommentary, performSlideOperation } from '../api/client'
+import { rewriteSlide, rewriteSelectedText, regenerateComment, regenerateAllComments, generateCommentary, performSlideOperation } from '../api/client'
+import type { editor } from 'monaco-editor'
+import { useToast } from '../contexts/ToastContext'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
@@ -12,12 +14,16 @@ import { TTSButton } from './TTSButton'
 import { SlideImageButton } from './SlideImageButton'
 import { CommandPalette } from './CommandPalette'
 import { ThemeCreatorModal } from './ThemeCreatorModal'
-import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw, LayoutGrid, Minimize2, Maximize2, Scissors, Mic } from 'lucide-react'
+import { ThemeStudio } from './ThemeStudio'
+import { LayoutPicker } from './LayoutPicker'
+import { TransformMenu } from './TransformMenu'
+import { AIActionsMenu } from './AIActionsMenu'
+import { SlideActionsMenu } from './SlideActionsMenu'
+import { Info, LayoutTemplate, MessageSquarePlus, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
 import type { SlideBlock } from '../lib/markdown'
 import { DEFAULT_THEME, DEFAULT_TITLE } from '../lib/constants'
-import { DEFAULT_THEME_TEMPLATE } from '../lib/themeDefaults'
 import { AnimatePresence, motion } from 'motion/react'
 
 interface EditorPanelProps {
@@ -72,10 +78,8 @@ export function EditorPanel({
 }: EditorPanelProps) {
   const [mode, setMode] = useState<'blocks' | 'raw'>('blocks')
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
-  const [themeDraft, setThemeDraft] = useState<ThemeCreatePayload>({ ...DEFAULT_THEME_TEMPLATE, name: '' })
   const [themeStatus, setThemeStatus] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0)
   const [themeCreatorOpen, setThemeCreatorOpen] = useState(false)
@@ -98,6 +102,16 @@ export function EditorPanel({
   const [rewriteLength, setRewriteLength] = useState<'short' | 'medium' | 'long'>('medium')
   const [slideOperationLoading, setSlideOperationLoading] = useState<Record<number, string>>({})
   const [generateCommentaryLoading, setGenerateCommentaryLoading] = useState(false)
+  const [layoutPickerIndex, setLayoutPickerIndex] = useState<number | null>(null)
+  const [transformMenuOpen, setTransformMenuOpen] = useState(false)
+  const { showToast } = useToast()
+
+  // Selection-based rewrite state
+  const [selectedText, setSelectedText] = useState<{ index: number; text: string; start: number; end: number } | null>(null)
+  const [selectionRewriteOpen, setSelectionRewriteOpen] = useState(false)
+  const [selectionRewriteInstruction, setSelectionRewriteInstruction] = useState('')
+  const [selectionRewriteLoading, setSelectionRewriteLoading] = useState(false)
+  const editorRefs = useRef<Record<string, editor.IStandaloneCodeEditor | null>>({})
 
   // Memoize parsed slides to avoid re-parsing on every render
   const parsedContent = useMemo(() => {
@@ -295,12 +309,14 @@ export function EditorPanel({
       handleSlideChange(index, newContent)
       setRewriteSlideIndex(null)
       setRewriteInstruction('')
+      showToast('Slide rewritten successfully', 'success')
     } catch (error) {
       console.error('Failed to rewrite slide:', error)
+      showToast('Failed to rewrite slide', 'error')
     } finally {
       setRewriteLoading(false)
     }
-  }, [slides, rewriteInstruction, rewriteLength, handleSlideChange])
+  }, [slides, rewriteInstruction, rewriteLength, handleSlideChange, showToast])
 
   const handleAIRewriteComment = useCallback(async (index: number) => {
     setRewriteCommentLoading(true)
@@ -319,12 +335,14 @@ export function EditorPanel({
       handleCommentChange(index, newComment)
       setRewriteCommentIndex(null)
       setRewriteCommentInstruction('')
+      showToast('Comment generated', 'success')
     } catch (error) {
       console.error('Failed to regenerate comment:', error)
+      showToast('Failed to generate comment', 'error')
     } finally {
       setRewriteCommentLoading(false)
     }
-  }, [slides, rewriteCommentInstruction, handleCommentChange])
+  }, [slides, rewriteCommentInstruction, handleCommentChange, showToast])
 
   const handleRegenerateAllComments = useCallback(async () => {
     if (!confirm('Regenerate all comments? This will replace existing narrations.')) return
@@ -338,12 +356,14 @@ export function EditorPanel({
       }))
       setEditableSlides(updatedSlides)
       updateContent(updatedSlides, normalizedFrontmatter)
+      showToast('All comments regenerated', 'success')
     } catch (error) {
       console.error('Failed to regenerate all comments:', error)
+      showToast('Failed to regenerate comments', 'error')
     } finally {
       setRegenerateAllLoading(false)
     }
-  }, [slides, normalizedFrontmatter, updateContent])
+  }, [slides, normalizedFrontmatter, updateContent, showToast])
 
   const handleQuickRewrite = useCallback(async (index: number, instruction: string) => {
     setRewriteLoading(true)
@@ -353,12 +373,65 @@ export function EditorPanel({
                          rewriteLength === 'long' ? ' Add more detail.' : ''
       const newContent = await rewriteSlide(slide.content, instruction + lengthHint)
       handleSlideChange(index, newContent)
+      showToast('Slide updated', 'success')
     } catch (error) {
       console.error('Failed to rewrite slide:', error)
+      showToast('Failed to rewrite slide', 'error')
     } finally {
       setRewriteLoading(false)
     }
-  }, [slides, rewriteLength, handleSlideChange])
+  }, [slides, rewriteLength, handleSlideChange, showToast])
+
+  const handleRewriteSelectedText = useCallback(async () => {
+    if (!selectedText || !selectionRewriteInstruction.trim()) return
+    setSelectionRewriteLoading(true)
+    try {
+      const slide = slides[selectedText.index]
+      const { content } = await rewriteSelectedText(
+        slide.content,
+        selectedText.text,
+        selectionRewriteInstruction,
+        selectedText.start,
+        selectedText.end
+      )
+      handleSlideChange(selectedText.index, content)
+      setSelectionRewriteOpen(false)
+      setSelectionRewriteInstruction('')
+      setSelectedText(null)
+      showToast('Selected text rewritten', 'success')
+    } catch (error) {
+      console.error('Failed to rewrite selected text:', error)
+      showToast('Failed to rewrite selected text', 'error')
+    } finally {
+      setSelectionRewriteLoading(false)
+    }
+  }, [selectedText, selectionRewriteInstruction, slides, handleSlideChange, showToast])
+
+  const handleEditorDidMount = useCallback((editorInstance: editor.IStandaloneCodeEditor, slideId: string, index: number) => {
+    editorRefs.current[slideId] = editorInstance
+    editorInstance.onDidChangeCursorSelection(() => {
+      const selection = editorInstance.getSelection()
+      if (selection && !selection.isEmpty()) {
+        const model = editorInstance.getModel()
+        if (model) {
+          const text = model.getValueInRange(selection)
+          const startOffset = model.getOffsetAt(selection.getStartPosition())
+          const endOffset = model.getOffsetAt(selection.getEndPosition())
+          if (text.trim()) {
+            setSelectedText({ index, text, start: startOffset, end: endOffset })
+          }
+        }
+      } else {
+        // Delay clearing to allow clicking on buttons
+        setTimeout(() => {
+          const currentSelection = editorInstance.getSelection()
+          if (!currentSelection || currentSelection.isEmpty()) {
+            setSelectedText((prev) => prev?.index === index ? null : prev)
+          }
+        }, 200)
+      }
+    })
+  }, [])
 
   const handleSlideOperation = useCallback(async (index: number, operation: SlideOperation, style?: string) => {
     setSlideOperationLoading(prev => ({ ...prev, [index]: operation }))
@@ -367,7 +440,6 @@ export function EditorPanel({
       const result = await performSlideOperation(slide.content, operation, style)
 
       if (operation === 'split' && result.slides) {
-        // Insert new slides after current
         const newSlides = result.slides.map((content, i) => ({
           id: `slide-${Date.now()}-${i}`,
           content,
@@ -380,11 +452,21 @@ export function EditorPanel({
         ]
         setEditableSlides(nextSlides)
         updateContent(nextSlides)
+        showToast(`Slide split into ${newSlides.length} slides`, 'success')
       } else if (result.content) {
         handleSlideChange(index, result.content)
+        const opNames: Record<SlideOperation, string> = {
+          layout: 'Layout applied',
+          restyle: 'Style updated',
+          simplify: 'Slide simplified',
+          expand: 'Slide expanded',
+          split: 'Slide split',
+        }
+        showToast(opNames[operation], 'success')
       }
     } catch (error) {
       console.error(`Slide operation ${operation} failed:`, error)
+      showToast(`Failed to ${operation} slide`, 'error')
     } finally {
       setSlideOperationLoading(prev => {
         const next = { ...prev }
@@ -392,7 +474,7 @@ export function EditorPanel({
         return next
       })
     }
-  }, [slides, handleSlideChange, updateContent])
+  }, [slides, handleSlideChange, updateContent, showToast])
 
   const handleGenerateCommentary = useCallback(async () => {
     if (!confirm('Generate audio-ready commentary for all slides? This will replace existing comments.')) return
@@ -406,83 +488,51 @@ export function EditorPanel({
       }))
       setEditableSlides(updatedSlides)
       updateContent(updatedSlides, normalizedFrontmatter)
-      // Open all comment sections
       setOpenComments(prev => {
         const next = { ...prev }
         updatedSlides.forEach(s => { next[s.id] = true })
         return next
       })
+      showToast('Commentary generated for all slides', 'success')
     } catch (error) {
       console.error('Failed to generate commentary:', error)
+      showToast('Failed to generate commentary', 'error')
     } finally {
       setGenerateCommentaryLoading(false)
     }
-  }, [slides, normalizedFrontmatter, updateContent])
+  }, [slides, normalizedFrontmatter, updateContent, showToast])
 
-  const updateThemeDraft = (section: 'colors' | 'typography' | 'spacing', key: string, value: string) => {
-    setThemeDraft(prev => ({
-      ...prev,
-      [section]: { ...prev[section], [key]: value }
+  const handleDuplicateSlide = useCallback((index: number) => {
+    const slide = slides[index]
+    const newSlide = {
+      id: `slide-${Date.now()}`,
+      content: slide.content,
+      comment: slide.comment,
+    }
+    const nextSlides = [
+      ...slides.slice(0, index + 1),
+      newSlide,
+      ...slides.slice(index + 1),
+    ]
+    setEditableSlides(nextSlides)
+    updateContent(nextSlides)
+    setCurrentSlideIndex(index + 1)
+  }, [slides, updateContent])
+
+  const handleApplyLayout = useCallback((index: number, newContent: string) => {
+    handleSlideChange(index, newContent)
+    setLayoutPickerIndex(null)
+  }, [handleSlideChange])
+
+  const handleTransformedSlides = useCallback((transformedSlides: string[]) => {
+    const updatedSlides = slides.map((slide, i) => ({
+      ...slide,
+      content: transformedSlides[i] || slide.content,
     }))
-  }
+    setEditableSlides(updatedSlides)
+    updateContent(updatedSlides)
+  }, [slides, updateContent])
 
-  const loadThemeIntoDraft = (themeId: string) => {
-    const theme = themes.find(t => t.id === themeId)
-    if (!theme || !theme.colors || !theme.typography || !theme.spacing) {
-      setThemeStatus('Unable to load theme for editing.')
-      return
-    }
-    setEditingThemeId(themeId)
-    setThemeDraft({
-      name: theme.name,
-      description: theme.description || '',
-      colors: { ...theme.colors },
-      typography: { ...theme.typography },
-      spacing: { ...theme.spacing },
-    })
-    setThemeStatus(`Editing theme: ${theme.name}`)
-  }
-
-  const resetThemeDraft = () => {
-    setEditingThemeId(null)
-    setThemeDraft({ ...DEFAULT_THEME_TEMPLATE, name: '' })
-  }
-
-  const handleSaveTheme = async () => {
-    setThemeStatus(null)
-    const payload = {
-      ...themeDraft,
-      name: themeDraft.name.trim() || 'Custom Theme',
-    }
-    const operation = editingThemeId
-      ? () => onUpdateTheme(editingThemeId, payload)
-      : () => onCreateTheme(payload)
-    const saved = await operation()
-    if (!saved) {
-      setThemeStatus('Could not save theme. Please try again.')
-      return
-    }
-
-    setThemeStatus(editingThemeId ? 'Theme updated.' : 'Theme created and applied to this deck.')
-    onThemeChange(saved.id)
-    updateContent(slides, { theme: saved.id })
-    if (!editingThemeId) {
-      resetThemeDraft()
-    }
-  }
-
-  const handleDeleteTheme = async () => {
-    if (!editingThemeId) return
-    const theme = themes.find(t => t.id === editingThemeId)
-    if (theme?.is_builtin) return
-    await onDeleteTheme(editingThemeId)
-    if (selectedTheme === editingThemeId) {
-      onThemeChange(DEFAULT_THEME)
-      updateContent(slides, { theme: DEFAULT_THEME })
-    }
-    resetThemeDraft()
-    setThemeStatus('Theme deleted.')
-  }
 
   return (
     <div className="flex-1 flex flex-col gap-4 p-6 overflow-hidden bg-white rounded-xl border border-slate-200 shadow-lg h-full">
@@ -544,30 +594,21 @@ export function EditorPanel({
             ))}
           </Select>
           <div className="flex items-center gap-2 justify-end flex-wrap">
-            <Button onClick={() => setCommandPaletteOpen(true)} size="sm" variant="outline" className="whitespace-nowrap gap-2">
-              <Sparkles className="w-4 h-4" />
-              AI commands
-            </Button>
-            <Button
-              onClick={handleGenerateCommentary}
-              size="sm"
-              variant="outline"
-              disabled={generateCommentaryLoading || slides.length === 0}
-              className="whitespace-nowrap gap-2"
-            >
-              {generateCommentaryLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-              Gen Commentary
-            </Button>
-            <Button
-              onClick={handleRegenerateAllComments}
-              size="sm"
-              variant="outline"
-              disabled={regenerateAllLoading || slides.length === 0}
-              className="whitespace-nowrap gap-2"
-            >
-              {regenerateAllLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Regen Comments
-            </Button>
+            <AIActionsMenu
+              onCommandPaletteOpen={() => setCommandPaletteOpen(true)}
+              onTransformOpen={() => setTransformMenuOpen(true)}
+              onGenerateCommentary={handleGenerateCommentary}
+              onRegenerateComments={handleRegenerateAllComments}
+              isCommentaryLoading={generateCommentaryLoading}
+              isRegeneratingLoading={regenerateAllLoading}
+              disabled={slides.length === 0}
+            />
+            <TransformMenu
+              isOpen={transformMenuOpen}
+              onClose={() => setTransformMenuOpen(false)}
+              slides={slides.map(s => s.content)}
+              onTransformed={handleTransformedSlides}
+            />
             <Button onClick={handleAddSlide} size="sm" className="whitespace-nowrap gap-2">
               <MessageSquarePlus className="w-4 h-4" />
               Add slide
@@ -764,48 +805,22 @@ export function EditorPanel({
                           slideContent={slide.content}
                           onImageInsert={(markdown) => handleSlideChange(index, slide.content + '\n\n' + markdown)}
                         />
-                        {/* Quick slide operations */}
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSlideOperation(index, 'layout')}
-                            disabled={!!slideOperationLoading[index]}
-                            title="Change layout"
-                            className="text-xs px-2"
-                          >
-                            {slideOperationLoading[index] === 'layout' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutGrid className="w-3.5 h-3.5" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSlideOperation(index, 'simplify')}
-                            disabled={!!slideOperationLoading[index]}
-                            title="Simplify"
-                            className="text-xs px-2"
-                          >
-                            {slideOperationLoading[index] === 'simplify' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Minimize2 className="w-3.5 h-3.5" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSlideOperation(index, 'expand')}
-                            disabled={!!slideOperationLoading[index]}
-                            title="Expand"
-                            className="text-xs px-2"
-                          >
-                            {slideOperationLoading[index] === 'expand' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSlideOperation(index, 'split')}
-                            disabled={!!slideOperationLoading[index]}
-                            title="Split slide"
-                            className="text-xs px-2"
-                          >
-                            {slideOperationLoading[index] === 'split' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Scissors className="w-3.5 h-3.5" />}
-                          </Button>
+                        {/* Slide actions menu */}
+                        <div className="relative">
+                          <SlideActionsMenu
+                            onLayoutClick={() => setLayoutPickerIndex(layoutPickerIndex === index ? null : index)}
+                            onOperation={(op) => handleSlideOperation(index, op)}
+                            onDuplicate={() => handleDuplicateSlide(index)}
+                            loadingOperation={slideOperationLoading[index] || null}
+                          />
+                          {layoutPickerIndex === index && (
+                            <LayoutPicker
+                              isOpen={true}
+                              onClose={() => setLayoutPickerIndex(null)}
+                              slideContent={slide.content}
+                              onApplyLayout={(newContent) => handleApplyLayout(index, newContent)}
+                            />
+                          )}
                         </div>
                         <Button
                           size="sm"
@@ -917,12 +932,105 @@ export function EditorPanel({
                       </div>
                     </div>
                   )}
-                  <div className="rounded-md border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 px-4">
+                  <div className="relative rounded-md border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 px-4">
+                    {/* Selection Rewrite Button */}
+                    <AnimatePresence>
+                      {selectedText && selectedText.index === index && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute top-2 right-4 z-20"
+                        >
+                          <Button
+                            size="sm"
+                            onClick={() => setSelectionRewriteOpen(true)}
+                            className="gap-1.5 bg-secondary-600 hover:bg-secondary-700 text-white shadow-lg"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            Rewrite Selection
+                          </Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Selection Rewrite Modal */}
+                    <AnimatePresence>
+                      {selectionRewriteOpen && selectedText && selectedText.index === index && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="absolute top-12 right-4 z-30 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="h-8 w-8 rounded-lg bg-secondary-100 text-secondary-700 grid place-items-center">
+                              <Wand2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">Rewrite Selection</p>
+                              <p className="text-xs text-slate-500">Modify only the selected text</p>
+                            </div>
+                          </div>
+                          <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <p className="text-xs text-slate-500 mb-1">Selected text:</p>
+                            <p className="text-sm text-slate-700 line-clamp-2 font-mono">
+                              "{selectedText.text.length > 100 ? selectedText.text.slice(0, 100) + '...' : selectedText.text}"
+                            </p>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="e.g., make it shorter, add emphasis..."
+                            value={selectionRewriteInstruction}
+                            onChange={(e) => setSelectionRewriteInstruction(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRewriteSelectedText()}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-secondary-500"
+                            autoFocus
+                          />
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {['Simplify', 'Expand', 'Make formal', 'Make casual'].map((preset) => (
+                              <button
+                                key={preset}
+                                onClick={() => {
+                                  setSelectionRewriteInstruction(preset)
+                                }}
+                                className="px-2 py-1 text-xs bg-slate-100 hover:bg-secondary-100 text-slate-600 hover:text-secondary-700 rounded-md transition-colors"
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSelectionRewriteOpen(false)
+                                setSelectionRewriteInstruction('')
+                              }}
+                              className="flex-1"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleRewriteSelectedText}
+                              disabled={selectionRewriteLoading || !selectionRewriteInstruction.trim()}
+                              className="flex-1 bg-secondary-600 hover:bg-secondary-700"
+                            >
+                              {selectionRewriteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Rewrite'}
+                            </Button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <Editor
                       height="180px"
                       defaultLanguage="markdown"
                       value={slide.content}
                       onChange={(value) => handleSlideChange(index, value || '')}
+                      onMount={(editorInstance) => handleEditorDidMount(editorInstance, slide.id, index)}
                       theme="vs-light"
                       path={`slide-${slide.id}.md`}
                       options={{
@@ -1113,110 +1221,16 @@ export function EditorPanel({
                 {themeStatus && <p className="text-xs text-slate-500">{themeStatus}</p>}
               </div>
 
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Palette className="w-4 h-4 text-secondary-600" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Theme Studio</p>
-                      <p className="text-sm text-slate-700">Create, edit, or delete custom themes.</p>
-                    </div>
-                  </div>
-                  <Sparkles className="w-5 h-5 text-secondary-500" />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => setThemeCreatorOpen(true)}
-                  variant="secondary"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI Theme Creator
-                </Button>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-slate-600">Load existing custom theme</label>
-                  <Select
-                    value={editingThemeId || ''}
-                    onChange={(e) => {
-                      const id = e.target.value
-                      if (!id) {
-                        resetThemeDraft()
-                        setThemeStatus(null)
-                        return
-                      }
-                      loadThemeIntoDraft(id)
-                    }}
-                  >
-                    <option value="">Start fresh</option>
-                    {customThemes.map(theme => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </option>
-                    ))}
-                  </Select>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        resetThemeDraft()
-                        setThemeStatus('Draft reset')
-                      }}
-                    >
-                      Reset draft
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleDeleteTheme}
-                      disabled={!editingThemeId}
-                    >
-                      Delete theme
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <Input
-                    placeholder="Theme name"
-                    value={themeDraft.name}
-                    onChange={(e) => setThemeDraft(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                  <Input
-                    placeholder="Description"
-                    value={themeDraft.description || ''}
-                    onChange={(e) => setThemeDraft(prev => ({ ...prev, description: e.target.value }))}
-                  />
-                  {Object.entries(themeDraft.colors).map(([key, value]) => (
-                    <Input
-                      key={key}
-                      placeholder={key}
-                      value={value || ''}
-                      onChange={(e) => updateThemeDraft('colors', key, e.target.value)}
-                    />
-                  ))}
-                  {Object.entries(themeDraft.typography).map(([key, value]) => (
-                    <Input
-                      key={key}
-                      placeholder={key}
-                      value={value || ''}
-                      onChange={(e) => updateThemeDraft('typography', key, e.target.value)}
-                    />
-                  ))}
-                  {Object.entries(themeDraft.spacing).map(([key, value]) => (
-                    <Input
-                      key={key}
-                      placeholder={key}
-                      value={value || ''}
-                      onChange={(e) => updateThemeDraft('spacing', key, e.target.value)}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveTheme}>Save theme</Button>
-                  <Button size="sm" variant="outline" onClick={resetThemeDraft}>Reset fields</Button>
-                </div>
-                {themeStatus && <p className="text-xs text-slate-600">{themeStatus}</p>}
+              <div className="rounded-lg border border-slate-200 p-4 shadow-sm">
+                <ThemeStudio
+                  themes={themes}
+                  selectedTheme={selectedTheme}
+                  onThemeChange={onThemeChange}
+                  onCreateTheme={onCreateTheme}
+                  onUpdateTheme={onUpdateTheme}
+                  onDeleteTheme={onDeleteTheme}
+                  onOpenAICreator={() => setThemeCreatorOpen(true)}
+                />
               </div>
             </div>
           </div>
