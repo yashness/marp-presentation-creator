@@ -274,9 +274,40 @@ img {
 .img-large { max-width: 600px; }
 .img-full { width: 100%; }
 
-/* Footer */
+/* Header styling - fixed to top */
+header {
+  position: absolute;
+  top: 20px;
+  left: 70px;
+  right: 70px;
+  font-size: 14px;
+  color: #666;
+  font-family: 'Arial', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header::before,
+header::after {
+  content: none;
+}
+
+/* Footer styling - fixed to bottom */
 footer {
+  position: absolute;
+  bottom: 20px;
+  left: 70px;
+  right: 70px;
   font-size: 14px;
   color: #888;
   font-family: 'Arial', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+footer::before,
+footer::after {
+  content: none;
 }
