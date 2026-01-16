@@ -48,12 +48,13 @@ class AIService:
         audience: Optional[str] = None,
         flavor: Optional[str] = None,
         narration_instructions: Optional[str] = None,
-        comment_max_ratio: Optional[float] = None
+        comment_max_ratio: Optional[float] = None,
+        language: Optional[str] = None
     ) -> Optional[PresentationOutline]:
         """Generate presentation outline."""
         return self._outline.generate(
             description, slide_count, audience, flavor,
-            narration_instructions, comment_max_ratio
+            narration_instructions, comment_max_ratio, language
         )
 
     # -------------------------------------------------------------------------
@@ -63,10 +64,11 @@ class AIService:
     def generate_full_presentation(
         self,
         outline: PresentationOutline,
-        theme: str = "professional"
+        theme: str = "professional",
+        language: Optional[str] = None
     ) -> str:
         """Generate full presentation without comments."""
-        return self._content.generate(outline, theme)
+        return self._content.generate(outline, theme, language)
 
     # -------------------------------------------------------------------------
     # Commentary Generation

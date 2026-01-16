@@ -23,6 +23,7 @@ class GenerateOutlineRequest(BaseModel):
     flavor: str | None = None
     narration_instructions: str | None = None
     comment_max_ratio: float | None = Field(default=None, ge=0.1, le=1.0)
+    language: str | None = Field(default=None, description="Target language for content generation")
 
 
 class GenerateOutlineResponse(BaseModel):
@@ -36,6 +37,7 @@ class GenerateContentRequest(BaseModel):
     """Request for content generation."""
     outline: PresentationOutline
     theme: str = "professional"
+    language: str | None = Field(default=None, description="Target language for content generation")
 
 
 class GenerateContentResponse(BaseModel):
@@ -228,7 +230,8 @@ async def generate_outline(request: GenerateOutlineRequest) -> GenerateOutlineRe
         audience=request.audience,
         flavor=request.flavor,
         narration_instructions=request.narration_instructions,
-        comment_max_ratio=request.comment_max_ratio
+        comment_max_ratio=request.comment_max_ratio,
+        language=request.language
     )
 
     if not outline:
@@ -242,7 +245,7 @@ async def generate_content(request: GenerateContentRequest) -> GenerateContentRe
     """Generate presentation content (without comments)."""
     logger.info(f"Generating content for: {request.outline.title}")
 
-    content = ai_service.generate_full_presentation(request.outline, request.theme)
+    content = ai_service.generate_full_presentation(request.outline, request.theme, request.language)
 
     if not content:
         return GenerateContentResponse(success=False, message="Failed to generate content")

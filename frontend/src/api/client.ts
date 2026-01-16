@@ -272,6 +272,7 @@ export interface GenerateOutlineOptions {
   flavor?: string
   narration_instructions?: string
   comment_max_ratio?: number
+  language?: string
 }
 
 export interface GenerateContentResponse {
@@ -301,6 +302,7 @@ export async function generateOutline(
       flavor: options?.flavor,
       narration_instructions: options?.narration_instructions,
       comment_max_ratio: options?.comment_max_ratio,
+      language: options?.language,
     })
   })
 
@@ -313,11 +315,15 @@ export async function generateOutline(
   return result.outline
 }
 
-export async function generateContent(outline: PresentationOutline, theme: string = 'professional'): Promise<string> {
+export async function generateContent(
+  outline: PresentationOutline,
+  theme: string = 'professional',
+  language?: string
+): Promise<string> {
   const response = await fetch(buildUrl('/ai/generate-content'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ outline, theme })
+    body: JSON.stringify({ outline, theme, language })
   })
 
   const result = await handleResponse<GenerateContentResponse>(response)

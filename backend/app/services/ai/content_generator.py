@@ -17,7 +17,12 @@ class ContentGenerator:
         self.client = client
         self.batch_size = 4
 
-    def generate(self, outline: PresentationOutline, theme: str = "professional") -> str:
+    def generate(
+        self,
+        outline: PresentationOutline,
+        theme: str = "professional",
+        language: str | None = None
+    ) -> str:
         """Generate full presentation content without comments."""
         frontmatter = self._build_frontmatter(outline.title)
         full_context = self._build_context(outline)
@@ -32,7 +37,7 @@ class ContentGenerator:
             start = i * self.batch_size
             end = start + self.batch_size
             batch = slides[start:end]
-            batch_blocks = self._generate_batch(batch, theme, i + 1, total_batches, full_context)
+            batch_blocks = self._generate_batch(batch, theme, i + 1, total_batches, full_context, language)
             blocks.extend(batch_blocks)
 
         blocks.append(self._create_outro(outline.title))
@@ -70,10 +75,11 @@ paginate: true
         theme: str,
         batch_idx: int,
         total_batches: int,
-        full_context: str
+        full_context: str,
+        language: str | None = None
     ) -> list[str]:
         """Generate content for a batch of slides."""
-        prompt = self._create_prompt(slides, theme, batch_idx, total_batches, full_context)
+        prompt = self._create_prompt(slides, theme, batch_idx, total_batches, full_context, language)
         content = self.client.call(prompt, max_tokens=2500, context=f"Content batch {batch_idx}")
 
         if not content:
@@ -89,13 +95,18 @@ paginate: true
         theme: str,
         batch_idx: int,
         total_batches: int,
-        full_context: str
+        full_context: str,
+        language: str | None = None
     ) -> str:
         """Create content generation prompt."""
         slide_block = "\n\n".join(
             f"Slide {i+1}: {s.title}\nPoints: {', '.join(s.content_points)}"
             for i, s in enumerate(slides)
         )
+
+        lang_instruction = ""
+        if language and language.lower() != "english":
+            lang_instruction = f"\n- LANGUAGE: Write ALL content in {language}"
 
         return f"""Create Marp slides. Batch {batch_idx}/{total_batches}.
 
@@ -112,7 +123,7 @@ RULES:
 - Descriptive titles (never "Slide 1")
 - 3-5 bullets, concise
 - Vary layouts: bullets, lists, quotes
-- NO HTML comments (narration added separately)
+- NO HTML comments (narration added separately){lang_instruction}
 
 VIEWPORT (must fit on screen):
 - Max {self.MAX_BULLETS} bullets

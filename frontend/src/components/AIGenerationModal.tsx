@@ -17,9 +17,28 @@ interface SavedState {
   flavor: string
   narrationInstructions: string
   commentMaxRatio: string
+  language: string
   outline: PresentationOutline | null
   timestamp: number
 }
+
+const LANGUAGES = [
+  { code: '', label: 'English (Default)' },
+  { code: 'Spanish', label: 'Spanish (Español)' },
+  { code: 'French', label: 'French (Français)' },
+  { code: 'German', label: 'German (Deutsch)' },
+  { code: 'Italian', label: 'Italian (Italiano)' },
+  { code: 'Portuguese', label: 'Portuguese (Português)' },
+  { code: 'Chinese', label: 'Chinese (中文)' },
+  { code: 'Japanese', label: 'Japanese (日本語)' },
+  { code: 'Korean', label: 'Korean (한국어)' },
+  { code: 'Hindi', label: 'Hindi (हिन्दी)' },
+  { code: 'Arabic', label: 'Arabic (العربية)' },
+  { code: 'Russian', label: 'Russian (Русский)' },
+  { code: 'Dutch', label: 'Dutch (Nederlands)' },
+  { code: 'Polish', label: 'Polish (Polski)' },
+  { code: 'Swedish', label: 'Swedish (Svenska)' },
+]
 
 function loadSavedState(): Partial<SavedState> | null {
   try {
@@ -56,6 +75,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
   const [flavor, setFlavor] = useState(savedState?.flavor || '')
   const [narrationInstructions, setNarrationInstructions] = useState(savedState?.narrationInstructions || '')
   const [commentMaxRatio, setCommentMaxRatio] = useState(savedState?.commentMaxRatio || '')
+  const [language, setLanguage] = useState(savedState?.language || '')
   const [outline, setOutline] = useState<PresentationOutline | null>(savedState?.outline || null)
   const [editingSlide, setEditingSlide] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -73,11 +93,12 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
       flavor,
       narrationInstructions,
       commentMaxRatio,
+      language,
       outline,
       timestamp: Date.now(),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [step, description, slideCount, subtopicCount, audience, flavor, narrationInstructions, commentMaxRatio, outline])
+  }, [step, description, slideCount, subtopicCount, audience, flavor, narrationInstructions, commentMaxRatio, language, outline])
 
   useEffect(() => {
     saveState()
@@ -98,6 +119,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
     setFlavor('')
     setNarrationInstructions('')
     setCommentMaxRatio('')
+    setLanguage('')
     setOutline(null)
     setHasRestoredState(false)
     setError(null)
@@ -126,6 +148,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
         flavor: flavor.trim() || undefined,
         narration_instructions: narrationInstructions.trim() || undefined,
         comment_max_ratio: safeCommentRatio,
+        language: language || undefined,
       })
       setOutline(result)
       setStep('outline')
@@ -143,7 +166,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
     setError(null)
 
     try {
-      const content = await generateContent(outline)
+      const content = await generateContent(outline, 'professional', language || undefined)
       clearSavedState()
       onGenerate(content, outline.title)
       onClose()
@@ -300,6 +323,20 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
                       onChange={(e) => setFlavor(e.target.value)}
                       placeholder="e.g., practical, story-driven, skeptical"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Language</label>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      {LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Narration instructions</label>

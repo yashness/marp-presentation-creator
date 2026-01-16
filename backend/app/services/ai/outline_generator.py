@@ -22,7 +22,8 @@ class OutlineGenerator:
         audience: Optional[str] = None,
         flavor: Optional[str] = None,
         narration_instructions: Optional[str] = None,
-        comment_max_ratio: Optional[float] = None
+        comment_max_ratio: Optional[float] = None,
+        language: Optional[str] = None
     ) -> Optional[PresentationOutline]:
         """Generate outline, batching for large presentations."""
         if not self.client.is_available:
@@ -30,7 +31,7 @@ class OutlineGenerator:
             return None
 
         target = slide_count or 8
-        constraints = self._build_constraints(target, audience, flavor)
+        constraints = self._build_constraints(target, audience, flavor, language)
 
         # Use batched generation for large presentations
         if target > 15:
@@ -42,7 +43,8 @@ class OutlineGenerator:
         self,
         slide_count: int,
         audience: Optional[str],
-        flavor: Optional[str]
+        flavor: Optional[str],
+        language: Optional[str] = None
     ) -> str:
         """Build constraint text for prompt."""
         lines = [f"- Target slides: {slide_count}"]
@@ -50,6 +52,8 @@ class OutlineGenerator:
             lines.append(f"- Audience: {audience}")
         if flavor:
             lines.append(f"- Style: {flavor}")
+        if language and language.lower() != "english":
+            lines.append(f"- Language: Generate ALL content in {language}")
         return "\n".join(lines)
 
     def _create_prompt(self, description: str, constraints: str, slide_hint: str, context: str = "") -> str:
