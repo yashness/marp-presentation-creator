@@ -5,6 +5,7 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { DEFAULT_THEME_TEMPLATE } from '../lib/themeDefaults'
 import { Palette, Sparkles, Trash2, RotateCcw, Save, Type, Ruler } from 'lucide-react'
+import { useFonts } from '../hooks/useFonts'
 
 interface ThemeStudioProps {
   themes: Theme[]
@@ -158,6 +159,7 @@ export function ThemeStudio({
   })
   const [status, setStatus] = useState<string | null>(null)
   const [expandedSection, setExpandedSection] = useState<'colors' | 'typography' | 'spacing' | null>('colors')
+  const { getFontOptions } = useFonts()
 
   const customThemes = themes.filter((t) => !t.is_builtin)
 
@@ -362,15 +364,45 @@ export function ThemeStudio({
         </button>
         {expandedSection === 'typography' && (
           <div className="px-4 py-2 bg-white max-h-64 overflow-y-auto">
-            {TYPOGRAPHY_FIELDS.map((field) => (
-              <TextInput
-                key={field.key}
-                value={themeDraft.typography[field.key] || ''}
-                onChange={(v) => updateTypography(field.key, v)}
-                label={field.label}
-                description={field.description}
-              />
-            ))}
+            {TYPOGRAPHY_FIELDS.map((field) => {
+              // Use font selector for font family fields
+              if (field.key === 'font_family' || field.key === 'code_font_family') {
+                const fontOptions = getFontOptions()
+                return (
+                  <div key={field.key} className="py-2 border-b border-slate-100 last:border-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-slate-700">{field.label}</span>
+                      <span className="text-xs text-slate-400">{field.description}</span>
+                    </div>
+                    <Select
+                      value={themeDraft.typography[field.key] || ''}
+                      onChange={(e) => updateTypography(field.key, e.target.value)}
+                    >
+                      {fontOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input
+                      value={themeDraft.typography[field.key] || ''}
+                      onChange={(e) => updateTypography(field.key, e.target.value)}
+                      className="h-7 text-xs mt-1 font-mono"
+                      placeholder="Or enter custom font stack"
+                    />
+                  </div>
+                )
+              }
+              return (
+                <TextInput
+                  key={field.key}
+                  value={themeDraft.typography[field.key] || ''}
+                  onChange={(v) => updateTypography(field.key, v)}
+                  label={field.label}
+                  description={field.description}
+                />
+              )
+            })}
           </div>
         )}
 

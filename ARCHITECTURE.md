@@ -48,37 +48,50 @@ The Marp Presentation Builder is a full-stack application that enables users to 
 - `rewrite_for_topic()`: Rewrite all slides for new topic while preserving structure
 
 **Data Storage**:
-- File system: Markdown files (.md) for presentation content
-- JSON files: Metadata (title, theme, timestamps)
-- SQLite: (Future) For enhanced querying and relationships
+- SQLite: Primary database via SQLAlchemy ORM
+  - Presentations, Themes, Folders, Assets
+  - Chat conversations, Versions, Share links
+  - Templates, Video exports, Slide audio
+- File system: Binary assets (images, audio, video files)
 
 ### 2. Frontend (React + TypeScript)
 
-**Technology**: React 18+, TypeScript, Vite, Tailwind CSS
+**Technology**: React 19, TypeScript, Vite, Tailwind CSS v4, Motion (Framer Motion)
 
 **Responsibilities**:
-- WYSIWYG editor interface
+- WYSIWYG editor interface with Monaco
 - Live preview of presentations
-- Theme selector
-- Export controls
-- API integration
+- Theme selector and Theme Studio
+- Export controls (PDF, HTML, PPTX, Video)
+- Real-time collaboration
+- AI-powered features
 
 **Key Components**:
-- Editor: Monaco for Markdown editing with syntax highlighting
-- Preview: Iframe-based Marp rendering with live updates
-- Theme Selector: Visual theme picker and custom theme creator
-- Presentation Sidebar: Hierarchical folder tree with drag-drop
-- AI Generation Modal: Multi-step presentation generation workflow
-- Asset Manager: Upload and manage logos/images
+- `EditorPanel`: Monaco editor for Markdown with syntax highlighting
+- `PreviewPanel`: Iframe-based Marp rendering with live updates
+- `ThemeStudio`: Visual theme creator with 10 color properties
+- `PresentationSidebar`: Hierarchical folder tree with drag-drop
+- `AIGenerationModal`: Multi-step presentation generation workflow
+- `AIChatPanel`: Streaming AI chat with context support
+- `AssetManagerModal`: Upload and manage logos/images
+- `VersionHistoryPanel`: Checkpoint and restore versions
+- `TemplateLibrary`: 8 built-in presentation templates
+- `ShareModal` / `SharedViewer`: Sharing with password protection
+- `CollaborationPanel`: Real-time multi-user editing
+- `VideoExportButton`: Async video export with TTS
 
 **Key Utilities**:
 - `lib/dragDropValidation.ts`: Type-safe drag-drop data validation
+- `lib/markdown.ts`: Slide parsing and serialization
 - `hooks/usePresentations.ts`: Presentation CRUD operations
 - `hooks/useApiHandler.ts`: Centralized API error handling
+- `hooks/useUndoRedo.ts`: Undo/redo with keyboard shortcuts
+- `hooks/useVersioning.ts`: Checkpoint management
+- `hooks/useCollaboration.ts`: WebSocket collaboration
 
 **State Management**:
-- TanStack Query for server state
-- React Context/Zustand for local state
+- React hooks for local state
+- Context for toast notifications
 
 ### 3. CLI (Typer + Rich)
 
@@ -240,18 +253,19 @@ User clicks Export
 
 ## Scalability
 
-### Current (MVP)
+### Current State
 
-- File-based storage
-- Single-instance deployment
-- Synchronous rendering
+- SQLite database with SQLAlchemy ORM
+- Single-instance Docker deployment
+- Async video export with job queue
+- WebSocket for real-time collaboration
 
 ### Future Enhancements
 
-1. **Database**: PostgreSQL for better querying
-2. **Caching**: Redis for rendered previews
-3. **Queue**: Celery for async exports
-4. **CDN**: Static asset serving
+1. **Database**: PostgreSQL for production scaling
+2. **Caching**: Redis for rendered previews and sessions
+3. **Queue**: Celery/Redis for export processing
+4. **CDN**: Static asset and video serving
 5. **Auth**: JWT-based user authentication
 6. **Multi-tenancy**: Isolated user workspaces
 
@@ -309,32 +323,48 @@ Services:
 - JSON payloads
 - Standard status codes
 
-### Endpoints
+### API Routers
+
+All routes are prefixed with `/api`:
+
+| Router | Purpose |
+|--------|---------|
+| presentations | CRUD, preview, export, duplicate |
+| themes | Theme management and creation |
+| folders | Folder organization |
+| assets | Image/logo upload and management |
+| fonts | Custom font upload and management |
+| ai_generation | AI outline, content, layouts, operations |
+| chat | Streaming AI chat with SSE |
+| tts | Text-to-Speech generation |
+| video_export | Async video export with progress |
+| versions | Checkpoint and restore |
+| conversations | Multi-turn conversation persistence |
+| templates | Built-in presentation templates |
+| share | Public/private sharing links |
+| collaboration | WebSocket real-time editing |
+| agent | Claude Agent SDK tool-use |
+| scraper | URL content extraction |
+| analytics | View tracking and statistics |
+
+### Key Endpoints
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
 | GET | /health | Health check |
 | POST | /api/presentations | Create presentation |
-| GET | /api/presentations | List all |
-| GET | /api/presentations/{id} | Get one |
-| PUT | /api/presentations/{id} | Update |
-| DELETE | /api/presentations/{id} | Delete |
-| GET | /api/presentations/{id}/preview | Live preview |
-| POST | /api/presentations/{id}/export | Export |
-| GET | /api/themes | List themes |
-| POST | /api/themes | Upload theme |
-| POST | /api/ai/generate-outline | Generate outline (batched) |
-| POST | /api/ai/generate-content | Generate slides (no comments) |
-| POST | /api/ai/generate-commentary | Generate audio-aware comments |
-| POST | /api/ai/slide-operation | Layout/restyle/simplify/expand/split |
-| POST | /api/ai/rewrite-slide | Custom rewrite instruction |
-| GET | /api/ai/layouts | Get available layout classes |
-| POST | /api/ai/apply-layout | Apply specific layout to slide |
-| POST | /api/ai/duplicate-rewrite | Duplicate slide for new topic |
-| POST | /api/ai/rearrange-slides | AI-powered slide reordering |
-| POST | /api/ai/transform-style | Convert to different style |
-| POST | /api/ai/rewrite-for-topic | Rewrite all slides for new topic |
-| GET | /api/ai/status | AI service availability |
+| GET | /api/presentations/{id}/preview | Live preview HTML |
+| POST | /api/presentations/{id}/export | Export PDF/HTML/PPTX |
+| POST | /api/video/{id}/export-async | Start async video export |
+| GET | /api/video/job/{id}/progress | Poll video job status |
+| POST | /api/ai/generate-outline | Generate presentation outline |
+| POST | /api/ai/generate-content | Generate slide content |
+| POST | /api/ai/slide-operation | Layout/simplify/expand/split |
+| GET | /api/chat/stream | SSE streaming AI chat |
+| WS | /api/collab/ws/{id} | WebSocket collaboration |
+| POST | /api/share | Create share link |
+| POST | /api/versions | Create checkpoint |
+| GET | /api/templates | List templates |
 
 ## Testing Strategy
 

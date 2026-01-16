@@ -14,8 +14,8 @@ import {
   createShareLink,
   getShareLinks,
   revokeShareLink,
-  ShareLink,
 } from '../api/client'
+import type { ShareLink } from '../api/client'
 import {
   Link,
   Copy,

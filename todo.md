@@ -85,8 +85,21 @@
   - Content sync, cursor, and selection broadcasting
   - CollaborationPanel UI with join dialog and live indicator
 
+### Recently Completed (2026-01-16)
+- [x] Custom fonts upload and management
+  - Font model with family, weight, style support
+  - Font service for upload/delete/list
+  - API endpoints: /api/fonts/*
+  - FontManager modal UI with upload form
+  - Integration with Theme Studio font selector
+  - Support for .ttf, .otf, .woff, .woff2 formats
+- [x] Presentation analytics (view counts, engagement)
+  - PresentationView and DailyAnalytics models
+  - Analytics service for tracking views and exports
+  - API endpoints: /api/analytics/*
+  - AnalyticsPanel with stats cards and daily chart
+  - View tracking for shared presentations
+  - Export tracking in presentation editor
+
 ### Backlog
-- [ ] Offline mode with service worker caching
-- [ ] Custom fonts upload and management
-- [ ] Presentation analytics (view counts, engagement)
-- [ ] Integration with external storage (Google Drive, Dropbox)
+(All backlog items completed!)

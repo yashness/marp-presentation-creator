@@ -8,13 +8,12 @@ import {
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { ScrollArea } from './ui/scroll-area'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
+import { TabsRoot, TabsList, TabsTrigger, TabsContent } from './ui/tabs'
 import {
   fetchTemplates,
   fetchTemplateCategories,
-  Template,
-  TemplateCategory,
 } from '../api/client'
+import type { Template, TemplateCategory } from '../api/client'
 import {
   Briefcase,
   GraduationCap,
@@ -110,7 +109,7 @@ export function TemplateLibrary({ open, onClose, onSelect }: TemplateLibraryProp
             <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
           </div>
         ) : (
-          <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+          <TabsRoot value={selectedCategory} onValueChange={setSelectedCategory}>
             <TabsList className="bg-slate-800 border border-slate-700 mb-4">
               <TabsTrigger
                 value="all"
@@ -221,7 +220,7 @@ export function TemplateLibrary({ open, onClose, onSelect }: TemplateLibraryProp
                 </div>
               </div>
             </TabsContent>
-          </Tabs>
+          </TabsRoot>
         )}
       </DialogContent>
     </Dialog>

@@ -12,6 +12,8 @@ import { TemplateLibrary } from './components/TemplateLibrary'
 import { ShareModal } from './components/ShareModal'
 import { SharedViewer } from './components/SharedViewer'
 import { CollaborationPanel } from './components/CollaborationPanel'
+import { FontManager } from './components/FontManager'
+import { AnalyticsPanel } from './components/AnalyticsPanel'
 import type { Template } from './api/client'
 import { createVersion } from './api/client'
 import type { RestoreVersionResponse } from './api/client'
@@ -43,6 +45,8 @@ import {
   IconX,
   IconEye,
   IconCode,
+  IconTypography,
+  IconChartBar,
 } from '@tabler/icons-react'
 
 function App() {
@@ -56,6 +60,8 @@ function App() {
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showFontManager, setShowFontManager] = useState(false)
+  const [showAnalytics, setShowAnalytics] = useState(false)
 
   // Check if we're on a share page
   const shareToken = useMemo(() => {
@@ -466,6 +472,19 @@ function App() {
         presentationTitle={editor.title || 'Untitled Presentation'}
       />
 
+      <FontManager
+        open={showFontManager}
+        onClose={() => setShowFontManager(false)}
+        onFontAdded={() => reloadThemes()}
+      />
+
+      <AnalyticsPanel
+        open={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
+        presentationId={editor.selectedId}
+        presentationTitle={editor.title || 'Untitled Presentation'}
+      />
+
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
@@ -572,6 +591,17 @@ function App() {
           >
             <IconTemplate className="w-4 h-4 shrink-0" />
             {!sidebarCollapsed && <span className="text-sm">Templates</span>}
+          </button>
+          <button
+            onClick={() => setShowFontManager(true)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconTypography className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">Fonts</span>}
           </button>
         </div>
 
@@ -800,6 +830,15 @@ function App() {
             >
               <IconShare className="w-4 h-4" />
               <span className="hidden sm:inline">Share</span>
+            </button>
+            <button
+              onClick={() => setShowAnalytics(true)}
+              disabled={!editor.selectedId}
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 text-sm font-medium transition-all"
+              title="View Analytics"
+            >
+              <IconChartBar className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
             </button>
             <button
               onClick={() => setShowVersionHistory(true)}

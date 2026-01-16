@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getShareInfo, accessSharedPresentation, ShareInfo, SharedPresentation } from '../api/client'
+import { getShareInfo, accessSharedPresentation, trackView } from '../api/client'
+import type { ShareInfo, SharedPresentation } from '../api/client'
 import { API_BASE_URL } from '../lib/constants'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -62,6 +63,8 @@ export function SharedViewer({ token }: SharedViewerProps) {
         const html = await response.text()
         setPreview(html)
       }
+      // Track view (async, fire and forget)
+      trackView(pres.id, undefined, undefined, true).catch(() => {})
     } catch {
       // If preview fails, we'll just show the content
     }

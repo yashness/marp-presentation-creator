@@ -1127,3 +1127,139 @@ export function streamAgent(
 
   return () => controller.abort()
 }
+
+// Font Management API
+export interface FontVariant {
+  id: string
+  family_name: string
+  style: string
+  weight: string
+  filename: string
+  original_filename: string
+  content_type: string
+  size_bytes: number
+  url: string
+  created_at: string
+}
+
+export interface FontFamily {
+  family_name: string
+  variants: FontVariant[]
+  css_family: string
+}
+
+export async function fetchFonts(): Promise<FontVariant[]> {
+  const response = await fetch(buildUrl('/fonts'))
+  return handleResponse<FontVariant[]>(response)
+}
+
+export async function fetchFontFamilies(): Promise<FontFamily[]> {
+  const response = await fetch(buildUrl('/fonts/families'))
+  return handleResponse<FontFamily[]>(response)
+}
+
+export async function uploadFont(
+  file: File,
+  familyName: string,
+  style: string = 'normal',
+  weight: string = '400'
+): Promise<FontVariant> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('family_name', familyName)
+  formData.append('style', style)
+  formData.append('weight', weight)
+
+  const response = await fetch(buildUrl('/fonts'), {
+    method: 'POST',
+    body: formData
+  })
+  return handleResponse<FontVariant>(response)
+}
+
+export async function deleteFont(fontId: string): Promise<void> {
+  const response = await fetch(buildUrl(`/fonts/${fontId}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
+}
+
+export async function getFontCSS(): Promise<string> {
+  const response = await fetch(buildUrl('/fonts/css'))
+  const result = await handleResponse<{ css: string }>(response)
+  return result.css
+}
+
+// Analytics API
+export interface PresentationStats {
+  presentation_id: string
+  total_views: number
+  unique_viewers: number
+  avg_duration_seconds: number | null
+  total_exports: number
+  share_views: number
+  views_today: number
+  views_this_week: number
+  views_this_month: number
+}
+
+export interface DailyStatsPoint {
+  date: string
+  views: number
+  unique_viewers: number
+  exports: number
+}
+
+export interface AnalyticsResponse {
+  stats: PresentationStats
+  daily_data: DailyStatsPoint[]
+}
+
+export interface TopPresentationStats {
+  presentation_id: string
+  title: string
+  total_views: number
+  views_this_week: number
+  last_viewed: string | null
+}
+
+export async function trackView(
+  presentationId: string,
+  viewDuration?: number,
+  slidesViewed?: number,
+  isSharedView: boolean = false
+): Promise<void> {
+  await fetch(buildUrl('/analytics/track-view'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      presentation_id: presentationId,
+      view_duration_seconds: viewDuration,
+      slides_viewed: slidesViewed,
+      is_shared_view: isSharedView
+    })
+  })
+}
+
+export async function trackExport(presentationId: string): Promise<void> {
+  await fetch(buildUrl(`/analytics/track-export/${presentationId}`), {
+    method: 'POST'
+  })
+}
+
+export async function getAnalytics(
+  presentationId: string,
+  days: number = 30
+): Promise<AnalyticsResponse> {
+  const response = await fetch(buildUrl(`/analytics/${presentationId}`, { days: String(days) }))
+  return handleResponse<AnalyticsResponse>(response)
+}
+
+export async function getTopPresentations(
+  limit: number = 10,
+  days: number = 7
+): Promise<TopPresentationStats[]> {
+  const response = await fetch(buildUrl('/analytics/top/presentations', {
+    limit: String(limit),
+    days: String(days)
+  }))
+  return handleResponse<TopPresentationStats[]>(response)
+}

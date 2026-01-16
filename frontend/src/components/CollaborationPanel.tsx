@@ -8,7 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog'
-import { useCollaboration, Collaborator, getCollaborationSession } from '../hooks/useCollaboration'
+import { useCollaboration, getCollaborationSession } from '../hooks/useCollaboration'
+import type { Collaborator } from '../hooks/useCollaboration'
 import {
   Users,
   UserPlus,
@@ -16,7 +17,6 @@ import {
   Copy,
   Check,
   LogOut,
-  Loader2,
 } from 'lucide-react'
 
 interface CollaborationPanelProps {

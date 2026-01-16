@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { Presentation } from '../api/client'
-import { getPreview, exportPresentation as apiExportPresentation } from '../api/client'
+import { getPreview, exportPresentation as apiExportPresentation, trackExport } from '../api/client'
 import { useAsyncOperation } from './useAsyncOperation'
 import { DEFAULT_THEME } from '../lib/constants'
 import { setFrontmatterValue } from '../lib/markdown'
@@ -95,6 +95,8 @@ export function usePresentationEditor() {
   const exportPresentation = useCallback(async (format: 'pdf' | 'html' | 'pptx') => {
     if (!state.selectedId) return
     await apiExportPresentation(state.selectedId, state.title, format)
+    // Track export (async, fire and forget)
+    trackExport(state.selectedId).catch(() => {})
   }, [state.selectedId, state.title])
 
   return {
