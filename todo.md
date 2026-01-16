@@ -58,9 +58,35 @@
   - Cmd/Ctrl+Z for undo, Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y for redo
   - useVersioning hook for checkpoint management
 
+### Implemented (2026-01-16 Backlog)
+- [x] Template library for common presentation types
+  - 8 built-in templates: Pitch Deck, Lecture, Project Update, Workshop, Technical Overview, Team Intro, Product Launch, Retrospective
+  - Template model with categories and theme associations
+  - API endpoints: /api/templates, /api/templates/categories
+  - TemplateLibrary modal UI with category filtering and preview
+- [x] Presentation sharing links (public/private)
+  - ShareLink model with password protection and expiry
+  - View counting and link revocation
+  - API endpoints: /api/share/*
+  - ShareModal for creating/managing links
+  - SharedViewer for public presentation access
+- [x] Multi-language support for AI generation
+  - Language parameter in outline and content generation
+  - 15 supported languages (Spanish, French, German, Chinese, Japanese, etc.)
+  - Language selector in AI Generation Modal
+- [x] Mobile responsive editing view
+  - Mobile menu toggle for sidebar on small screens
+  - Editor/Preview toggle buttons (one panel visible at a time on mobile)
+  - Responsive header and spacing adjustments
+- [x] Real-time collaborative editing with WebSocket sync
+  - CollaborationManager service for real-time sessions
+  - WebSocket endpoint: /api/collab/ws/:presentationId
+  - Collaborator presence with colored avatars
+  - Content sync, cursor, and selection broadcasting
+  - CollaborationPanel UI with join dialog and live indicator
+
 ### Backlog
-- [ ] Real-time collaborative editing with WebSocket sync
-- [ ] Template library for common presentation types
-- [ ] Presentation sharing links (public/private)
-- [ ] Multi-language support for AI generation
-- [ ] Mobile responsive editing view
+- [ ] Offline mode with service worker caching
+- [ ] Custom fonts upload and management
+- [ ] Presentation analytics (view counts, engagement)
+- [ ] Integration with external storage (Google Drive, Dropbox)
