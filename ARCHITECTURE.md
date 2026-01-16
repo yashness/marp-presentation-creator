@@ -36,10 +36,16 @@ The Marp Presentation Builder is a full-stack application that enables users to 
 - `outline_generator.py`: Batched outline generation for large presentations
 - `content_generator.py`: Viewport-aware content generation (no comments)
 - `commentary_generator.py`: Audio-aware TTS commentary (separate from content)
-- `slide_operations.py`: Rewrite, layout, restyle, simplify, expand, split
+- `slide_operations.py`: Rewrite, layout, restyle, simplify, expand, split, duplicate-rewrite
+- `layout_guide.py`: CSS layout class definitions with HTML examples for AI
 - `image_generator.py`: DALL-E image generation
 - `theme_generator.py`: CSS theme generation
-- `service.py`: Unified facade composing all generators
+- `service.py`: Unified facade composing all generators and PresentationTransformer
+
+**PresentationTransformer** (`app/services/ai/slide_operations.py`):
+- `rearrange()`: AI-powered slide reordering for better cohesion
+- `transform_style()`: Convert to story/teaching/pitch/workshop/technical/executive styles
+- `rewrite_for_topic()`: Rewrite all slides for new topic while preserving structure
 
 **Data Storage**:
 - File system: Markdown files (.md) for presentation content
@@ -186,6 +192,37 @@ User clicks Export
 - "Generate Commentary" button for on-demand audio notes
 - Commentary formatted for TTS (no markdown, expanded abbreviations)
 
+### New Features (2026-01-16)
+
+**Backend - Agentic Workflows**:
+- `app/services/ai/agent.py`: Claude Agent SDK v2 integration
+- `PresentationAgent` class with tool-use capabilities
+- Available tools: create_slide, update_slide, delete_slide, reorder_slides, apply_theme, generate_image, search_presentation, get_presentation_info
+- Streaming and non-streaming endpoints: `/api/agent/run`, `/api/agent/stream`, `/api/agent/status`, `/api/agent/tools`
+
+**Backend - Conversation Persistence**:
+- `app/models/chat_conversation.py`: ChatConversation, ChatMessage models
+- `app/services/chat_service.py`: CRUD operations for conversations
+- API endpoints: `/api/conversations/*` for multi-turn memory beyond session
+
+**Backend - URL Scraping**:
+- `app/services/url_scraper_service.py`: Extract content from URLs
+- OpenGraph metadata extraction, HTML text extraction
+- API endpoint: `POST /api/scraper` for fetching URL content as context
+
+**Backend - Presentation Versioning**:
+- `app/models/presentation_version.py`: PresentationVersion model
+- `app/services/version_service.py`: Create checkpoints, restore versions
+- API endpoints: `/api/versions/*` for undo/checkpointing support
+
+**Frontend Enhancements**:
+- Drag-drop support for context files in AI Chat panel
+- URL scraping integration when dropping links
+- `useUndoRedo` hook for local undo/redo with Cmd/Ctrl+Z shortcuts
+- `useVersioning` hook for checkpoint management
+- `VersionHistoryPanel` component for version history UI
+- History button in header for quick access to versions
+
 ## Security Considerations
 
 1. **API Security**:
@@ -291,6 +328,12 @@ Services:
 | POST | /api/ai/generate-commentary | Generate audio-aware comments |
 | POST | /api/ai/slide-operation | Layout/restyle/simplify/expand/split |
 | POST | /api/ai/rewrite-slide | Custom rewrite instruction |
+| GET | /api/ai/layouts | Get available layout classes |
+| POST | /api/ai/apply-layout | Apply specific layout to slide |
+| POST | /api/ai/duplicate-rewrite | Duplicate slide for new topic |
+| POST | /api/ai/rearrange-slides | AI-powered slide reordering |
+| POST | /api/ai/transform-style | Convert to different style |
+| POST | /api/ai/rewrite-for-topic | Rewrite all slides for new topic |
 | GET | /api/ai/status | AI service availability |
 
 ## Testing Strategy
