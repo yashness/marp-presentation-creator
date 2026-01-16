@@ -1,13 +1,21 @@
 /* @theme default */
 
+/* Base section styling */
 section {
   background: #fff;
   color: #333;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 28px;
   padding: 60px;
+  line-height: 1.5;
 }
 
+/* Prevent emoji from causing line wraps */
+section * {
+  text-wrap: balance;
+}
+
+/* Headings */
 h1 {
   color: #2563eb;
   font-size: 48px;
@@ -19,18 +27,237 @@ h2 {
   color: #1e40af;
   font-size: 36px;
   font-weight: 600;
+  margin-top: 20px;
 }
 
+h3 {
+  color: #3b82f6;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+/* Inline code - light background, readable text */
 code {
   background: #f1f5f9;
+  color: #0f172a;
   padding: 2px 8px;
   border-radius: 4px;
-  font-family: 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
 }
 
+/* Code blocks - dark theme with syntax colors */
 pre {
   background: #1e293b;
-  color: #e2e8f0;
   padding: 20px;
   border-radius: 8px;
+  overflow-x: auto;
+  font-size: 18px;
+}
+
+pre code {
+  background: transparent;
+  color: #e2e8f0;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Syntax highlighting for code blocks */
+pre .keyword { color: #c792ea; }
+pre .string { color: #c3e88d; }
+pre .number { color: #f78c6c; }
+pre .comment { color: #676e95; font-style: italic; }
+pre .function { color: #82aaff; }
+pre .class { color: #ffcb6b; }
+
+/* Lists */
+ul, ol {
+  margin: 20px 0;
+  padding-left: 30px;
+}
+
+li {
+  margin: 10px 0;
+  line-height: 1.4;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 24px;
+}
+
+th {
+  background: #2563eb;
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+}
+
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+tr:hover {
+  background: #e0f2fe;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid #2563eb;
+  padding-left: 20px;
+  margin: 20px 0;
+  font-style: italic;
+  color: #64748b;
+}
+
+/* Links */
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   LAYOUT CLASSES
+   Use with: <div class="columns-2">...</div>
+   ============================================ */
+
+/* Two column layout */
+.columns-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Three column layout */
+.columns-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+/* Two column with wider left */
+.columns-2-wide-left {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Two column with wider right */
+.columns-2-wide-right {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Flex row for horizontal items */
+.flex-row {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Flex row with space between */
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Center content */
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Card style boxes */
+.card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.card-primary {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+/* Emoji fix - prevent line breaks */
+.emoji, [class*="emoji"] {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* Highlight box */
+.highlight {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+}
+
+/* Info/warning boxes */
+.info-box {
+  background: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+}
+
+.warning-box {
+  background: #fef3c7;
+  border-left: 4px solid #d97706;
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+}
+
+.success-box {
+  background: #dcfce7;
+  border-left: 4px solid #16a34a;
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Image sizing */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.img-small { max-width: 200px; }
+.img-medium { max-width: 400px; }
+.img-large { max-width: 600px; }
+.img-full { width: 100%; }
+
+/* Footer styling */
+footer {
+  font-size: 14px;
+  color: #94a3b8;
 }

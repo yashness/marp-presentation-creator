@@ -119,6 +119,24 @@
   - Presentations now default to "newest first" order
   - Sort indicator shows current sort order
 
+✅ Comprehensive Test Suite (2026-01-16)
+  - Added 231 passing tests across all modules
+  - `test_ai_service.py`: Tests for AIClient, OutlineGenerator, ContentGenerator, CommentaryGenerator, SlideOperations
+  - `test_themes_css.py`: Tests for code block styling, layout classes, emoji handling
+  - `test_ai_api.py`: API endpoint integration tests
+  - Parametrized tests for edge cases
+  - Integration tests for full AI service flow
+
+✅ Theme CSS Improvements (2026-01-16)
+  - Fixed code block styling - proper syntax colors (not black on black)
+  - Added layout classes: .columns-2, .columns-3, .columns-2-wide-left, .columns-2-wide-right
+  - Added flex utilities: .flex-row, .flex-between, .center
+  - Added card styles: .card, .card-primary, .highlight, .info-box, .warning-box, .success-box
+  - Added image sizing: .img-small, .img-medium, .img-large, .img-full
+  - Added emoji handling: text-wrap: balance to prevent line overflow
+  - Enhanced table styling with header colors and hover effects
+  - Added syntax highlighting classes for code blocks
+
 ## Remaining TODOs
 
 - [ ] Implement chat-like UI for incremental AI generation
