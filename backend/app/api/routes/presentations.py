@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response, Request
 from fastapi.responses import FileResponse
 from pathlib import Path
+from urllib.parse import quote
 from app.schemas.presentation import PresentationCreate, PresentationResponse, PresentationUpdate
 from app.schemas.batch import BatchExportRequest, BatchExportResult
 from app.services import presentation_service as service
@@ -115,11 +116,27 @@ def validate_and_get_presentation(format: str, presentation_id: str) -> Presenta
     return pres
 
 def create_export_response(output_path: Path, title: str, format: str) -> FileResponse:
+    """Create FileResponse with proper Content-Disposition header.
+
+    Uses both 'filename' (ASCII fallback) and 'filename*' (UTF-8 encoded)
+    for maximum browser compatibility.
+    """
     safe_title = sanitize_filename(title)
     filename = f"{safe_title}.{format}"
+    # ASCII fallback (replace non-ASCII with underscore)
+    ascii_filename = filename.encode('ascii', 'replace').decode('ascii').replace('?', '_')
+    # UTF-8 encoded filename for browsers that support RFC 5987
+    encoded_filename = quote(filename, safe='')
+
     format_info = get_export_format(format)
     media_type = format_info.media_type if format_info else "application/octet-stream"
-    return FileResponse(output_path, media_type=media_type, filename=filename)
+
+    # Build Content-Disposition with both fallback and encoded filename
+    content_disposition = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+
+    response = FileResponse(output_path, media_type=media_type)
+    response.headers["Content-Disposition"] = content_disposition
+    return response
 
 @router.post("/{presentation_id}/export")
 @limiter.limit("5/minute")

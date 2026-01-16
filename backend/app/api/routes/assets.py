@@ -52,6 +52,8 @@ async def upload_asset(
 
         return asset
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to upload asset: {e}")
         raise HTTPException(500, f"Failed to upload asset: {str(e)}")

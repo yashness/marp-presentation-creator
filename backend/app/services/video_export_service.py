@@ -4,8 +4,13 @@ import os
 import re
 import shutil
 import subprocess
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, TypedDict
+from enum import Enum
 from loguru import logger
 
 from app.services.tts_service import TTSService
@@ -16,6 +21,35 @@ class SlideData(TypedDict):
     index: int
     content: str
     comment: str
+
+
+class JobStatus(str, Enum):
+    """Video export job status."""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class VideoExportJob:
+    """Tracks a video export job."""
+    job_id: str
+    presentation_id: str
+    status: JobStatus = JobStatus.PENDING
+    progress: int = 0
+    current_stage: str = "Initializing"
+    total_slides: int = 0
+    processed_slides: int = 0
+    error: str | None = None
+    video_url: str | None = None
+    created_at: float = field(default_factory=time.time)
+    cancel_requested: bool = False
+
+
+# Global job store (in production, use Redis)
+_active_jobs: dict[str, VideoExportJob] = {}
 
 
 class VideoExportService:
@@ -166,8 +200,12 @@ class VideoExportService:
         slides_dir.mkdir(parents=True, exist_ok=True)
 
         for slide in slides:
-            # Render individual slide
-            slide_md = f"---\nmarp: true\n---\n\n{slide['content']}"
+            # Render individual slide with theme if specified
+            frontmatter = "---\nmarp: true\n"
+            if theme_id:
+                frontmatter += f"theme: {theme_id}\n"
+            frontmatter += "---\n\n"
+            slide_md = f"{frontmatter}{slide['content']}"
 
             # Save as image
             img_path = slides_dir / f"slide_{slide['index']:03d}.png"
@@ -431,3 +469,180 @@ class VideoExportService:
         """Get path to video file."""
         video_path = self.video_dir / f"{presentation_id}.mp4"
         return video_path if video_path.exists() else None
+
+    def start_background_export(
+        self,
+        presentation_id: str,
+        content: str,
+        theme_id: Optional[str] = None,
+        voice: str = "af_bella",
+        speed: float = 1.0,
+        slide_duration: float = 5.0
+    ) -> str:
+        """Start a background video export and return job ID."""
+        job_id = str(uuid.uuid4())[:8]
+        job = VideoExportJob(job_id=job_id, presentation_id=presentation_id)
+        _active_jobs[job_id] = job
+
+        def run_export():
+            try:
+                self._export_with_progress(
+                    job, content, theme_id, voice, speed, slide_duration
+                )
+            except Exception as e:
+                logger.error(f"Background export failed: {e}")
+                job.status = JobStatus.FAILED
+                job.error = str(e)
+
+        thread = threading.Thread(target=run_export, daemon=True)
+        thread.start()
+        return job_id
+
+    def _export_with_progress(
+        self,
+        job: VideoExportJob,
+        content: str,
+        theme_id: Optional[str],
+        voice: str,
+        speed: float,
+        slide_duration: float
+    ) -> None:
+        """Export video with progress tracking."""
+        job.status = JobStatus.RUNNING
+        job.current_stage = "Checking dependencies"
+        job.progress = 5
+
+        available, msg = self._check_dependencies()
+        if not available:
+            job.status = JobStatus.FAILED
+            job.error = f"Missing dependency: {msg}"
+            return
+
+        if job.cancel_requested:
+            job.status = JobStatus.CANCELLED
+            return
+
+        # Stage 1: Parse slides
+        job.current_stage = "Parsing slides"
+        job.progress = 10
+        slides = self._prepare_presentation(content)
+        if not slides:
+            job.status = JobStatus.FAILED
+            job.error = "No slides found"
+            return
+
+        job.total_slides = len(slides)
+
+        if job.cancel_requested:
+            job.status = JobStatus.CANCELLED
+            return
+
+        # Stage 2: Generate audio
+        job.current_stage = "Generating audio"
+        job.progress = 20
+        audio_paths = self._generate_slide_audio(
+            slides, job.presentation_id, voice, speed
+        )
+
+        if job.cancel_requested:
+            job.status = JobStatus.CANCELLED
+            return
+
+        # Stage 3: Render slides to images
+        job.current_stage = "Rendering slides"
+        job.progress = 40
+        image_paths = self._create_slide_images(
+            content, theme_id, job.presentation_id
+        )
+
+        if len(image_paths) != len(slides):
+            job.status = JobStatus.FAILED
+            job.error = "Failed to render all slides"
+            return
+
+        if job.cancel_requested:
+            job.status = JobStatus.CANCELLED
+            return
+
+        # Stage 4: Create video segments
+        job.current_stage = "Creating video segments"
+        job.progress = 60
+
+        segments_dir = self.temp_dir / job.presentation_id / "segments"
+        segments_dir.mkdir(parents=True, exist_ok=True)
+        segment_paths = []
+
+        for idx, (img_path, audio_path) in enumerate(zip(image_paths, audio_paths)):
+            if job.cancel_requested:
+                job.status = JobStatus.CANCELLED
+                self._cleanup_temp(job.presentation_id)
+                return
+
+            segment_path = segments_dir / f"segment_{idx:03d}.mp4"
+            if self._create_video_segment(img_path, audio_path, segment_path, slide_duration):
+                segment_paths.append(segment_path)
+                job.processed_slides = idx + 1
+                job.progress = 60 + int((idx + 1) / len(slides) * 30)
+                job.current_stage = f"Processing slide {idx + 1}/{len(slides)}"
+
+        if len(segment_paths) != len(slides):
+            job.status = JobStatus.FAILED
+            job.error = "Failed to create video segments"
+            return
+
+        # Stage 5: Concatenate
+        job.current_stage = "Finalizing video"
+        job.progress = 95
+
+        output_path = self._finalize_export(segment_paths, job.presentation_id)
+        if not output_path:
+            job.status = JobStatus.FAILED
+            job.error = "Failed to concatenate video"
+            return
+
+        job.status = JobStatus.COMPLETED
+        job.progress = 100
+        job.video_url = f"/api/video/{job.presentation_id}/download"
+        job.current_stage = "Complete"
+
+    def _cleanup_temp(self, presentation_id: str) -> None:
+        """Clean up temporary files for a cancelled job."""
+        temp_dir = self.temp_dir / presentation_id
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @staticmethod
+    def get_job(job_id: str) -> Optional[VideoExportJob]:
+        """Get job by ID."""
+        return _active_jobs.get(job_id)
+
+    @staticmethod
+    def cancel_job(job_id: str) -> bool:
+        """Request cancellation of a job."""
+        job = _active_jobs.get(job_id)
+        if job and job.status == JobStatus.RUNNING:
+            job.cancel_requested = True
+            return True
+        return False
+
+    @staticmethod
+    def get_active_job_for_presentation(presentation_id: str) -> Optional[VideoExportJob]:
+        """Get any active job for a presentation."""
+        for job in _active_jobs.values():
+            if job.presentation_id == presentation_id and job.status in (
+                JobStatus.PENDING, JobStatus.RUNNING
+            ):
+                return job
+        return None
+
+    @staticmethod
+    def cleanup_old_jobs(max_age_seconds: int = 3600) -> None:
+        """Remove completed/failed jobs older than max_age_seconds."""
+        cutoff = time.time() - max_age_seconds
+        to_remove = [
+            jid for jid, job in _active_jobs.items()
+            if job.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED)
+            and job.created_at < cutoff
+        ]
+        for jid in to_remove:
+            del _active_jobs[jid]

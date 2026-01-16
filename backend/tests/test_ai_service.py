@@ -186,17 +186,17 @@ class TestOutlineGenerator:
             "slides": [{"title": "Intro", "content_points": ["Point 1"], "notes": ""}]
         }
         mock_anthropic_client.messages.create.return_value.content[0].text = json.dumps(outline_data)
-        
+
         generator = OutlineGenerator(ai_client)
         result = generator.generate("Create a presentation about testing")
-        
+
         assert result is not None
         assert result.title == "Test Presentation"
 
     def test_generate_outline_invalid_json(self, ai_client, mock_anthropic_client):
         """Test with invalid JSON response."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "Invalid"
-        
+
         generator = OutlineGenerator(ai_client)
         result = generator.generate("Test topic")
         assert result is None
@@ -208,10 +208,10 @@ class TestContentGenerator:
     def test_generate_presentation(self, ai_client, mock_anthropic_client, sample_outline):
         """Test full presentation generation."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "# Generated"
-        
+
         generator = ContentGenerator(ai_client)
         result = generator.generate(sample_outline)
-        
+
         assert "marp: true" in result
         assert "Test Presentation" in result
 
@@ -229,20 +229,20 @@ class TestCommentaryGenerator:
     def test_generate_all_commentary(self, ai_client, mock_anthropic_client):
         """Test batch commentary generation."""
         mock_anthropic_client.messages.create.return_value.content[0].text = '["Comment 1", "Comment 2"]'
-        
+
         generator = CommentaryGenerator(ai_client)
         slides = [{"content": "# Slide 1"}, {"content": "# Slide 2"}]
         result = generator.generate_all(slides)
-        
+
         assert len(result) == 2
 
     def test_generate_single_commentary(self, ai_client, mock_anthropic_client):
         """Test single slide commentary."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "This explains the content."
-        
+
         generator = CommentaryGenerator(ai_client)
         result = generator.generate_single("# Test Slide")
-        
+
         assert "explains" in result
 
 
@@ -252,28 +252,28 @@ class TestSlideOperations:
     def test_rewrite_slide(self, ai_client, mock_anthropic_client):
         """Test slide rewriting."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "# Rewritten"
-        
+
         ops = SlideOperations(ai_client)
         result = ops.rewrite("# Original", "Make it better")
-        
+
         assert "Rewritten" in result
 
     def test_simplify(self, ai_client, mock_anthropic_client):
         """Test slide simplification."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "# Simple"
-        
+
         ops = SlideOperations(ai_client)
         result = ops.simplify("# Complex content")
-        
+
         assert result == "# Simple"
 
     def test_split(self, ai_client, mock_anthropic_client):
         """Test slide splitting."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "# Part 1\n\n---\n\n# Part 2"
-        
+
         ops = SlideOperations(ai_client)
         result = ops.split("# Overloaded slide")
-        
+
         assert isinstance(result, list)
         assert len(result) == 2
 
@@ -291,7 +291,7 @@ class TestAIServiceIntegration:
             "title": "Test",
             "slides": [{"title": "S1", "content_points": ["P1"], "notes": ""}]
         })
-        
+
         with patch.dict('os.environ', {
             'AZURE_ENDPOINT': 'https://test.openai.azure.com',
             'API_KEY': 'test-key',
@@ -299,7 +299,7 @@ class TestAIServiceIntegration:
             service = AIService()
             service.client = ai_client
             service._outline = OutlineGenerator(ai_client)
-            
+
             result = service.generate_outline("Test topic")
             assert result is not None
             assert result.title == "Test"
@@ -307,7 +307,7 @@ class TestAIServiceIntegration:
     def test_slide_operations_through_service(self, ai_client, mock_anthropic_client):
         """Test slide operations via main service."""
         mock_anthropic_client.messages.create.return_value.content[0].text = "# Result"
-        
+
         with patch.dict('os.environ', {
             'AZURE_ENDPOINT': 'https://test.openai.azure.com',
             'API_KEY': 'test-key',
@@ -315,6 +315,6 @@ class TestAIServiceIntegration:
             service = AIService()
             service.client = ai_client
             service._slides = SlideOperations(ai_client)
-            
+
             assert service.rewrite_slide("# Test", "improve") is not None
             assert service.simplify_slide("# Test") is not None

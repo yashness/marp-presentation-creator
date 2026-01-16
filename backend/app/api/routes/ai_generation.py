@@ -72,6 +72,23 @@ class RewriteSlideResponse(BaseModel):
     message: str
 
 
+class RewriteSelectedTextRequest(BaseModel):
+    """Request for rewriting selected text within a slide."""
+    full_content: str
+    selected_text: str = Field(..., min_length=1)
+    instruction: str = Field(..., min_length=3)
+    selection_start: int = Field(..., ge=0)
+    selection_end: int = Field(..., ge=0)
+
+
+class RewriteSelectedTextResponse(BaseModel):
+    """Response for selected text rewrite."""
+    success: bool
+    content: str | None = None
+    rewritten_text: str | None = None
+    message: str
+
+
 class SlideOperationRequest(BaseModel):
     """Request for slide operations (layout, restyle, etc.)."""
     content: str
@@ -128,6 +145,71 @@ class GenerateImageResponse(BaseModel):
     success: bool
     image_data: str | None = None
     message: str
+
+
+class ApplyLayoutRequest(BaseModel):
+    """Request for applying a specific layout."""
+    content: str
+    layout_type: str = Field(..., description="Layout class name")
+
+
+class ApplyLayoutResponse(BaseModel):
+    """Response for layout application."""
+    success: bool
+    content: str | None = None
+    message: str
+
+
+class DuplicateRewriteRequest(BaseModel):
+    """Request for duplicating and rewriting slide content."""
+    content: str
+    new_topic: str = Field(..., min_length=3)
+
+
+class RearrangeSlidesRequest(BaseModel):
+    """Request for rearranging slides."""
+    slides: list[str] = Field(..., min_length=2)
+
+
+class RearrangeSlidesResponse(BaseModel):
+    """Response for slide rearrangement."""
+    success: bool
+    slides: list[str] | None = None
+    message: str
+
+
+class TransformStyleRequest(BaseModel):
+    """Request for transforming presentation style."""
+    slides: list[str]
+    style: str = Field(..., description="story, teaching, pitch, workshop, technical, executive")
+
+
+class TransformStyleResponse(BaseModel):
+    """Response for style transformation."""
+    success: bool
+    slides: list[str] | None = None
+    message: str
+
+
+class RewriteForTopicRequest(BaseModel):
+    """Request for rewriting presentation for a new topic."""
+    slides: list[str]
+    new_topic: str = Field(..., min_length=3)
+    keep_style: bool = True
+
+
+class LayoutInfo(BaseModel):
+    """Layout class information."""
+    name: str
+    icon: str
+    description: str
+    html: str
+
+
+class LayoutsResponse(BaseModel):
+    """Response with available layouts."""
+    layouts: dict[str, LayoutInfo]
+    callouts: dict[str, LayoutInfo]
 
 
 # -----------------------------------------------------------------------------
@@ -200,6 +282,35 @@ async def rewrite_slide(request: RewriteSlideRequest) -> RewriteSlideResponse:
         return RewriteSlideResponse(success=False, message="Failed to rewrite")
 
     return RewriteSlideResponse(success=True, content=content, message="Slide rewritten")
+
+
+@router.post("/rewrite-selected-text", response_model=RewriteSelectedTextResponse)
+async def rewrite_selected_text(request: RewriteSelectedTextRequest) -> RewriteSelectedTextResponse:
+    """Rewrite only the selected text within a slide."""
+    logger.info(f"Rewriting selected text: {request.selected_text[:30]}...")
+
+    rewritten = ai_service.rewrite_selected_text(
+        request.full_content,
+        request.selected_text,
+        request.instruction,
+        request.selection_start,
+        request.selection_end
+    )
+
+    if not rewritten:
+        return RewriteSelectedTextResponse(success=False, message="Failed to rewrite selected text")
+
+    # Reconstruct full content with rewritten portion
+    before = request.full_content[:request.selection_start]
+    after = request.full_content[request.selection_end:]
+    new_content = before + rewritten + after
+
+    return RewriteSelectedTextResponse(
+        success=True,
+        content=new_content,
+        rewritten_text=rewritten,
+        message="Selected text rewritten"
+    )
 
 
 @router.post("/slide-operation", response_model=SlideOperationResponse)
@@ -284,3 +395,85 @@ async def get_ai_status() -> dict:
         "available": available,
         "message": "AI ready" if available else "AI not configured"
     }
+
+
+@router.get("/layouts", response_model=LayoutsResponse)
+async def get_layouts() -> LayoutsResponse:
+    """Get available layout classes and callouts."""
+    layouts_data = ai_service.get_layouts()
+    return LayoutsResponse(
+        layouts={k: LayoutInfo(**v) for k, v in layouts_data["layouts"].items()},
+        callouts={k: LayoutInfo(**v) for k, v in layouts_data["callouts"].items()}
+    )
+
+
+@router.post("/apply-layout", response_model=ApplyLayoutResponse)
+async def apply_layout(request: ApplyLayoutRequest) -> ApplyLayoutResponse:
+    """Apply a specific layout to slide content."""
+    logger.info(f"Applying layout: {request.layout_type}")
+
+    content = ai_service.apply_layout(request.content, request.layout_type)
+
+    if not content:
+        return ApplyLayoutResponse(success=False, message="Failed to apply layout")
+
+    return ApplyLayoutResponse(success=True, content=content, message="Layout applied")
+
+
+@router.post("/duplicate-rewrite", response_model=RewriteSlideResponse)
+async def duplicate_and_rewrite(request: DuplicateRewriteRequest) -> RewriteSlideResponse:
+    """Duplicate slide and rewrite for a new topic."""
+    logger.info(f"Duplicate and rewrite for: {request.new_topic}")
+
+    content = ai_service.duplicate_and_rewrite_slide(request.content, request.new_topic)
+
+    if not content:
+        return RewriteSlideResponse(success=False, message="Failed to rewrite")
+
+    return RewriteSlideResponse(success=True, content=content, message="Slide rewritten")
+
+
+@router.post("/rearrange-slides", response_model=RearrangeSlidesResponse)
+async def rearrange_slides(request: RearrangeSlidesRequest) -> RearrangeSlidesResponse:
+    """Rearrange slides for better cohesion."""
+    logger.info(f"Rearranging {len(request.slides)} slides...")
+
+    slides = ai_service.rearrange_slides(request.slides)
+
+    return RearrangeSlidesResponse(
+        success=True,
+        slides=slides,
+        message="Slides rearranged for better flow"
+    )
+
+
+@router.post("/transform-style", response_model=TransformStyleResponse)
+async def transform_style(request: TransformStyleRequest) -> TransformStyleResponse:
+    """Transform presentation to a specific style."""
+    logger.info(f"Transforming to {request.style} style...")
+
+    slides = ai_service.transform_style(request.slides, request.style)
+
+    return TransformStyleResponse(
+        success=True,
+        slides=slides,
+        message=f"Transformed to {request.style} style"
+    )
+
+
+@router.post("/rewrite-for-topic", response_model=TransformStyleResponse)
+async def rewrite_for_topic(request: RewriteForTopicRequest) -> TransformStyleResponse:
+    """Rewrite entire presentation for a new topic."""
+    logger.info(f"Rewriting for topic: {request.new_topic}")
+
+    slides = ai_service.rewrite_for_topic(
+        request.slides,
+        request.new_topic,
+        request.keep_style
+    )
+
+    return TransformStyleResponse(
+        success=True,
+        slides=slides,
+        message=f"Rewritten for {request.new_topic}"
+    )

@@ -268,6 +268,89 @@ class TestRewriteSlideEndpoint:
 
 
 # =============================================================================
+# REWRITE SELECTED TEXT ENDPOINT
+# =============================================================================
+
+class TestRewriteSelectedTextEndpoint:
+    """Tests for /api/ai/rewrite-selected-text endpoint."""
+
+    def test_rewrite_selected_text_success(self, client, mock_ai_service):
+        """Test successful selected text rewrite."""
+        mock_ai_service.rewrite_selected_text.return_value = "shorter text"
+
+        response = client.post("/api/ai/rewrite-selected-text", json={
+            "full_content": "# Slide\n\nThis is a longer text example.",
+            "selected_text": "longer text example",
+            "instruction": "make it shorter",
+            "selection_start": 19,
+            "selection_end": 38
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["rewritten_text"] == "shorter text"
+        assert "shorter text" in data["content"]
+
+    def test_rewrite_selected_text_reconstructs_content(self, client, mock_ai_service):
+        """Test that content is properly reconstructed."""
+        mock_ai_service.rewrite_selected_text.return_value = "REPLACED"
+
+        response = client.post("/api/ai/rewrite-selected-text", json={
+            "full_content": "Start MIDDLE End",
+            "selected_text": "MIDDLE",
+            "instruction": "replace",
+            "selection_start": 6,
+            "selection_end": 12
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["content"] == "Start REPLACED End"
+
+    def test_rewrite_selected_text_failure(self, client, mock_ai_service):
+        """Test rewrite failure returns error."""
+        mock_ai_service.rewrite_selected_text.return_value = None
+
+        response = client.post("/api/ai/rewrite-selected-text", json={
+            "full_content": "# Test",
+            "selected_text": "Test",
+            "instruction": "change",
+            "selection_start": 2,
+            "selection_end": 6
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+
+    def test_rewrite_selected_text_validation(self, client, mock_ai_service):
+        """Test validation of required fields."""
+        # Empty selected text
+        response = client.post("/api/ai/rewrite-selected-text", json={
+            "full_content": "# Test",
+            "selected_text": "",
+            "instruction": "change",
+            "selection_start": 0,
+            "selection_end": 0
+        })
+
+        assert response.status_code == 422  # Validation error
+
+    def test_rewrite_selected_text_short_instruction(self, client, mock_ai_service):
+        """Test minimum instruction length."""
+        response = client.post("/api/ai/rewrite-selected-text", json={
+            "full_content": "# Test content here",
+            "selected_text": "content",
+            "instruction": "ab",  # Too short (min 3 chars)
+            "selection_start": 7,
+            "selection_end": 14
+        })
+
+        assert response.status_code == 422
+
+
+# =============================================================================
 # REGENERATE COMMENT ENDPOINTS
 # =============================================================================
 

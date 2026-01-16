@@ -6,6 +6,8 @@ from app.models.asset import Asset
 from app.models.folder import Folder
 from app.models.slide_audio import SlideAudio
 from app.models.video_export import VideoExport
+from app.models.chat_conversation import ChatConversation, ChatMessage
+from app.models.presentation_version import PresentationVersion
 
 __all__ = [
     "Presentation",
@@ -14,5 +16,8 @@ __all__ = [
     "Folder",
     "SlideAudio",
     "VideoExport",
+    "ChatConversation",
+    "ChatMessage",
+    "PresentationVersion",
     "Base",
 ]

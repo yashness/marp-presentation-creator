@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from app.core.database import get_db
-from app.services.video_export_service import VideoExportService
+from app.services.video_export_service import VideoExportService, JobStatus
 from app.models.presentation import Presentation
 
 router = APIRouter(prefix="/video", tags=["video"])
@@ -54,6 +54,25 @@ class VideoExistsResponse(BaseModel):
     exists: bool
     video_url: str | None = None
     file_size: int | None = None
+    active_job_id: str | None = None
+
+
+class VideoExportStartResponse(BaseModel):
+    """Response for starting async video export."""
+    job_id: str
+    message: str
+
+
+class VideoJobProgressResponse(BaseModel):
+    """Response for video job progress."""
+    job_id: str
+    status: str
+    progress: int
+    current_stage: str
+    total_slides: int
+    processed_slides: int
+    error: str | None = None
+    video_url: str | None = None
 
 
 @router.get("/list", response_model=VideoListResponse)
@@ -106,18 +125,22 @@ async def check_video_exists(
         presentation_id: ID of the presentation
 
     Returns:
-        Whether video exists and its URL
+        Whether video exists, its URL, and any active export job
     """
+    active_job = video_service.get_active_job_for_presentation(presentation_id)
+    active_job_id = active_job.job_id if active_job else None
+
     video_path = video_service.get_video_path(presentation_id)
 
     if video_path and video_path.exists():
         return VideoExistsResponse(
             exists=True,
             video_url=f"/api/video/{presentation_id}/download",
-            file_size=video_path.stat().st_size
+            file_size=video_path.stat().st_size,
+            active_job_id=active_job_id
         )
 
-    return VideoExistsResponse(exists=False)
+    return VideoExistsResponse(exists=False, active_job_id=active_job_id)
 
 
 @router.post("/{presentation_id}/export", response_model=VideoExportResponse)
@@ -269,3 +292,116 @@ async def get_video_export_status() -> VideoStatusResponse:
         available=available,
         message="Video export service is ready" if available else f"Missing dependency: {msg}"
     )
+
+
+@router.post("/{presentation_id}/export-async", response_model=VideoExportStartResponse)
+async def start_async_video_export(
+    presentation_id: str,
+    request: VideoExportRequest,
+    db: Session = Depends(get_db)
+) -> VideoExportStartResponse:
+    """Start async video export and return job ID for polling.
+
+    Args:
+        presentation_id: ID of the presentation
+        request: Video export configuration
+        db: Database session
+
+    Returns:
+        Job ID to use for polling progress
+
+    Raises:
+        HTTPException: If presentation not found or export already in progress
+    """
+    presentation = db.query(Presentation).filter(
+        Presentation.id == presentation_id
+    ).first()
+
+    if not presentation:
+        raise HTTPException(status_code=404, detail="Presentation not found")
+
+    # Check if export already in progress
+    active_job = video_service.get_active_job_for_presentation(presentation_id)
+    if active_job:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Export already in progress (job: {active_job.job_id})"
+        )
+
+    logger.info(f"Starting async video export for presentation {presentation_id}")
+
+    job_id = video_service.start_background_export(
+        presentation_id=presentation_id,
+        content=presentation.content,
+        theme_id=presentation.theme_id,
+        voice=request.voice,
+        speed=request.speed,
+        slide_duration=request.slide_duration
+    )
+
+    return VideoExportStartResponse(
+        job_id=job_id,
+        message="Video export started"
+    )
+
+
+@router.get("/job/{job_id}/progress", response_model=VideoJobProgressResponse)
+async def get_job_progress(job_id: str) -> VideoJobProgressResponse:
+    """Get progress of a video export job.
+
+    Args:
+        job_id: The job ID returned from export-async
+
+    Returns:
+        Current job progress and status
+
+    Raises:
+        HTTPException: If job not found
+    """
+    job = video_service.get_job(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return VideoJobProgressResponse(
+        job_id=job.job_id,
+        status=job.status.value,
+        progress=job.progress,
+        current_stage=job.current_stage,
+        total_slides=job.total_slides,
+        processed_slides=job.processed_slides,
+        error=job.error,
+        video_url=job.video_url
+    )
+
+
+@router.post("/job/{job_id}/cancel")
+async def cancel_job(job_id: str) -> dict:
+    """Cancel a running video export job.
+
+    Args:
+        job_id: The job ID to cancel
+
+    Returns:
+        Success status
+
+    Raises:
+        HTTPException: If job not found or cannot be cancelled
+    """
+    job = video_service.get_job(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status != JobStatus.RUNNING:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel job with status: {job.status.value}"
+        )
+
+    success = video_service.cancel_job(job_id)
+
+    return {
+        "success": success,
+        "message": "Cancellation requested" if success else "Failed to cancel job"
+    }

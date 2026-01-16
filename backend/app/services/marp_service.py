@@ -47,6 +47,14 @@ def create_temp_file(content: str) -> Path:
     return temp_file
 
 def build_marp_cmd(temp_file: Path, format_flag: str, output: str | None, theme_id: str | None) -> list[str]:
+    """Build Marp CLI command.
+
+    Args:
+        temp_file: Path to temp markdown file
+        format_flag: Format flag (e.g., "--pdf", "--pptx", "--html")
+        output: Output file path
+        theme_id: Theme identifier
+    """
     if not MARP_CONFIG_PATH.exists():
         logger.warning(f"Marp config missing at {MARP_CONFIG_PATH}; diagram support may be degraded")
 
@@ -141,4 +149,9 @@ def render_to_html_file(content: str, output_path: Path, theme_id: str | None = 
     render_export(content, output_path, "--html", "HTML", theme_id)
 
 def render_to_pptx(content: str, output_path: Path, theme_id: str | None = None) -> None:
+    """Create an editable PPTX file.
+
+    Note: The --pptx-editable flag is set in marp.config.js (pptxEditable: true).
+    This requires LibreOffice to be installed in the container.
+    """
     render_export(content, output_path, "--pptx", "PPTX", theme_id)

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     g++ \
     ffmpeg \
+    libreoffice-impress \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
