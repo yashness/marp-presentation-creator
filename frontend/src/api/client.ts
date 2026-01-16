@@ -949,6 +949,76 @@ export async function getAgentTools(): Promise<{ tools: AgentTool[] }> {
   return handleResponse<{ tools: AgentTool[] }>(response)
 }
 
+// Share Link API
+export interface ShareLink {
+  id: string
+  presentation_id: string
+  token: string
+  is_public: boolean
+  expires_at: string | null
+  view_count: number
+  created_at: string
+  share_url: string
+}
+
+export interface ShareLinkCreate {
+  presentation_id: string
+  is_public?: boolean
+  password?: string | null
+  expires_in_days?: number | null
+}
+
+export interface SharedPresentation {
+  id: string
+  title: string
+  content: string
+  theme_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareInfo {
+  title: string
+  requires_password: boolean
+  is_public: boolean
+}
+
+export async function createShareLink(data: ShareLinkCreate): Promise<ShareLink> {
+  const response = await fetch(buildUrl('/share'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  return handleResponse<ShareLink>(response)
+}
+
+export async function getShareLinks(presentationId: string): Promise<ShareLink[]> {
+  const response = await fetch(buildUrl(`/share/presentation/${presentationId}`))
+  return handleResponse<ShareLink[]>(response)
+}
+
+export async function revokeShareLink(linkId: string): Promise<void> {
+  const response = await fetch(buildUrl(`/share/${linkId}`), { method: 'DELETE' })
+  return handleVoidResponse(response)
+}
+
+export async function getShareInfo(token: string): Promise<ShareInfo> {
+  const response = await fetch(buildUrl(`/share/info/${token}`))
+  return handleResponse<ShareInfo>(response)
+}
+
+export async function accessSharedPresentation(
+  token: string,
+  password?: string | null
+): Promise<SharedPresentation> {
+  const response = await fetch(buildUrl(`/share/access/${token}`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  })
+  return handleResponse<SharedPresentation>(response)
+}
+
 // Template API
 export interface Template {
   id: string

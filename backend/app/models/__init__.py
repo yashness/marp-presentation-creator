@@ -9,6 +9,7 @@ from app.models.video_export import VideoExport
 from app.models.chat_conversation import ChatConversation, ChatMessage
 from app.models.presentation_version import PresentationVersion
 from app.models.template import Template
+from app.models.share_link import ShareLink
 
 __all__ = [
     "Presentation",
@@ -21,5 +22,6 @@ __all__ = [
     "ChatMessage",
     "PresentationVersion",
     "Template",
+    "ShareLink",
     "Base",
 ]

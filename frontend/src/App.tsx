@@ -9,6 +9,8 @@ import { AssetManagerModal } from './components/AssetManagerModal'
 import { AIChatPanel } from './components/AIChatPanel'
 import { VersionHistoryPanel } from './components/VersionHistoryPanel'
 import { TemplateLibrary } from './components/TemplateLibrary'
+import { ShareModal } from './components/ShareModal'
+import { SharedViewer } from './components/SharedViewer'
 import type { Template } from './api/client'
 import { createVersion } from './api/client'
 import type { RestoreVersionResponse } from './api/client'
@@ -35,6 +37,7 @@ import {
   IconMessageCircle,
   IconHistory,
   IconTemplate,
+  IconShare,
 } from '@tabler/icons-react'
 
 function App() {
@@ -47,6 +50,19 @@ function App() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+
+  // Check if we're on a share page
+  const shareToken = useMemo(() => {
+    const path = window.location.pathname
+    const match = path.match(/^\/share\/([^/]+)$/)
+    return match ? match[1] : null
+  }, [])
+
+  // If on share page, render the shared viewer
+  if (shareToken) {
+    return <SharedViewer token={shareToken} />
+  }
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -436,6 +452,13 @@ function App() {
         onSelect={handleTemplateSelect}
       />
 
+      <ShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        presentationId={editor.selectedId}
+        presentationTitle={editor.title || 'Untitled Presentation'}
+      />
+
       {/* Collapsible Presentations Sidebar */}
       <motion.aside
         initial={false}
@@ -711,6 +734,15 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowShareModal(true)}
+              disabled={!editor.selectedId}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-100 hover:bg-sky-200 dark:bg-sky-900/30 dark:hover:bg-sky-800/50 disabled:opacity-50 disabled:cursor-not-allowed text-sky-700 dark:text-sky-300 text-sm font-medium transition-all"
+              title="Share presentation"
+            >
+              <IconShare className="w-4 h-4" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
             <button
               onClick={() => setShowVersionHistory(true)}
               disabled={!editor.selectedId}
