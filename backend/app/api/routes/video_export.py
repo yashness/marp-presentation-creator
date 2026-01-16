@@ -34,6 +34,92 @@ class VideoStatusResponse(BaseModel):
     message: str
 
 
+class VideoInfo(BaseModel):
+    """Video file information."""
+    presentation_id: str
+    presentation_title: str
+    video_url: str
+    file_size: int
+    created_at: str
+
+
+class VideoListResponse(BaseModel):
+    """Response for listing available videos."""
+    videos: list[VideoInfo]
+    total: int
+
+
+class VideoExistsResponse(BaseModel):
+    """Response for checking if video exists."""
+    exists: bool
+    video_url: str | None = None
+    file_size: int | None = None
+
+
+@router.get("/list", response_model=VideoListResponse)
+async def list_available_videos(
+    db: Session = Depends(get_db)
+) -> VideoListResponse:
+    """List all available exported videos.
+
+    Returns:
+        List of videos with their metadata
+    """
+    from datetime import datetime
+    import os
+
+    videos = []
+    video_dir = video_service.video_dir
+
+    if video_dir.exists():
+        for video_file in video_dir.glob("*.mp4"):
+            presentation_id = video_file.stem
+
+            # Get presentation title
+            presentation = db.query(Presentation).filter(
+                Presentation.id == presentation_id
+            ).first()
+
+            if presentation:
+                stat = video_file.stat()
+                videos.append(VideoInfo(
+                    presentation_id=presentation_id,
+                    presentation_title=presentation.title,
+                    video_url=f"/api/video/{presentation_id}/download",
+                    file_size=stat.st_size,
+                    created_at=datetime.fromtimestamp(stat.st_mtime).isoformat()
+                ))
+
+    # Sort by creation date (newest first)
+    videos.sort(key=lambda v: v.created_at, reverse=True)
+
+    return VideoListResponse(videos=videos, total=len(videos))
+
+
+@router.get("/{presentation_id}/exists", response_model=VideoExistsResponse)
+async def check_video_exists(
+    presentation_id: str
+) -> VideoExistsResponse:
+    """Check if a video exists for a presentation.
+
+    Args:
+        presentation_id: ID of the presentation
+
+    Returns:
+        Whether video exists and its URL
+    """
+    video_path = video_service.get_video_path(presentation_id)
+
+    if video_path and video_path.exists():
+        return VideoExistsResponse(
+            exists=True,
+            video_url=f"/api/video/{presentation_id}/download",
+            file_size=video_path.stat().st_size
+        )
+
+    return VideoExistsResponse(exists=False)
+
+
 @router.post("/{presentation_id}/export", response_model=VideoExportResponse)
 async def export_presentation_as_video(
     presentation_id: str,

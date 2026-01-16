@@ -11,13 +11,13 @@ export function PreviewPanel({ preview, selectedId, previewLoading }: PreviewPan
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-lg p-6 overflow-hidden">
       <div className="flex items-center gap-3 mb-5">
-        <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 grid place-items-center border border-primary-300 shadow-sm">
+        <div className="h-12 w-12 rounded-lg bg-primary-100 text-primary-700 grid place-items-center border border-primary-200 shadow-sm">
           <Eye className="w-6 h-6" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Preview</h2>
+        <h2 className="text-2xl font-bold text-secondary-800">Preview</h2>
       </div>
       <div className="flex-1 overflow-auto">
-        <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-200 shadow-inner p-8 max-w-6xl mx-auto min-h-full">
+        <div className="bg-white rounded-xl border border-secondary-200 p-6 max-w-6xl mx-auto min-h-full">
           {previewLoading ? (
             <LoadingSpinner />
           ) : selectedId && preview ? (

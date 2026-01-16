@@ -162,7 +162,22 @@ class AIService:
         if fenced:
             cleaned = fenced.group(1)
         cleaned = self._strip_outer_code_fence(cleaned)
+        # Remove NARRATION: prefix if present
+        cleaned = re.sub(r"^(?:NARRATION|Narration):\s*", "", cleaned.strip(), flags=re.IGNORECASE)
         return cleaned.strip()
+
+    @staticmethod
+    def _fix_broken_comments(text: str) -> str:
+        """Fix broken HTML comment blocks in slide content."""
+        # Remove duplicate comment markers
+        text = re.sub(r"<!--\s*<!--", "<!--", text)
+        text = re.sub(r"-->\s*-->", "-->", text)
+        # Fix unclosed comments
+        if text.count("<!--") > text.count("-->"):
+            text = text + "\n-->"
+        # Remove malformed empty comment blocks
+        text = re.sub(r"<!--\s*\n\s*-->", "", text)
+        return text
 
 
 
@@ -211,7 +226,7 @@ class AIService:
 
     def _create_outline_prompt(self, description: str, constraint_block: str, slide_count_hint: str) -> str:
         """Create the prompt for outline generation."""
-        return f"""You are an expert educator creating a presentation outline. Your goal is to create narration that TEACHES the content, not just announces it.
+        return f"""You are an expert educator creating a presentation outline. Your goal is to create thorough narration that explains each slide's content in depth.
 
 Topic: {description}
 
@@ -220,10 +235,9 @@ Optional constraints (honor if possible):
 
 Generate a structured outline with:
 1. A compelling presentation title
-2. {slide_count_hint} with:
-   - Clear, concise titles
-   - 3-5 key points per slide
-   - Teaching-focused audio narration
+2. An INTRO slide (first slide) - title card with the presentation name and a hook
+3. {slide_count_hint} for the main content
+4. An OUTRO slide (last slide) - key takeaway or call to action
 
 Respond in JSON format:
 {{
@@ -232,32 +246,28 @@ Respond in JSON format:
         {{
             "title": "Slide Title",
             "content_points": ["Point 1", "Point 2", "Point 3"],
-            "notes": "Narration that teaches this slide's concepts"
+            "notes": "Thorough 3-4 sentence narration explaining this slide's content"
         }}
     ]
 }}
 
-CRITICAL NARRATION REQUIREMENTS:
-- The narration IS the audio content. It must TEACH the concepts, not announce or transition.
-- NEVER use meta-phrases like: "Let's", "Here's", "Let me", "We'll", "This presentation", "Today we'll"
+NARRATION REQUIREMENTS (CRITICAL):
+- 3-4 sentences per slide (50-80 words) - enough to thoroughly explain each bullet point
+- Narration must EXPLAIN the slide's content in depth - elaborate on WHY and HOW
+- Walk through each key point, providing context, examples, or implications
+- NEVER use: "Let's", "Here's", "Let me", "We'll", "This slide", "Next", "Now"
 - NEVER reference the presentation, slides, or visuals
-- Instead, directly explain WHY things matter, HOW they work, WHAT the implications are
-- Use natural, conversational teaching language as if explaining to a student in a lecture
-- Build a cohesive narrative that flows like an expert podcast or lecture
-- Each narration should work standalone as audio - assume listener can't see the slide
-- 2-3 sentences per slide that directly teach the core concepts
-- First slide: State the key insight or context (no "welcome" or meta-commentary)
-- Middle slides: Explain concepts deeply with reasoning
-- Last slide: Synthesize insights without saying "we covered" or "in summary"
+- Write as if teaching someone who can see the slide - explain what the bullets MEAN
+- First slide (intro): Set the context and explain why this topic matters
+- Last slide (outro): Synthesize the key insights and provide a clear takeaway
+- Keep it natural and conversational, like an expert explaining to a colleague
 
-❌ BAD: "We just covered X. Here we focus on Y and Z. Next we'll look at A."
-✅ GOOD: "Understanding Y is crucial because it determines how Z behaves in real systems. This principle explains why A happens."
+EXAMPLES:
+❌ BAD: "Let's explore machine learning. We'll look at algorithms."
+✅ GOOD: "Machine learning enables computers to identify patterns in data without explicit programming. Instead of writing rules manually, we feed the system examples and let it discover the underlying logic. This approach works particularly well for complex problems where the rules would be too numerous or subtle for humans to define."
 
-❌ BAD: "Welcome to this presentation on Machine Learning."
-✅ GOOD: "Machine learning enables computers to learn patterns from data without being explicitly programmed for every scenario."
-
-❌ BAD: "Here's something remarkable about plants."
-✅ GOOD: "Plants solve a problem that animals can't by capturing energy directly from the sun and transforming it into fuel through photosynthesis."
+❌ BAD: "Here's why this matters."
+✅ GOOD: "Companies adopting ML report 40% faster decision-making because the system processes vast datasets in seconds. The accuracy improvements come from the algorithm's ability to detect subtle patterns that human analysts might miss, especially when dealing with thousands of variables."
 
 Do not include markdown formatting, frontmatter, or code fences in your response."""
 
@@ -376,58 +386,48 @@ Do not include slide separators (`---`)."""
                 f"Outline item {idx} notes: {notes}"
             )
         slide_block = "\n\n".join(slide_lines)
-        narration_hint = narration_instructions or "Teach the content clearly and succinctly."
+        narration_hint = narration_instructions or "Thorough, detailed explanations that walk through each concept."
 
-        return f"""You are creating Marp markdown slides with teaching-focused narration. This is batch {batch_index} of {batch_total}.
+        return f"""Create Marp markdown slides. Batch {batch_index}/{batch_total}.
 
 Theme: {theme}
 
 Content to cover:
 {slide_block}
 
-NARRATION PHILOSOPHY:
-Your narration should feel like a teacher or expert explaining concepts to an engaged learner. You are NOT reading bullet points or transitioning between slides. You are TEACHING the material in a way that builds understanding.
+Additional style: {narration_hint}
 
-{narration_hint}
+FORMAT:
+- Slides separated by `---`
+- Each slide has a comment block: <!-- narration -->
+- Use actual topic titles (never "# Slide 1")
+- 3-5 bullets per slide, clean markdown
+- Vary layouts: bullets, quotes, comparisons
 
-FORMAT REQUIREMENTS:
-- Output slides separated by `---`
-- Each slide MUST have a narration comment: <!-- your teaching narration -->
-- Slide content: clean markdown with 3-5 bullets, ~8 lines max
-- Use varied layouts across the deck (title-only, quote, list, image, comparison, short paragraph)
-- Include a mermaid diagram when it fits the topic
-- No frontmatter, no code fences, no meta-commentary
+COMMENT RULES (CRITICAL - READ CAREFULLY):
+The comment is AUDIO NARRATION that will be spoken while the slide is shown.
+The narration MUST directly reference and explain the EXACT content visible on the slide.
 
-NARRATION REQUIREMENTS (ABSOLUTELY CRITICAL):
-- TEACH the actual concepts from the slide content - explain WHY, HOW, and WHAT IT MEANS
-- The narration IS the audio content. It must teach, not announce or transition.
-- NEVER use meta-phrases like: "Let's", "Here's", "Let me", "Now we'll", "Next we'll", "This slide"
-- NEVER reference the presentation, slides, or diagram itself
-- Instead, directly explain the concepts as if teaching a student in a lecture
-- Use natural, conversational language (like a podcast or expert lecture)
-- 1-2 sentences that directly teach the slide's core concepts
-- Length should be concise but substantive - roughly similar to slide text length
-- Each narration should work standalone as audio - assume listener can't see the slide
-- Build on previous concepts naturally, without explicitly referencing "previous slides"
-- If an outline item is dense, split it into 2 slides with continuation titles and narrate each separately
+REQUIREMENTS:
+1. Read each bullet point on the slide and explain it in the comment
+2. If the slide says "1896: Cinema arrives in India" - the comment must explain that 1896 date
+3. If the slide has a table with data - the comment must reference that specific data
+4. Comments should flow from the previous slide's topic to this slide's topic
+5. 2-3 sentences (40-60 words) - concise but substantive
+6. NEVER use: "Let's", "Here's", "This slide", "Now we'll", "Next"
 
-EXAMPLES OF GOOD vs BAD NARRATION:
-❌ BAD: "Let's explore Refraction and how light bends. Next we'll look at examples."
-✅ GOOD: "When light moves from air into water, it slows down and bends at the boundary. This bending follows a precise mathematical relationship."
+EXAMPLE (FOLLOW THIS PATTERN):
+Slide content:
+# The Water Cycle
+- Evaporation: Sun heats water, creating vapor
+- Condensation: Vapor rises, cools, forms clouds
+- Precipitation: Rain/snow falls back to surface
 
-❌ BAD: "Here's why acceleration matters more than the absolute number."
-✅ GOOD: "Acceleration matters more than the absolute number because it reveals whether we're approaching stability or accelerating toward crisis."
+Correct comment: <!-- The water cycle has three key phases. Evaporation occurs when solar energy heats surface water into vapor. That vapor rises and cools to form clouds through condensation. Finally, precipitation returns water to earth as rain or snow, completing the cycle. -->
 
-❌ BAD: "Let me be direct about what warming does to a planet."
-✅ GOOD: "Higher temperatures trigger cascading changes: ice sheets melt, sea levels rise, and weather patterns intensify."
+Wrong comment: <!-- Let's explore water. Water is essential for life and moves through our environment. The cycle is fascinating. -->
 
-❌ BAD: "This slide covers the water cycle."
-✅ GOOD: "Water continuously cycles through evaporation, condensation, and precipitation, driven by solar energy heating Earth's surface."
-
-❌ BAD: "The diagram shows us the two pathways."
-✅ GOOD: "In the natural state, enough greenhouse gas keeps temperatures stable, but excess CO2 shifts the balance and traps more heat."
-
-Create narration that directly teaches the content as audio, with zero meta-language or announcement phrases."""
+The comment MUST explain the actual bullet points shown, not generic related information."""
 
     def generate_slide_batch(
         self,
@@ -445,11 +445,27 @@ Create narration that directly teaches the content as audio, with zero meta-lang
             slides, theme, batch_index, batch_total, narration_instructions
         )
 
-        content = self._call_ai(prompt, max_tokens=1400, context=f"Generate batch {batch_index}/{batch_total}")
+        content = self._call_ai(prompt, max_tokens=2500, context=f"Generate batch {batch_index}/{batch_total}")
         if not content:
             return self._create_fallback_slides(slides)
 
         return self._sanitize_slide_markdown(content)
+
+    def _create_intro_slide(self, title: str) -> str:
+        """Create an intro/title slide with brief comment."""
+        return f"""# {title}
+
+<!-- {title} - a presentation exploring key concepts and insights. -->"""
+
+    def _create_outro_slide(self, title: str) -> str:
+        """Create an outro/closing slide with call to action."""
+        return f"""# Thank You
+
+**{title}**
+
+Questions? Let's discuss.
+
+<!-- The key ideas from this presentation should help guide your next steps. -->"""
 
     def generate_full_presentation(
         self,
@@ -475,6 +491,11 @@ paginate: true
 """
 
         blocks = []
+
+        # Add intro slide
+        intro_slide = self._create_intro_slide(outline.title)
+        blocks.append(intro_slide)
+
         total_batches = max(1, (len(outline.slides) + self.slide_batch_size - 1) // self.slide_batch_size)
         for batch_index in range(total_batches):
             start = batch_index * self.slide_batch_size
@@ -488,9 +509,14 @@ paginate: true
                 outline.narration_instructions
             )
             batch_md = self._sanitize_slide_markdown(batch_md)
+            batch_md = self._fix_broken_comments(batch_md)
             batch_blocks = re.split(r"\n---\s*\n", batch_md) if batch_md else []
             for block in [b for b in batch_blocks if b.strip()]:
                 blocks.append(block.strip())
+
+        # Add outro slide
+        outro_slide = self._create_outro_slide(outline.title)
+        blocks.append(outro_slide)
 
         slides_content = []
         for idx, block in enumerate(blocks):
@@ -498,8 +524,14 @@ paginate: true
             comment_match = re.search(r"<!--\s*([\s\S]*?)\s*-->", block)
             comment = comment_match.group(1).strip() if comment_match else ""
 
+            # Clean up NARRATION: prefix if present
+            comment = re.sub(r"^(?:NARRATION|Narration):\s*", "", comment, flags=re.IGNORECASE)
+
             # Extract slide content (everything except the comment)
             block_body = re.sub(r"<!--\s*[\s\S]*?\s*-->", "", block).strip()
+
+            # Clean up generic "# Slide X" headers
+            block_body = re.sub(r"^#\s*Slide\s*\d+\s*\n+", "", block_body, flags=re.MULTILINE)
 
             heading = self._extract_heading(block_body)
             bullets = self._extract_bullets(block_body)
@@ -573,6 +605,91 @@ Return only the updated markdown content, no extra text."""
         except Exception as e:
             logger.error(f"Failed to rewrite slide: {e}")
             return current_content
+
+    def regenerate_comment(
+        self,
+        slide_content: str,
+        previous_comment: str | None = None,
+        context_before: str | None = None,
+        context_after: str | None = None,
+        style: str = "professional"
+    ) -> str:
+        """Generate a comment that directly explains the slide content.
+
+        Args:
+            slide_content: The slide markdown to explain
+            previous_comment: Current comment if any
+            context_before: Previous slide content for flow
+            context_after: Next slide content for flow
+            style: Narration style
+
+        Returns:
+            Generated comment text
+        """
+        if not self.client:
+            return previous_comment or "No comment available."
+
+        context_hint = ""
+        if context_before:
+            context_hint += f"\nPrevious slide ended with: {context_before[-200:]}\n"
+        if context_after:
+            context_hint += f"\nNext slide starts with: {context_after[:200]}\n"
+
+        prompt = f"""Generate narration for this slide that DIRECTLY explains what's shown.
+
+SLIDE CONTENT:
+{slide_content}
+{context_hint}
+Style: {style}
+
+RULES:
+1. Read each bullet point and explain it in 1-2 sentences
+2. Total length: 2-3 sentences (40-60 words)
+3. Reference the EXACT content - if it says "1896" mention 1896
+4. NEVER say "Let's", "Here's", "This slide", "Now we'll"
+5. Write as an expert explaining to a colleague
+6. Flow naturally from previous slide's topic if context provided
+
+Return ONLY the comment text, no HTML comment tags."""
+
+        try:
+            response = self.client.messages.create(
+                model=self.deployment,
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text.strip()
+        except Exception as e:
+            logger.error(f"Failed to regenerate comment: {e}")
+            return previous_comment or "No comment available."
+
+    def regenerate_all_comments(
+        self,
+        slides: list[dict],
+        style: str = "professional"
+    ) -> list[str]:
+        """Regenerate comments for all slides with context awareness.
+
+        Args:
+            slides: List of {"content": str, "comment": str} dicts
+            style: Narration style
+
+        Returns:
+            List of new comments
+        """
+        new_comments = []
+        for i, slide in enumerate(slides):
+            context_before = slides[i - 1]["content"] if i > 0 else None
+            context_after = slides[i + 1]["content"] if i < len(slides) - 1 else None
+            new_comment = self.regenerate_comment(
+                slide["content"],
+                slide.get("comment"),
+                context_before,
+                context_after,
+                style
+            )
+            new_comments.append(new_comment)
+        return new_comments
 
     def generate_image(
         self,

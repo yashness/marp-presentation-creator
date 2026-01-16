@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Volume2, Loader2 } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { Volume2, Loader2, Play, Pause } from 'lucide-react'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
 import { API_BASE_URL } from '../lib/constants'
@@ -11,6 +11,27 @@ interface TTSButtonProps {
   onAudioGenerated?: (audioUrl: string) => void
 }
 
+/**
+ * Compute a simple hash matching the backend's first 16 chars of SHA-256.
+ * Uses SubtleCrypto when available, falls back to simple hash.
+ */
+async function computeContentHash(text: string): Promise<string> {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(text)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    return hashHex.slice(0, 16)
+  }
+  // Fallback for environments without SubtleCrypto
+  let hash = 0
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  }
+  return hash.toString(16).padStart(16, '0').slice(0, 16)
+}
+
 export function TTSButton({ presentationId, slideIndex, commentText, onAudioGenerated }: TTSButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [voice, setVoice] = useState('af_bella')
@@ -19,53 +40,58 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [audioAvailable, setAudioAvailable] = useState(false)
-  const [storedHash, setStoredHash] = useState<string | null>(null)
+  const [contentHash, setContentHash] = useState<string | null>(null)
+  const [previewPlaying, setPreviewPlaying] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
 
-  const commentHash = useMemo(() => {
-    let hash = 0
-    for (let i = 0; i < commentText.length; i += 1) {
-      hash = (hash * 31 + commentText.charCodeAt(i)) >>> 0
-    }
-    return `${hash}`
-  }, [commentText])
-
-  const storageKey = presentationId ? `tts:${presentationId}:${slideIndex}` : null
-
+  // Compute content hash when comment changes
   useEffect(() => {
-    if (!storageKey) {
-      setStoredHash(null)
+    if (!commentText?.trim()) {
+      setContentHash(null)
       return
     }
-    setStoredHash(localStorage.getItem(storageKey))
-  }, [storageKey])
+    computeContentHash(commentText).then(setContentHash)
+  }, [commentText])
 
-  useEffect(() => {
-    if (!presentationId) {
+  // Check for existing audio by content hash
+  const checkAudioExists = useCallback(async () => {
+    if (!presentationId || !contentHash) {
       setAudioAvailable(false)
       setAudioUrl(null)
       return
     }
-    const controller = new AbortController()
-    const audioEndpoint = `${API_BASE_URL}/api/tts/${presentationId}/slides/${slideIndex}/audio`
-    fetch(audioEndpoint, { method: 'HEAD', signal: controller.signal })
-      .then((res) => {
-        if (res.ok) {
-          const cacheBustedUrl = `${audioEndpoint}?t=${Date.now()}`
+
+    try {
+      const hashEndpoint = `${API_BASE_URL}/api/tts/${presentationId}/audio/hash/${contentHash}`
+      const response = await fetch(hashEndpoint, { method: 'HEAD' })
+
+      if (response.ok) {
+        setAudioAvailable(true)
+        setAudioUrl(`${hashEndpoint}?t=${Date.now()}`)
+      } else {
+        // Fallback: check old slide-index based audio
+        const legacyEndpoint = `${API_BASE_URL}/api/tts/${presentationId}/slides/${slideIndex}/audio`
+        const legacyResponse = await fetch(legacyEndpoint, { method: 'HEAD' })
+
+        if (legacyResponse.ok) {
           setAudioAvailable(true)
-          setAudioUrl(cacheBustedUrl)
+          setAudioUrl(`${legacyEndpoint}?t=${Date.now()}`)
+          setStatusMessage('Legacy audio found (may not match current content)')
         } else {
           setAudioAvailable(false)
           setAudioUrl(null)
         }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setAudioAvailable(false)
-          setAudioUrl(null)
-        }
-      })
-    return () => controller.abort()
-  }, [presentationId, slideIndex])
+      }
+    } catch {
+      setAudioAvailable(false)
+      setAudioUrl(null)
+    }
+  }, [presentationId, contentHash, slideIndex])
+
+  useEffect(() => {
+    checkAudioExists()
+  }, [checkAudioExists])
 
   const handleGenerateAudio = async () => {
     if (!presentationId || !commentText || !commentText.trim()) {
@@ -73,16 +99,23 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
       return
     }
 
+    if (!contentHash) {
+      setStatusMessage('Computing content hash...')
+      return
+    }
+
     setIsGenerating(true)
     setStatusMessage(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tts/${presentationId}/slides/${slideIndex}`, {
+      // Use hash-based endpoint for stable audio naming
+      const response = await fetch(`${API_BASE_URL}/api/tts/${presentationId}/audio/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           text: commentText,
+          content_hash: contentHash,
           voice: voice,
           speed: speed,
         }),
@@ -99,10 +132,6 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
           : `${resolvedUrl}?t=${Date.now()}`
         setAudioUrl(cacheBustedUrl)
         setAudioAvailable(true)
-        if (storageKey) {
-          localStorage.setItem(storageKey, commentHash)
-          setStoredHash(commentHash)
-        }
         onAudioGenerated?.(resolvedUrl)
         setStatusMessage('Audio ready.')
       } else {
@@ -116,27 +145,77 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
     }
   }
 
+  const handlePreviewVoice = async () => {
+    if (previewPlaying && previewAudioRef.current) {
+      previewAudioRef.current.pause()
+      previewAudioRef.current.currentTime = 0
+      setPreviewPlaying(false)
+      return
+    }
+
+    setPreviewLoading(true)
+    try {
+      const previewUrl = `${API_BASE_URL}/api/tts/preview/${voice}`
+
+      if (!previewAudioRef.current) {
+        previewAudioRef.current = new Audio()
+        previewAudioRef.current.onended = () => setPreviewPlaying(false)
+        previewAudioRef.current.onerror = () => {
+          setPreviewPlaying(false)
+          setStatusMessage('Failed to load voice preview')
+        }
+      }
+
+      previewAudioRef.current.src = previewUrl
+      await previewAudioRef.current.play()
+      setPreviewPlaying(true)
+    } catch (error) {
+      console.error('Failed to play voice preview:', error)
+      setStatusMessage('Failed to play voice preview')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {showOptions && (
         <>
-          <Select
-            value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            className="w-40 text-sm"
-          >
-            <option value="af_bella">AF - Bella</option>
-            <option value="af_heart">AF - Heart</option>
-            <option value="af_nicole">AF - Nicole</option>
-            <option value="af_sarah">AF - Sarah</option>
-            <option value="af_sky">AF - Sky</option>
-            <option value="am_adam">AM - Adam</option>
-            <option value="am_michael">AM - Michael</option>
-            <option value="bf_emma">BF - Emma</option>
-            <option value="bf_isabella">BF - Isabella</option>
-            <option value="bm_george">BM - George</option>
-            <option value="bm_lewis">BM - Lewis</option>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              className="w-36 text-sm"
+            >
+              <option value="af_bella">AF - Bella</option>
+              <option value="af_heart">AF - Heart</option>
+              <option value="af_nicole">AF - Nicole</option>
+              <option value="af_sarah">AF - Sarah</option>
+              <option value="af_sky">AF - Sky</option>
+              <option value="am_adam">AM - Adam</option>
+              <option value="am_michael">AM - Michael</option>
+              <option value="bf_emma">BF - Emma</option>
+              <option value="bf_isabella">BF - Isabella</option>
+              <option value="bm_george">BM - George</option>
+              <option value="bm_lewis">BM - Lewis</option>
+            </Select>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handlePreviewVoice}
+              disabled={previewLoading}
+              className="h-8 w-8 p-0"
+              title="Preview this voice"
+            >
+              {previewLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : previewPlaying ? (
+                <Pause className="w-3.5 h-3.5" />
+              ) : (
+                <Play className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          </div>
           <Select
             value={speed.toString()}
             onChange={(e) => setSpeed(parseFloat(e.target.value))}
@@ -186,10 +265,8 @@ export function TTSButton({ presentationId, slideIndex, commentText, onAudioGene
         <p className="text-xs text-slate-600">{statusMessage}</p>
       )}
       {audioAvailable && (
-        <p
-          className={`text-xs ${storedHash && storedHash !== commentHash ? 'text-amber-600' : 'text-emerald-600'}`}
-        >
-          {storedHash && storedHash !== commentHash ? 'Audio available (comment changed)' : 'Audio available'}
+        <p className="text-xs text-emerald-600">
+          Audio available
         </p>
       )}
     </div>

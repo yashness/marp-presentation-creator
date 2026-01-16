@@ -1,11 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from './ui/button'
-import { Video, Settings } from 'lucide-react'
+import { Video, Settings, Download, RefreshCw } from 'lucide-react'
 import { exportPresentationAsVideo } from '../api/client'
+import { API_BASE_URL } from '../lib/constants'
 
 interface VideoExportButtonProps {
   presentationId: string | null
   presentationTitle: string
+}
+
+interface VideoExistsResponse {
+  exists: boolean
+  video_url?: string
+  file_size?: number
 }
 
 export function VideoExportButton({ presentationId, presentationTitle }: VideoExportButtonProps) {
@@ -14,6 +21,32 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
   const [voice, setVoice] = useState('af_bella')
   const [speed, setSpeed] = useState(1.0)
   const [slideDuration, setSlideDuration] = useState(5.0)
+  const [existingVideo, setExistingVideo] = useState<VideoExistsResponse | null>(null)
+  const [isChecking, setIsChecking] = useState(false)
+
+  const checkVideoExists = useCallback(async () => {
+    if (!presentationId) {
+      setExistingVideo(null)
+      return
+    }
+
+    setIsChecking(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/video/${presentationId}/exists`)
+      if (response.ok) {
+        const data: VideoExistsResponse = await response.json()
+        setExistingVideo(data)
+      }
+    } catch (error) {
+      console.error('Failed to check video status:', error)
+    } finally {
+      setIsChecking(false)
+    }
+  }, [presentationId])
+
+  useEffect(() => {
+    checkVideoExists()
+  }, [checkVideoExists])
 
   const handleExport = async () => {
     if (!presentationId) return
@@ -27,6 +60,8 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
         speed,
         slide_duration: slideDuration
       })
+      // Refresh video status after export
+      await checkVideoExists()
     } catch (error) {
       console.error('Video export failed:', error)
       alert(error instanceof Error ? error.message : 'Video export failed')
@@ -35,18 +70,65 @@ export function VideoExportButton({ presentationId, presentationTitle }: VideoEx
     }
   }
 
+  const handleDownload = () => {
+    if (existingVideo?.video_url) {
+      const link = document.createElement('a')
+      link.href = `${API_BASE_URL}${existingVideo.video_url}`
+      link.download = `${presentationTitle}.mp4`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
   return (
     <div className="relative">
       <div className="flex gap-2">
-        <Button
-          onClick={handleExport}
-          variant="outline"
-          disabled={!presentationId || isExporting}
-          className="flex items-center gap-2"
-        >
-          <Video className="w-4 h-4" />
-          {isExporting ? 'Exporting...' : 'MP4'}
-        </Button>
+        {existingVideo?.exists ? (
+          <>
+            <Button
+              onClick={handleDownload}
+              variant="outline"
+              disabled={!presentationId || isChecking}
+              className="flex items-center gap-2"
+              title={`Download video (${existingVideo.file_size ? formatFileSize(existingVideo.file_size) : ''})`}
+            >
+              <Download className="w-4 h-4" />
+              MP4
+            </Button>
+            <Button
+              onClick={handleExport}
+              variant="ghost"
+              size="icon"
+              disabled={!presentationId || isExporting}
+              className="w-8 h-8"
+              title="Re-export video"
+            >
+              {isExporting ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            disabled={!presentationId || isExporting}
+            className="flex items-center gap-2"
+          >
+            <Video className="w-4 h-4" />
+            {isExporting ? 'Exporting...' : 'MP4'}
+          </Button>
+        )}
         <Button
           onClick={() => setShowSettings(!showSettings)}
           variant="ghost"

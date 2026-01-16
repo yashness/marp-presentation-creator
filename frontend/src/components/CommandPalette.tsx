@@ -3,13 +3,14 @@ import { Sparkles, ImageIcon, X, Loader2, FileImage } from 'lucide-react'
 import { generateImage } from '../api/client'
 import { rewriteSlide } from '../api/client'
 import { useQuery } from '@tanstack/react-query'
+import { API_BASE_URL } from '../lib/constants'
 
 interface Asset {
   id: string
   filename: string
   original_filename: string
   content_type: string
-  size: number
+  size_bytes: number
   url: string
   created_at: string
 }
@@ -31,7 +32,7 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ['assets'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/api/assets')
+      const res = await fetch(`${API_BASE_URL}/api/assets`)
       if (!res.ok) throw new Error('Failed to fetch assets')
       return res.json()
     },
@@ -106,7 +107,8 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
   }
 
   const handleInsertAsset = (asset: Asset) => {
-    const markdown = `\n\n![${asset.original_filename}](${asset.url})\n\n`
+    const fullUrl = `${API_BASE_URL}${asset.url}`
+    const markdown = `\n\n![${asset.original_filename}](${fullUrl})\n\n`
     onInsertText(markdown)
     handleClose()
   }
@@ -148,9 +150,9 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
             <div className="space-y-2">
               <button
                 onClick={() => setMode('ai-text')}
-                className="w-full p-4 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-all flex items-start gap-4"
+                className="w-full p-4 rounded-lg border border-secondary-200 hover:border-primary-300 hover:bg-primary-50 transition-all flex items-start gap-4"
               >
-                <Sparkles className="w-6 h-6 text-purple-500 flex-shrink-0 mt-1" />
+                <Sparkles className="w-6 h-6 text-primary-600 flex-shrink-0 mt-1" />
                 <div className="flex-1 text-left">
                   <div className="font-medium text-gray-900">Generate or Rewrite Text</div>
                   <div className="text-sm text-gray-500">
@@ -258,7 +260,7 @@ export function CommandPalette({ isOpen, onClose, onInsertText, currentSlideCont
                       <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
                         {asset.content_type.startsWith('image/') ? (
                           <img
-                            src={asset.url}
+                            src={`${API_BASE_URL}${asset.url}`}
                             alt={asset.original_filename}
                             className="w-full h-full object-cover"
                           />

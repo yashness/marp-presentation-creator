@@ -1,9 +1,45 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { X, Sparkles, Edit, Check, Trash2, GripVertical } from 'lucide-react'
+import { X, Sparkles, Edit, Check, Trash2, GripVertical, RotateCcw } from 'lucide-react'
 import type { PresentationOutline, SlideOutline } from '../api/client'
 import { generateOutline, generateContent } from '../api/client'
+
+const STORAGE_KEY = 'marp-ai-generation-state'
+
+interface SavedState {
+  step: 'input' | 'outline' | 'generating'
+  description: string
+  slideCount: string
+  subtopicCount: string
+  audience: string
+  flavor: string
+  narrationInstructions: string
+  commentMaxRatio: string
+  outline: PresentationOutline | null
+  timestamp: number
+}
+
+function loadSavedState(): Partial<SavedState> | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (!saved) return null
+    const state = JSON.parse(saved) as SavedState
+    // Only restore if saved within last hour
+    if (Date.now() - state.timestamp > 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    return state
+  } catch {
+    return null
+  }
+}
+
+function clearSavedState() {
+  localStorage.removeItem(STORAGE_KEY)
+}
 
 interface AIGenerationModalProps {
   onClose: () => void
@@ -11,18 +47,61 @@ interface AIGenerationModalProps {
 }
 
 export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProps) {
-  const [step, setStep] = useState<'input' | 'outline' | 'generating'>('input')
-  const [description, setDescription] = useState('')
-  const [slideCount, setSlideCount] = useState('')
-  const [subtopicCount, setSubtopicCount] = useState('')
-  const [audience, setAudience] = useState('')
-  const [flavor, setFlavor] = useState('')
-  const [narrationInstructions, setNarrationInstructions] = useState('')
-  const [commentMaxRatio, setCommentMaxRatio] = useState('')
-  const [outline, setOutline] = useState<PresentationOutline | null>(null)
+  const savedState = loadSavedState()
+  const [step, setStep] = useState<'input' | 'outline' | 'generating'>(savedState?.step === 'generating' ? 'outline' : (savedState?.step || 'input'))
+  const [description, setDescription] = useState(savedState?.description || '')
+  const [slideCount, setSlideCount] = useState(savedState?.slideCount || '')
+  const [subtopicCount, setSubtopicCount] = useState(savedState?.subtopicCount || '')
+  const [audience, setAudience] = useState(savedState?.audience || '')
+  const [flavor, setFlavor] = useState(savedState?.flavor || '')
+  const [narrationInstructions, setNarrationInstructions] = useState(savedState?.narrationInstructions || '')
+  const [commentMaxRatio, setCommentMaxRatio] = useState(savedState?.commentMaxRatio || '')
+  const [outline, setOutline] = useState<PresentationOutline | null>(savedState?.outline || null)
   const [editingSlide, setEditingSlide] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [hasRestoredState, setHasRestoredState] = useState(!!savedState?.outline)
+
+  // Save state to localStorage whenever it changes
+  const saveState = useCallback(() => {
+    const state: SavedState = {
+      step,
+      description,
+      slideCount,
+      subtopicCount,
+      audience,
+      flavor,
+      narrationInstructions,
+      commentMaxRatio,
+      outline,
+      timestamp: Date.now(),
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }, [step, description, slideCount, subtopicCount, audience, flavor, narrationInstructions, commentMaxRatio, outline])
+
+  useEffect(() => {
+    saveState()
+  }, [saveState])
+
+  const handleClose = useCallback(() => {
+    clearSavedState()
+    onClose()
+  }, [onClose])
+
+  const handleClearAndRestart = useCallback(() => {
+    clearSavedState()
+    setStep('input')
+    setDescription('')
+    setSlideCount('')
+    setSubtopicCount('')
+    setAudience('')
+    setFlavor('')
+    setNarrationInstructions('')
+    setCommentMaxRatio('')
+    setOutline(null)
+    setHasRestoredState(false)
+    setError(null)
+  }, [])
 
   const handleGenerateOutline = async () => {
     if (!description.trim()) {
@@ -65,6 +144,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
 
     try {
       const content = await generateContent(outline)
+      clearSavedState()
       onGenerate(content, outline.title)
       onClose()
     } catch (err) {
@@ -111,11 +191,22 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        onClick={handleClose}
       >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="bg-white dark:bg-neutral-950 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-neutral-200 dark:border-neutral-800"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary-100 text-primary-700 border border-primary-200">
@@ -130,10 +221,30 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="w-5 h-5" />
           </Button>
         </div>
+
+        {/* Restored state banner */}
+        {hasRestoredState && (
+          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-primary-50 border border-primary-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-primary-600" />
+              <span className="text-sm text-primary-800">
+                Your previous AI generation session was restored.
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearAndRestart}
+              className="text-primary-700 hover:text-primary-900 hover:bg-primary-100"
+            >
+              Start Fresh
+            </Button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-6">
           {step === 'input' && (
@@ -354,7 +465,7 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
         </div>
 
         <div className="px-6 py-4 border-t border-slate-200 flex justify-between">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
 
@@ -379,7 +490,8 @@ export function AIGenerationModal({ onClose, onGenerate }: AIGenerationModalProp
             )}
           </div>
         </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

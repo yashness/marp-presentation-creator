@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Presentation, Folder } from '../api/client'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -6,7 +6,9 @@ import { PresentationItem } from './PresentationItem'
 import { UserMenu } from './UserMenu'
 import { AssetManagerModal } from './AssetManagerModal'
 import { FolderTree } from './FolderTree'
-import { Plus, Presentation as PresentationIcon, Sparkles, Image } from 'lucide-react'
+import { Plus, Presentation as PresentationIcon, Sparkles, Image, ArrowUpDown } from 'lucide-react'
+
+type SortOrder = 'newest' | 'oldest' | 'name'
 
 interface PresentationSidebarProps {
   presentations: Presentation[]
@@ -46,14 +48,46 @@ export function PresentationSidebar({
   onMovePresentation,
 }: PresentationSidebarProps) {
   const [isAssetManagerOpen, setIsAssetManagerOpen] = useState(false)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
 
-  const filteredPresentations = selectedFolderId
-    ? presentations.filter(p => p.folder_id === selectedFolderId)
-    : presentations
+  const sortedPresentations = useMemo(() => {
+    const filtered = selectedFolderId
+      ? presentations.filter(p => p.folder_id === selectedFolderId)
+      : presentations
+
+    return [...filtered].sort((a, b) => {
+      switch (sortOrder) {
+        case 'newest':
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        case 'oldest':
+          return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+        case 'name':
+          return a.title.localeCompare(b.title)
+        default:
+          return 0
+      }
+    })
+  }, [presentations, selectedFolderId, sortOrder])
+
+  const cycleSortOrder = () => {
+    setSortOrder(current => {
+      switch (current) {
+        case 'newest': return 'oldest'
+        case 'oldest': return 'name'
+        case 'name': return 'newest'
+      }
+    })
+  }
+
+  const sortLabel = {
+    newest: 'Newest first',
+    oldest: 'Oldest first',
+    name: 'A-Z'
+  }[sortOrder]
 
   return (
     <div className="h-full bg-white rounded-xl border border-slate-200 flex flex-col shadow-lg overflow-hidden">
-      <div className="p-6 border-b border-slate-200 space-y-3 bg-gradient-to-b from-white to-slate-50">
+      <div className="p-6 border-b border-secondary-200 space-y-3 bg-white">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 mb-3">
           <div className="p-2 bg-primary-100 rounded-lg">
             <PresentationIcon className="w-5 h-5 text-primary-600" />
@@ -99,8 +133,23 @@ export function PresentationSidebar({
           />
         </div>
 
+        <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between bg-white">
+          <span className="text-xs text-slate-500">
+            {sortedPresentations.length} presentation{sortedPresentations.length !== 1 ? 's' : ''}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={cycleSortOrder}
+            className="text-xs text-slate-500 hover:text-slate-700 h-6 px-2"
+          >
+            <ArrowUpDown className="w-3 h-3 mr-1" />
+            {sortLabel}
+          </Button>
+        </div>
+
         <ul className="p-3 space-y-2">
-          {filteredPresentations.map(p => (
+          {sortedPresentations.map(p => (
             <PresentationItem
               key={p.id}
               presentation={p}

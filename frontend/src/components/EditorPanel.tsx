@@ -2,21 +2,23 @@ import { useEffect, useMemo, useState, useCallback, useRef, useTransition } from
 import Editor from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 import type { Theme, ThemeCreatePayload } from '../api/client'
+import { rewriteSlide, regenerateComment, regenerateAllComments } from '../api/client'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
 import { VideoExportButton } from './VideoExportButton'
 import { AutosaveStatusIndicator } from './AutosaveStatusIndicator'
 import { TTSButton } from './TTSButton'
-import { ImageGenerationButton } from './ImageGenerationButton'
+import { SlideImageButton } from './SlideImageButton'
 import { CommandPalette } from './CommandPalette'
 import { ThemeCreatorModal } from './ThemeCreatorModal'
-import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette, Volume2 } from 'lucide-react'
+import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
 import type { SlideBlock } from '../lib/markdown'
 import { DEFAULT_THEME, DEFAULT_TITLE } from '../lib/constants'
 import { DEFAULT_THEME_TEMPLATE } from '../lib/themeDefaults'
+import { AnimatePresence, motion } from 'motion/react'
 
 interface EditorPanelProps {
   title: string
@@ -84,6 +86,16 @@ export function EditorPanel({
   const [parsedFrontmatter, setParsedFrontmatter] = useState<Record<string, string>>({})
   const lastSerializedRef = useRef<string | null>(null)
   const updateTimeoutRef = useRef<number | null>(null)
+
+  // AI Rewrite state
+  const [rewriteSlideIndex, setRewriteSlideIndex] = useState<number | null>(null)
+  const [rewriteInstruction, setRewriteInstruction] = useState('')
+  const [rewriteLoading, setRewriteLoading] = useState(false)
+  const [rewriteCommentIndex, setRewriteCommentIndex] = useState<number | null>(null)
+  const [rewriteCommentInstruction, setRewriteCommentInstruction] = useState('')
+  const [rewriteCommentLoading, setRewriteCommentLoading] = useState(false)
+  const [regenerateAllLoading, setRegenerateAllLoading] = useState(false)
+  const [rewriteLength, setRewriteLength] = useState<'short' | 'medium' | 'long'>('medium')
 
   // Memoize parsed slides to avoid re-parsing on every render
   const parsedContent = useMemo(() => {
@@ -230,6 +242,32 @@ export function EditorPanel({
     setCurrentSlideIndex(slides.length)
   }
 
+  const handleInsertSlide = useCallback((afterIndex: number) => {
+    const newSlide = {
+      id: `slide-${Date.now()}`,
+      content: `# New Slide\n\n- Add your content here`,
+      comment: '',
+    }
+    const nextSlides = [
+      ...slides.slice(0, afterIndex + 1),
+      newSlide,
+      ...slides.slice(afterIndex + 1),
+    ]
+    updateContent(nextSlides)
+    setEditableSlides(nextSlides)
+    setCurrentSlideIndex(afterIndex + 1)
+  }, [slides, updateContent])
+
+  const handleDeleteSlide = useCallback((index: number) => {
+    if (slides.length === 1) return
+    const nextSlides = slides.filter((_, i) => i !== index)
+    updateContent(nextSlides)
+    setEditableSlides(nextSlides)
+    if (currentSlideIndex >= nextSlides.length) {
+      setCurrentSlideIndex(Math.max(0, nextSlides.length - 1))
+    }
+  }, [slides, updateContent, currentSlideIndex])
+
   const toggleCommentVisibility = (id: string) => {
     setOpenComments(prev => ({ ...prev, [id]: !prev[id] }))
   }
@@ -243,6 +281,82 @@ export function EditorPanel({
       onContentChange(content + '\n\n' + text)
     }
   }, [mode, currentSlideIndex, slides, content, onContentChange, handleSlideChange])
+
+  const handleAIRewriteSlide = useCallback(async (index: number) => {
+    if (!rewriteInstruction.trim()) return
+    setRewriteLoading(true)
+    try {
+      const slide = slides[index]
+      const lengthHint = rewriteLength === 'short' ? ' Keep content brief and concise.' :
+                         rewriteLength === 'long' ? ' Expand with more detail and examples.' : ''
+      const newContent = await rewriteSlide(slide.content, rewriteInstruction + lengthHint)
+      handleSlideChange(index, newContent)
+      setRewriteSlideIndex(null)
+      setRewriteInstruction('')
+    } catch (error) {
+      console.error('Failed to rewrite slide:', error)
+    } finally {
+      setRewriteLoading(false)
+    }
+  }, [slides, rewriteInstruction, rewriteLength, handleSlideChange])
+
+  const handleAIRewriteComment = useCallback(async (index: number) => {
+    setRewriteCommentLoading(true)
+    try {
+      const slide = slides[index]
+      const contextBefore = index > 0 ? slides[index - 1].content : undefined
+      const contextAfter = index < slides.length - 1 ? slides[index + 1].content : undefined
+      const style = rewriteCommentInstruction.trim() || 'professional'
+      const newComment = await regenerateComment(
+        slide.content,
+        slide.comment,
+        contextBefore,
+        contextAfter,
+        style
+      )
+      handleCommentChange(index, newComment)
+      setRewriteCommentIndex(null)
+      setRewriteCommentInstruction('')
+    } catch (error) {
+      console.error('Failed to regenerate comment:', error)
+    } finally {
+      setRewriteCommentLoading(false)
+    }
+  }, [slides, rewriteCommentInstruction, handleCommentChange])
+
+  const handleRegenerateAllComments = useCallback(async () => {
+    if (!confirm('Regenerate all comments? This will replace existing narrations.')) return
+    setRegenerateAllLoading(true)
+    try {
+      const slideData = slides.map(s => ({ content: s.content, comment: s.comment }))
+      const newComments = await regenerateAllComments(slideData, 'professional')
+      const updatedSlides = slides.map((slide, i) => ({
+        ...slide,
+        comment: newComments[i] || slide.comment
+      }))
+      setEditableSlides(updatedSlides)
+      updateContent(updatedSlides, normalizedFrontmatter)
+    } catch (error) {
+      console.error('Failed to regenerate all comments:', error)
+    } finally {
+      setRegenerateAllLoading(false)
+    }
+  }, [slides, normalizedFrontmatter, updateContent])
+
+  const handleQuickRewrite = useCallback(async (index: number, instruction: string) => {
+    setRewriteLoading(true)
+    try {
+      const slide = slides[index]
+      const lengthHint = rewriteLength === 'short' ? ' Keep content brief.' :
+                         rewriteLength === 'long' ? ' Add more detail.' : ''
+      const newContent = await rewriteSlide(slide.content, instruction + lengthHint)
+      handleSlideChange(index, newContent)
+    } catch (error) {
+      console.error('Failed to rewrite slide:', error)
+    } finally {
+      setRewriteLoading(false)
+    }
+  }, [slides, rewriteLength, handleSlideChange])
 
   const updateThemeDraft = (section: 'colors' | 'typography' | 'spacing', key: string, value: string) => {
     setThemeDraft(prev => ({
@@ -313,7 +427,7 @@ export function EditorPanel({
     <div className="flex-1 flex flex-col gap-4 p-6 overflow-hidden bg-white rounded-xl border border-slate-200 shadow-lg h-full">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 grid place-items-center border border-primary-300 shadow-sm">
+          <div className="h-12 w-12 rounded-lg bg-primary-100 text-primary-700 grid place-items-center border border-primary-200 shadow-sm">
             <LayoutTemplate className="w-6 h-6" />
           </div>
           <div>
@@ -368,13 +482,22 @@ export function EditorPanel({
               </option>
             ))}
           </Select>
-          <div className="flex items-center gap-2 justify-end">
-            <Button onClick={() => setCommandPaletteOpen(true)} size="sm" variant="secondary" className="whitespace-nowrap gap-2">
+          <div className="flex items-center gap-2 justify-end flex-wrap">
+            <Button onClick={() => setCommandPaletteOpen(true)} size="sm" variant="outline" className="whitespace-nowrap gap-2">
               <Sparkles className="w-4 h-4" />
               AI commands
             </Button>
-            <ImageGenerationButton />
-            <Button onClick={handleAddSlide} size="sm" className="whitespace-nowrap">
+            <Button
+              onClick={handleRegenerateAllComments}
+              size="sm"
+              variant="outline"
+              disabled={regenerateAllLoading || slides.length === 0}
+              className="whitespace-nowrap gap-2"
+            >
+              {regenerateAllLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Regen Comments
+            </Button>
+            <Button onClick={handleAddSlide} size="sm" className="whitespace-nowrap gap-2">
               <MessageSquarePlus className="w-4 h-4" />
               Add slide
             </Button>
@@ -394,9 +517,9 @@ export function EditorPanel({
 
       <div className="flex flex-col gap-4 flex-1 overflow-hidden">
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex-1 min-w-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className="flex rounded-md border border-slate-200 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-secondary-200">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex rounded-md border border-secondary-200 overflow-hidden">
                 <Button
                   variant={mode === 'blocks' ? 'default' : 'ghost'}
                   size="sm"
@@ -409,7 +532,7 @@ export function EditorPanel({
                   variant={mode === 'raw' ? 'secondary' : 'ghost'}
                   size="sm"
                   onClick={() => setMode('raw')}
-                  className="rounded-none border-l border-slate-200"
+                  className="rounded-none border-l border-secondary-200"
                 >
                   Editor
                 </Button>
@@ -420,12 +543,8 @@ export function EditorPanel({
                 onInsertText={handleInsertText}
                 currentSlideContent={slides[currentSlideIndex]?.content}
               />
-              <Button variant="outline" size="sm" onClick={() => setCommandPaletteOpen(true)} className="gap-2">
-                <Sparkles className="w-4 h-4" />
-                Open commands
-              </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <AutosaveStatusIndicator status={autosaveStatus} />
               <ExportButtonGroup
                 selectedId={selectedId}
@@ -462,54 +581,229 @@ export function EditorPanel({
           ) : (
             <div className="divide-y divide-slate-100 max-h-[calc(100%-3.5rem)] overflow-y-auto">
               {slides.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  ref={(node) => { slideRefs.current[slide.id] = node }}
-                  className={`p-4 space-y-3 ${currentSlideIndex === index ? 'bg-primary-50/40' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-primary-700">Slide {index + 1}</span>
-                      <span className="text-[11px] text-slate-500">ID: {slide.id.slice(0, 8)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={currentSlideIndex === index ? 'default' : 'ghost'}
-                        onClick={() => {
-                          setCurrentSlideIndex(index)
-                          slideRefs.current[slide.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                        }}
-                        className="text-xs"
+                <div key={slide.id}>
+                  {/* Insert button before first slide */}
+                  {index === 0 && (
+                    <div className="flex items-center justify-center py-1 group">
+                      <button
+                        onClick={() => handleInsertSlide(-1)}
+                        className="flex items-center gap-1 px-3 py-1 text-xs text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
                       >
-                        Focus
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleCommentVisibility(slide.id)}
-                        className="text-xs"
-                      >
-                        {openComments[slide.id] ? 'Hide notes' : 'Add comment'}
-                      </Button>
+                        <Plus className="w-3 h-3" />
+                        <span>Insert slide above</span>
+                      </button>
                     </div>
-                  </div>
+                  )}
+                  <div
+                    ref={(node) => { slideRefs.current[slide.id] = node }}
+                    className={`p-4 space-y-3 ${currentSlideIndex === index ? 'bg-primary-50/40' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-primary-700">Slide {index + 1}</span>
+                        <span className="text-[11px] text-slate-500">ID: {slide.id.slice(0, 8)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRewriteSlideIndex(rewriteSlideIndex === index ? null : index)}
+                            className="text-xs gap-1 text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-300"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            AI Rewrite
+                          </Button>
+                          <AnimatePresence>
+                            {rewriteSlideIndex === index && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                className="absolute right-0 top-full mt-2 z-50 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
+                              >
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="h-8 w-8 rounded-lg bg-primary-100 text-primary-700 grid place-items-center">
+                                    <Wand2 className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">AI Rewrite Slide</p>
+                                    <p className="text-xs text-slate-500">Describe how to change this slide</p>
+                                  </div>
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder="e.g., make it more concise, add examples..."
+                                  value={rewriteInstruction}
+                                  onChange={(e) => setRewriteInstruction(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAIRewriteSlide(index)}
+                                  className="w-full border border-secondary-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                  autoFocus
+                                />
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                  {['Make concise', 'Add examples', 'Simplify', 'More detail'].map((preset) => (
+                                    <button
+                                      key={preset}
+                                      onClick={() => { setRewriteInstruction(preset); handleQuickRewrite(index, preset) }}
+                                      className="px-2 py-1 text-xs bg-secondary-100 hover:bg-primary-100 text-secondary-600 hover:text-primary-700 rounded-md transition-colors"
+                                    >
+                                      {preset}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2 mb-3">
+                                  <span className="text-xs text-secondary-500 self-center">Length:</span>
+                                  {(['short', 'medium', 'long'] as const).map((len) => (
+                                    <button
+                                      key={len}
+                                      onClick={() => setRewriteLength(len)}
+                                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                                        rewriteLength === len
+                                          ? 'bg-primary-600 text-white'
+                                          : 'bg-secondary-100 text-secondary-600 hover:bg-primary-100'
+                                      }`}
+                                    >
+                                      {len.charAt(0).toUpperCase() + len.slice(1)}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => { setRewriteSlideIndex(null); setRewriteInstruction('') }}
+                                    className="flex-1"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAIRewriteSlide(index)}
+                                    disabled={rewriteLoading || !rewriteInstruction.trim()}
+                                    className="flex-1 bg-primary-700 hover:bg-primary-800"
+                                  >
+                                    {rewriteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Rewrite'}
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                        <SlideImageButton
+                          slideContent={slide.content}
+                          onImageInsert={(markdown) => handleSlideChange(index, slide.content + '\n\n' + markdown)}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleCommentVisibility(slide.id)}
+                          className="text-xs"
+                        >
+                          {openComments[slide.id] ? 'Hide comments' : 'Add comment'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteSlide(index)}
+                          disabled={slides.length === 1}
+                          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                   {openComments[slide.id] && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-                      <label className="text-xs font-semibold text-slate-700">Slide comment</label>
+                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-lg bg-primary-100 text-primary-600 grid place-items-center">
+                            <MessageSquarePlus className="w-4 h-4" />
+                          </div>
+                          <label className="text-sm font-semibold text-primary-800">Slide comment</label>
+                        </div>
+                        <div className="relative">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setRewriteCommentIndex(rewriteCommentIndex === index ? null : index)}
+                            className="text-xs gap-1 text-primary-600 border-primary-200 hover:bg-primary-50 hover:border-primary-300"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            AI Generate
+                          </Button>
+                          <AnimatePresence>
+                            {rewriteCommentIndex === index && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                className="absolute right-0 top-full mt-2 z-50 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
+                              >
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="h-8 w-8 rounded-lg bg-primary-100 text-primary-600 grid place-items-center">
+                                    <RefreshCw className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">Generate Comment</p>
+                                    <p className="text-xs text-slate-500">AI will create narration based on slide content</p>
+                                  </div>
+                                </div>
+                                <input
+                                  type="text"
+                                  placeholder="Style: e.g., conversational, formal, enthusiastic..."
+                                  value={rewriteCommentInstruction}
+                                  onChange={(e) => setRewriteCommentInstruction(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAIRewriteComment(index)}
+                                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                  autoFocus
+                                />
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                  {['Conversational', 'Professional', 'Enthusiastic', 'Concise'].map((preset) => (
+                                    <button
+                                      key={preset}
+                                      onClick={() => { setRewriteCommentInstruction(preset); handleAIRewriteComment(index) }}
+                                      className="px-2 py-1 text-xs bg-slate-100 hover:bg-primary-100 text-secondary-600 hover:text-primary-700 rounded-md transition-colors"
+                                    >
+                                      {preset}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => { setRewriteCommentIndex(null); setRewriteCommentInstruction('') }}
+                                    className="flex-1"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAIRewriteComment(index)}
+                                    disabled={rewriteCommentLoading}
+                                    className="flex-1 bg-primary-600 hover:bg-primary-700"
+                                  >
+                                    {rewriteCommentLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate'}
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
                       <textarea
-                        className="w-full border border-slate-200 rounded-md p-2 text-sm mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                        className="w-full border-2 border-primary-200 rounded-lg p-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:border-primary-400"
                         rows={3}
                         value={slide.comment}
                         onChange={(e) => handleCommentChange(index, e.target.value)}
                         placeholder="Add presenter notes or audio prompt"
                       />
-                      <div className="pt-2">
+                      <div className="pt-3">
                         <TTSButton presentationId={selectedId} slideIndex={index} commentText={slide.comment || ''} />
                       </div>
                     </div>
                   )}
-                  <div className="rounded-md border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500">
+                  <div className="rounded-md border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500 px-4">
                     <Editor
                       height="180px"
                       defaultLanguage="markdown"
@@ -542,9 +836,22 @@ export function EditorPanel({
                           verticalScrollbarSize: 6,
                           horizontalScrollbarSize: 6,
                         },
-                        padding: { top: 8, bottom: 8 },
+                        padding: { top: 16, bottom: 16 },
                       }}
                     />
+                  </div>
+                  </div>
+
+                  {/* Insert button between slides */}
+                  <div className="flex items-center justify-center py-2 group relative">
+                    <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <button
+                      onClick={() => handleInsertSlide(index)}
+                      className="relative z-10 flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-slate-400 bg-white border border-transparent hover:text-primary-600 hover:border-primary-300 hover:bg-primary-50 rounded-full transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Insert slide</span>
+                    </button>
                   </div>
                 </div>
               ))}

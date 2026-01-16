@@ -1,17 +1,32 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import type { Presentation, Folder } from './api/client'
 import { getPreview, fetchFolders, createFolder, updateFolder, deleteFolder } from './api/client'
-import { PresentationSidebar } from './components/PresentationSidebar'
 import { EditorPanel } from './components/EditorPanel'
 import { PreviewPanel } from './components/PreviewPanel'
 import { AIGenerationModal } from './components/AIGenerationModal'
+import { AssetManagerModal } from './components/AssetManagerModal'
 import { ToastContainer, useToast } from './components/ui/toast'
 import { usePresentations } from './hooks/usePresentations'
 import { usePresentationEditor } from './hooks/usePresentationEditor'
 import { useApiHandler } from './hooks/useApiHandler'
 import { useThemes } from './hooks/useThemes'
 import { getMostRecentPresentation, extractIdFromSlug, updateBrowserUrl, getSlugFromUrl } from './lib/utils'
+import { cn } from './lib/utils'
 import { AUTOSAVE_DEBOUNCE_MS } from './lib/constants'
+import { AnimatePresence, motion } from 'motion/react'
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconPlus,
+  IconSparkles,
+  IconDownload,
+  IconPhoto,
+  IconSearch,
+  IconFolder,
+  IconDotsVertical,
+  IconTrash,
+  IconCopy,
+} from '@tabler/icons-react'
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -19,8 +34,11 @@ function App() {
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [showAIModal, setShowAIModal] = useState(false)
+  const [showAssetModal, setShowAssetModal] = useState(false)
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const { toasts, dismissToast } = useToast()
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
@@ -42,6 +60,7 @@ function App() {
     if (result && editor.selectedId === id) {
       editor.clearSelection()
     }
+    setMenuOpenId(null)
   }, [handleApiCall, remove, editor.selectedId, editor.clearSelection])
 
   const handleSelect = useCallback(async (pres: Presentation) => {
@@ -140,6 +159,26 @@ function App() {
     autoSelectRef.current = false
   }, [editor])
 
+  const handleNewPresentation = useCallback(() => {
+    editor.clearSelection()
+    setHasUserInput(false)
+    setAutosaveEnabled(true)
+    autoSelectRef.current = false
+    window.history.replaceState({}, '', '/slides/new')
+  }, [editor])
+
+  const handleDuplicate = useCallback(async (id: string) => {
+    const result = await handleApiCall(
+      () => duplicate(id),
+      'Presentation duplicated',
+      'Failed to duplicate presentation',
+    )
+    if (result) {
+      editor.selectPresentation(result)
+    }
+    setMenuOpenId(null)
+  }, [handleApiCall, duplicate, editor])
+
   useEffect(() => {
     if (!autosaveEnabled || !hasUserInput || !canAutosave) return
     const timeout = setTimeout(performAutosave, AUTOSAVE_DEBOUNCE_MS)
@@ -152,13 +191,12 @@ function App() {
     }
   }, [hasUserInput, autosaveStatus])
 
-  // Load folders on mount
   useEffect(() => {
     fetchFolders(undefined, true).then(setFolders).catch(console.error)
   }, [])
 
-  // Folder handlers
-  const handleCreateFolder = useCallback(async (name: string, parentId: string | null) => {
+  // Folder handlers - prefixed with _ as they're defined for future use
+  const _handleCreateFolder = useCallback(async (name: string, parentId: string | null) => {
     const result = await handleApiCall(
       () => createFolder({ name, parent_id: parentId }),
       'Folder created',
@@ -169,7 +207,7 @@ function App() {
     }
   }, [handleApiCall])
 
-  const handleUpdateFolder = useCallback(async (id: string, name: string) => {
+  const _handleUpdateFolder = useCallback(async (id: string, name: string) => {
     const result = await handleApiCall(
       () => updateFolder(id, { name }),
       'Folder renamed',
@@ -180,7 +218,7 @@ function App() {
     }
   }, [handleApiCall])
 
-  const handleDeleteFolder = useCallback(async (id: string) => {
+  const _handleDeleteFolder = useCallback(async (id: string) => {
     const result = await handleApiCall(
       () => deleteFolder(id),
       'Folder deleted',
@@ -194,23 +232,28 @@ function App() {
     }
   }, [handleApiCall, selectedFolderId])
 
-  const handleMovePresentation = useCallback(async (presentationId: string, folderId: string | null) => {
-    await handleApiCall(
-      () => update(presentationId, undefined, undefined, undefined, folderId),
-      'Presentation moved',
-      'Failed to move presentation'
-    )
-  }, [handleApiCall, update])
+  // Export handlers for potential use (they're defined above with _ prefix)
+  void _handleCreateFolder
+  void _handleUpdateFolder
+  void _handleDeleteFolder
 
-  // On initial load: if URL has /slides/<slug-uuid> try to select that; else pick most recent.
   useEffect(() => {
     if (!autoSelectRef.current || editor.selectedId || presentations.length === 0) return
     autoSelectPresentation()
   }, [presentations, editor.selectedId, autoSelectPresentation])
 
+  const filteredPresentations = useMemo(() => {
+    let list = presentations
+    if (selectedFolderId) {
+      list = list.filter(p => p.folder_id === selectedFolderId)
+    }
+    return list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+  }, [presentations, selectedFolderId])
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900">
+    <div className="h-screen w-screen bg-secondary-50 dark:bg-secondary-900 flex overflow-hidden">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       {showAIModal && (
         <AIGenerationModal
           onClose={() => setShowAIModal(false)}
@@ -218,100 +261,324 @@ function App() {
         />
       )}
 
-      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm px-8 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold text-lg grid place-items-center shadow-lg">
-            MP
+      <AssetManagerModal
+        isOpen={showAssetModal}
+        onClose={() => setShowAssetModal(false)}
+      />
+
+      {/* Collapsible Presentations Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{ width: sidebarCollapsed ? 64 : 280 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 shadow-lg relative z-20"
+      >
+        {/* Logo & Collapse Toggle */}
+        <div className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3">
+          <AnimatePresence mode="wait">
+            {!sidebarCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="flex items-center gap-2"
+              >
+                <div className="h-9 w-9 rounded-lg bg-primary-700 text-white font-bold text-xs grid place-items-center shadow-sm">
+                  MP
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase tracking-widest font-medium text-slate-400">Marp</span>
+                  <span className="text-sm font-bold text-primary-700 dark:text-primary-400">Builder</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="h-8 w-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-500 transition-colors"
+          >
+            {sidebarCollapsed ? <IconChevronRight className="w-4 h-4" /> : <IconChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Quick Actions */}
+        <div className={cn(
+          "border-b border-slate-200 dark:border-slate-800 p-2 space-y-1",
+          sidebarCollapsed && "px-2"
+        )}>
+          <button
+            onClick={handleNewPresentation}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-primary-500 hover:bg-primary-600 text-white shadow-md hover:shadow-lg",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconPlus className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">New</span>}
+          </button>
+          <button
+            onClick={() => setShowAIModal(true)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-primary-600 hover:bg-primary-700 text-white shadow-sm hover:shadow",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconSparkles className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">AI Generate</span>}
+          </button>
+          <button
+            onClick={() => setShowAssetModal(true)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition-all",
+              "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300",
+              sidebarCollapsed && "px-0 justify-center"
+            )}
+          >
+            <IconPhoto className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm">Assets</span>}
+          </button>
+        </div>
+
+        {/* Search */}
+        {!sidebarCollapsed && (
+          <div className="p-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="relative">
+              <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-wider font-medium text-slate-500">Marp Presentation</p>
-            <p className="text-lg font-bold text-primary-700">Builder</p>
+        )}
+
+        {/* Folders */}
+        {!sidebarCollapsed && (
+          <div className="px-2 py-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-1 text-xs text-slate-500 px-2 mb-1">
+              <IconFolder className="w-3 h-3" />
+              <span>Folders</span>
+            </div>
+            <button
+              onClick={() => setSelectedFolderId(null)}
+              className={cn(
+                "w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors",
+                !selectedFolderId ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+              )}
+            >
+              All presentations
+            </button>
+            {folders.map(folder => (
+              <button
+                key={folder.id}
+                onClick={() => setSelectedFolderId(folder.id)}
+                className={cn(
+                  "w-full text-left px-2 py-1.5 text-sm rounded-md transition-colors",
+                  selectedFolderId === folder.id ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+                )}
+              >
+                {folder.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Presentations List */}
+        <div className="flex-1 overflow-y-auto">
+          {sidebarCollapsed ? (
+            <div className="p-2 space-y-1">
+              {filteredPresentations.slice(0, 10).map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelect(p)}
+                  className={cn(
+                    "w-full h-10 rounded-lg grid place-items-center transition-colors",
+                    editor.selectedId === p.id
+                      ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600"
+                  )}
+                  title={p.title}
+                >
+                  <span className="text-xs font-bold">{p.title.charAt(0).toUpperCase()}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-2 space-y-1">
+              {filteredPresentations.map(p => (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "group relative flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all",
+                    editor.selectedId === p.id
+                      ? "bg-primary-100 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent"
+                  )}
+                  onClick={() => handleSelect(p)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "text-sm font-medium truncate",
+                      editor.selectedId === p.id ? "text-primary-800 dark:text-primary-300" : "text-slate-800 dark:text-slate-200"
+                    )}>
+                      {p.title || 'Untitled'}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {new Date(p.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenuOpenId(menuOpenId === p.id ? null : p.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 grid place-items-center transition-all"
+                    >
+                      <IconDotsVertical className="w-4 h-4 text-slate-500" />
+                    </button>
+                    {menuOpenId === p.id && (
+                      <div className="absolute right-0 top-8 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50 min-w-[140px]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDuplicate(p.id)
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                          <IconCopy className="w-4 h-4" />
+                          Duplicate
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(p.id)
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Status Bar */}
+        <div className="h-12 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center px-3">
+          <div className={cn(
+            "flex items-center gap-2",
+            sidebarCollapsed && "justify-center"
+          )}>
+            <div className={cn(
+              "h-2 w-2 rounded-full shrink-0",
+              autosaveStatus === 'saving' ? 'bg-yellow-500 animate-pulse' :
+              autosaveStatus === 'saved' ? 'bg-green-500' :
+              autosaveStatus === 'error' ? 'bg-red-500' : 'bg-slate-400'
+            )} />
+            {!sidebarCollapsed && (
+              <span className="text-xs font-medium text-slate-500">
+                {autosaveStatus === 'saving' ? 'Saving…' :
+                 autosaveStatus === 'saved' ? 'Saved' :
+                 autosaveStatus === 'error' ? 'Error' : 'Ready'}
+              </span>
+            )}
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100">
-            <div className={`h-2 w-2 rounded-full ${autosaveStatus === 'saving' ? 'bg-yellow-500 animate-pulse' : autosaveStatus === 'saved' ? 'bg-green-500' : 'bg-slate-400'}`} />
-            <span className="text-sm font-medium text-slate-700">
-              {autosaveStatus === 'saving' ? 'Saving…' : autosaveStatus === 'saved' ? 'Saved' : 'Ready'}
-            </span>
+      </motion.aside>
+
+      {/* Main Content: Editor + Preview */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200 truncate max-w-md">
+              {editor.title || 'Untitled Presentation'}
+            </h1>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800">
+              <div className={cn(
+                "h-2 w-2 rounded-full",
+                autosaveStatus === 'saving' ? 'bg-yellow-500 animate-pulse' :
+                autosaveStatus === 'saved' ? 'bg-green-500' :
+                autosaveStatus === 'error' ? 'bg-red-500' : 'bg-slate-400'
+              )} />
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {autosaveStatus === 'saving' ? 'Saving…' :
+                 autosaveStatus === 'saved' ? 'All changes saved' :
+                 autosaveStatus === 'error' ? 'Save failed' : 'Ready'}
+              </span>
+            </div>
           </div>
-        </div>
-      </header>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => editor.selectedId && editor.exportPresentation('pdf')}
+              disabled={!editor.selectedId}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium shadow-md transition-all"
+            >
+              <IconDownload className="w-4 h-4" />
+              <span className="hidden sm:inline">Export PDF</span>
+            </button>
+          </div>
+        </header>
 
-      <main className="grid grid-cols-1 xl:grid-cols-[320px,1fr,1fr] gap-6 p-6 min-h-[calc(100vh-80px)]">
-        <PresentationSidebar
-          presentations={presentations}
-          folders={folders}
-          selectedId={editor.selectedId}
-          selectedFolderId={selectedFolderId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSelect={handleSelect}
-          onDelete={handleDelete}
-          onDuplicate={(id) => {
-            handleApiCall(
-              () => duplicate(id),
-              'Presentation duplicated',
-              'Failed to duplicate presentation',
-            ).then(result => {
-              if (result) {
-                editor.selectPresentation(result)
-              }
-            })
-          }}
-          onNewPresentation={() => {
-            editor.clearSelection()
-            setHasUserInput(false)
-            setAutosaveEnabled(true)
-            autoSelectRef.current = false
-            window.history.replaceState({}, '', '/slides/new')
-          }}
-          onAIGenerate={() => setShowAIModal(true)}
-          onSelectFolder={setSelectedFolderId}
-          onCreateFolder={handleCreateFolder}
-          onUpdateFolder={handleUpdateFolder}
-          onDeleteFolder={handleDeleteFolder}
-          onMovePresentation={handleMovePresentation}
-        />
+        {/* Editor + Preview Grid */}
+        <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-hidden">
+          <EditorPanel
+            title={editor.title}
+            content={editor.content}
+            selectedTheme={editor.selectedTheme}
+            selectedId={editor.selectedId}
+            themes={themes}
+            autosaveStatus={autosaveStatus}
+            onReloadThemes={reloadThemes}
+            onTitleChange={(title) => { markDirty(); editor.setTitle(title) }}
+            onContentChange={(content) => { markDirty(); editor.setContent(content) }}
+            onThemeChange={(theme) => {
+              markDirty()
+              editor.setSelectedTheme(theme || null)
+            }}
+            onExport={editor.exportPresentation}
+            onCreateTheme={(data) => handleApiCall(
+              () => createTheme(data),
+              'Theme created',
+              'Failed to create theme'
+            )}
+            onUpdateTheme={(id, data) => handleApiCall(
+              () => updateTheme(id, data),
+              'Theme updated',
+              'Failed to update theme'
+            )}
+            onDeleteTheme={(id) => handleApiCall(
+              () => deleteTheme(id),
+              'Theme deleted',
+              'Failed to delete theme'
+            )}
+          />
 
-        <EditorPanel
-          title={editor.title}
-          content={editor.content}
-          selectedTheme={editor.selectedTheme}
-          selectedId={editor.selectedId}
-          themes={themes}
-          autosaveStatus={autosaveStatus}
-          onReloadThemes={reloadThemes}
-          onTitleChange={(title) => { markDirty(); editor.setTitle(title) }}
-          onContentChange={(content) => { markDirty(); editor.setContent(content) }}
-          onThemeChange={(theme) => {
-            markDirty()
-            editor.setSelectedTheme(theme || null)
-          }}
-          onExport={editor.exportPresentation}
-          onCreateTheme={(data) => handleApiCall(
-            () => createTheme(data),
-            'Theme created',
-            'Failed to create theme'
-          )}
-          onUpdateTheme={(id, data) => handleApiCall(
-            () => updateTheme(id, data),
-            'Theme updated',
-            'Failed to update theme'
-          )}
-          onDeleteTheme={(id) => handleApiCall(
-            () => deleteTheme(id),
-            'Theme deleted',
-            'Failed to delete theme'
-          )}
-        />
+          <PreviewPanel
+            preview={editor.preview}
+            selectedId={editor.selectedId}
+            previewLoading={editor.previewLoading}
+          />
+        </main>
+      </div>
 
-        <PreviewPanel
-          preview={editor.preview}
-          selectedId={editor.selectedId}
-          previewLoading={editor.previewLoading}
+      {/* Click outside to close menu */}
+      {menuOpenId && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setMenuOpenId(null)}
         />
-      </main>
+      )}
     </div>
   )
 }

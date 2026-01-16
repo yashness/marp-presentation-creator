@@ -46,12 +46,42 @@ class RewriteSlideRequest(BaseModel):
     """Request model for rewriting a slide."""
     current_content: str = Field(..., description="Current slide markdown")
     instruction: str = Field(..., min_length=5, description="How to modify the slide")
+    length: str = Field(default="medium", description="Content length: short, medium, long")
 
 
 class RewriteSlideResponse(BaseModel):
     """Response model for slide rewrite."""
     success: bool
     content: str | None = None
+    message: str
+
+
+class RegenerateCommentRequest(BaseModel):
+    """Request model for regenerating a single comment."""
+    slide_content: str = Field(..., description="Current slide markdown")
+    previous_comment: str | None = Field(None, description="Existing comment")
+    context_before: str | None = Field(None, description="Previous slide content")
+    context_after: str | None = Field(None, description="Next slide content")
+    style: str = Field(default="professional", description="Narration style")
+
+
+class RegenerateCommentResponse(BaseModel):
+    """Response model for comment regeneration."""
+    success: bool
+    comment: str | None = None
+    message: str
+
+
+class RegenerateAllCommentsRequest(BaseModel):
+    """Request model for regenerating all comments."""
+    slides: list[dict] = Field(..., description="List of slides with content and comment")
+    style: str = Field(default="professional", description="Narration style")
+
+
+class RegenerateAllCommentsResponse(BaseModel):
+    """Response model for regenerating all comments."""
+    success: bool
+    comments: list[str] | None = None
     message: str
 
 
@@ -164,6 +194,60 @@ async def rewrite_slide(request: RewriteSlideRequest) -> RewriteSlideResponse:
         success=True,
         content=content,
         message="Slide rewritten successfully"
+    )
+
+
+@router.post("/regenerate-comment", response_model=RegenerateCommentResponse)
+async def regenerate_comment(request: RegenerateCommentRequest) -> RegenerateCommentResponse:
+    """Regenerate a comment that directly explains the slide content.
+
+    Args:
+        request: Slide content and context
+
+    Returns:
+        New comment text
+
+    Raises:
+        HTTPException: If generation fails
+    """
+    logger.info("Regenerating comment for slide...")
+
+    comment = ai_service.regenerate_comment(
+        request.slide_content,
+        request.previous_comment,
+        request.context_before,
+        request.context_after,
+        request.style
+    )
+
+    return RegenerateCommentResponse(
+        success=True,
+        comment=comment,
+        message="Comment regenerated successfully"
+    )
+
+
+@router.post("/regenerate-all-comments", response_model=RegenerateAllCommentsResponse)
+async def regenerate_all_comments(request: RegenerateAllCommentsRequest) -> RegenerateAllCommentsResponse:
+    """Regenerate all comments with context awareness.
+
+    Args:
+        request: All slides with content
+
+    Returns:
+        List of new comments
+
+    Raises:
+        HTTPException: If generation fails
+    """
+    logger.info(f"Regenerating comments for {len(request.slides)} slides...")
+
+    comments = ai_service.regenerate_all_comments(request.slides, request.style)
+
+    return RegenerateAllCommentsResponse(
+        success=True,
+        comments=comments,
+        message=f"Regenerated {len(comments)} comments successfully"
     )
 
 

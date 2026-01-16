@@ -345,6 +345,65 @@ export async function rewriteSlide(currentContent: string, instruction: string):
   return result.content
 }
 
+export interface RegenerateCommentResponse {
+  success: boolean
+  comment?: string
+  message: string
+}
+
+export async function regenerateComment(
+  slideContent: string,
+  previousComment?: string,
+  contextBefore?: string,
+  contextAfter?: string,
+  style: string = 'professional'
+): Promise<string> {
+  const response = await fetch(buildUrl('/ai/regenerate-comment'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slide_content: slideContent,
+      previous_comment: previousComment,
+      context_before: contextBefore,
+      context_after: contextAfter,
+      style
+    })
+  })
+
+  const result = await handleResponse<RegenerateCommentResponse>(response)
+
+  if (!result.success || !result.comment) {
+    throw new Error(result.message || 'Failed to regenerate comment')
+  }
+
+  return result.comment
+}
+
+export interface RegenerateAllCommentsResponse {
+  success: boolean
+  comments?: string[]
+  message: string
+}
+
+export async function regenerateAllComments(
+  slides: Array<{ content: string; comment?: string }>,
+  style: string = 'professional'
+): Promise<string[]> {
+  const response = await fetch(buildUrl('/ai/regenerate-all-comments'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slides, style })
+  })
+
+  const result = await handleResponse<RegenerateAllCommentsResponse>(response)
+
+  if (!result.success || !result.comments) {
+    throw new Error(result.message || 'Failed to regenerate comments')
+  }
+
+  return result.comments
+}
+
 export interface GenerateImageResponse {
   success: boolean
   image_data?: string

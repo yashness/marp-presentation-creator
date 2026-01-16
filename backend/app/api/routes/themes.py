@@ -1,6 +1,7 @@
 """API routes for theme management."""
 
-from fastapi import APIRouter, HTTPException, Depends
+import base64
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import Response, FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -11,11 +12,13 @@ from app.schemas.theme import ThemeResponse, ThemeCreate, ThemeUpdate
 from app.services import theme_service
 from app.services.theme_service import build_theme_config_with_brand_colors
 from app.services.ai_service import AIService
+from app.services.color_extraction_service import ColorExtractionService
 from app.core.database import get_db
 from app.core.logger import logger
 
 router = APIRouter(prefix="/themes", tags=["themes"])
 ai_service = AIService()
+color_extraction_service = ColorExtractionService()
 
 
 class GenerateThemeRequest(BaseModel):
@@ -29,6 +32,15 @@ class GenerateThemeResponse(BaseModel):
     """Response model for theme generation."""
     success: bool
     theme: ThemeResponse | None = None
+    message: str
+
+
+class ExtractColorsResponse(BaseModel):
+    """Response model for color extraction."""
+    success: bool
+    colors: list[str] = []
+    color_names: dict[str, str] = {}
+    description: str = ""
     message: str
 
 def get_session() -> Session:
@@ -169,3 +181,56 @@ def generate_theme_with_ai(
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(409, f"Theme with name '{request.theme_name}' already exists")
         raise HTTPException(500, f"Failed to generate theme: {str(e)}")
+
+
+@router.post("/extract-colors", response_model=ExtractColorsResponse)
+async def extract_colors_from_image(
+    file: UploadFile = File(...)
+) -> ExtractColorsResponse:
+    """Extract colors from an uploaded screenshot/image using AI vision.
+
+    Args:
+        file: Image file (PNG, JPG, WEBP, GIF)
+
+    Returns:
+        Extracted colors with descriptions
+    """
+    logger.info(f"Extracting colors from image: {file.filename}")
+
+    # Validate file type
+    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            400,
+            f"Invalid file type: {file.content_type}. Allowed: PNG, JPG, WEBP, GIF"
+        )
+
+    try:
+        # Read and encode image
+        image_data = await file.read()
+        base64_image = base64.b64encode(image_data).decode("utf-8")
+
+        # Determine media type
+        media_type = file.content_type or "image/png"
+
+        # Extract colors using AI
+        result = color_extraction_service.extract_colors(base64_image, media_type)
+
+        if not result:
+            return ExtractColorsResponse(
+                success=False,
+                colors=[],
+                message="Failed to extract colors from image"
+            )
+
+        return ExtractColorsResponse(
+            success=True,
+            colors=result.get("colors", []),
+            color_names=result.get("color_names", {}),
+            description=result.get("description", ""),
+            message="Colors extracted successfully"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to extract colors: {e}")
+        raise HTTPException(500, f"Failed to extract colors: {str(e)}")

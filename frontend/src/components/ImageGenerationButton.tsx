@@ -59,7 +59,7 @@ export function ImageGenerationButton({ onImageGenerated }: ImageGenerationButto
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        variant="secondary"
+        variant="outline"
         size="sm"
         className="gap-2"
       >
