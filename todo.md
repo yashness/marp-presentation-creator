@@ -1,5 +1,49 @@
 # TODO
 
+## Completed (2026-01-16)
+
+✅ Large Presentation Scaling - AI Service Refactoring
+  - Split monolithic `ai_service.py` into modular `app/services/ai/` package
+  - `client.py`: Azure Anthropic client with streaming support
+  - `models.py`: SlideOutline, PresentationOutline, BatchProgress
+  - `text_utils.py`: JSON extraction, markdown sanitization
+  - `outline_generator.py`: Batched generation for >15 slides
+  - `content_generator.py`: Viewport-aware, no comments
+  - `commentary_generator.py`: Audio-aware TTS formatting
+  - `slide_operations.py`: Layout, restyle, simplify, expand, split
+  - `image_generator.py`: DALL-E integration
+  - `theme_generator.py`: CSS theme generation
+  - `service.py`: Unified facade
+
+✅ Content & Commentary Separation
+  - Content generation no longer includes comments
+  - Commentary generated on-demand via "Generate Commentary" button
+  - Commentary formatted for TTS (no markdown, expanded abbreviations)
+  - Batched processing for large presentations
+
+✅ Viewport Awareness
+  - Max 6 bullets per slide constraint
+  - Max 80 chars per bullet constraint
+  - Max 12 lines total constraint
+  - Content generation respects viewport limits
+  - Split slide operation for overloaded content
+
+✅ Per-Slide Quick Operations (Frontend)
+  - Layout change button (reorganize content)
+  - Simplify button (make concise)
+  - Expand button (add detail)
+  - Split button (divide into multiple slides)
+
+✅ New API Endpoints
+  - `POST /api/ai/generate-commentary`: Audio-aware batched commentary
+  - `POST /api/ai/slide-operation`: Layout/restyle/simplify/expand/split
+
+✅ Streaming-Ready Architecture
+  - AIClient.stream() for generator-based responses
+  - BatchProgress model for progress tracking
+  - Modular generators ready for streaming variants
+  - SSE/WebSocket integration prepared
+
 ## Completed (2026-01-15)
 
 ✅ Upgraded to Tailwind CSS v4
@@ -69,7 +113,6 @@
   - Added HEAD support for checking audio existence (fixes 405 errors)
   - Created SlideAudio and VideoExport DB models for reliable persistence
   - Added cleanup endpoints for orphaned audio files
-  - Frontend computes SHA-256 content hash matching backend
 
 ✅ Folder Layout Improvements
   - Added sorting for presentations (Newest/Oldest/A-Z) with cycle button
@@ -78,4 +121,7 @@
 
 ## Remaining TODOs
 
-- None! All tasks completed.
+- [ ] Implement chat-like UI for incremental AI generation
+- [ ] Add WebSocket/SSE endpoint for streaming slide creation
+- [ ] Integrate Claude Agent SDK v2 for agentic workflows
+- [ ] Add thinking output display in chat UI

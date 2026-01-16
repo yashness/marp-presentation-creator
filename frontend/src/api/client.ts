@@ -430,6 +430,62 @@ export async function generateImage(
   return result.image_data
 }
 
+// Generate Commentary (audio-aware)
+export interface GenerateCommentaryResponse {
+  success: boolean
+  comments?: string[]
+  message: string
+}
+
+export async function generateCommentary(
+  slides: Array<{ content: string }>,
+  style: string = 'professional'
+): Promise<string[]> {
+  const response = await fetch(buildUrl('/ai/generate-commentary'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slides, style })
+  })
+
+  const result = await handleResponse<GenerateCommentaryResponse>(response)
+
+  if (!result.success || !result.comments) {
+    throw new Error(result.message || 'Failed to generate commentary')
+  }
+
+  return result.comments
+}
+
+// Slide Operations (layout, restyle, simplify, expand, split)
+export interface SlideOperationResponse {
+  success: boolean
+  content?: string
+  slides?: string[]
+  message: string
+}
+
+export type SlideOperation = 'layout' | 'restyle' | 'simplify' | 'expand' | 'split'
+
+export async function performSlideOperation(
+  content: string,
+  operation: SlideOperation,
+  style?: string
+): Promise<{ content?: string; slides?: string[] }> {
+  const response = await fetch(buildUrl('/ai/slide-operation'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, operation, style })
+  })
+
+  const result = await handleResponse<SlideOperationResponse>(response)
+
+  if (!result.success) {
+    throw new Error(result.message || 'Operation failed')
+  }
+
+  return { content: result.content, slides: result.slides }
+}
+
 export interface Folder {
   id: string
   name: string

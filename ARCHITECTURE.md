@@ -22,12 +22,24 @@ The Marp Presentation Builder is a full-stack application that enables users to 
 - `app/api/routes/`: API endpoints
 - `app/schemas/`: Pydantic data models
 - `app/services/`: Business logic layer
-  - `ai_service.py`: AI-powered presentation generation
+  - `ai/`: Modular AI service package (see below)
   - `comment_processor.py`: Comment length enforcement and narration
   - `video_export_service.py`: Video export pipeline (TTS + slides)
   - `presentation_service.py`: CRUD operations
   - `folder_service.py`: Folder organization
 - `app/models/`: Database models (SQLAlchemy)
+
+**AI Service Architecture** (`app/services/ai/`):
+- `client.py`: Azure Anthropic client with streaming support
+- `models.py`: SlideOutline, PresentationOutline, BatchProgress
+- `text_utils.py`: JSON extraction, markdown sanitization
+- `outline_generator.py`: Batched outline generation for large presentations
+- `content_generator.py`: Viewport-aware content generation (no comments)
+- `commentary_generator.py`: Audio-aware TTS commentary (separate from content)
+- `slide_operations.py`: Rewrite, layout, restyle, simplify, expand, split
+- `image_generator.py`: DALL-E image generation
+- `theme_generator.py`: CSS theme generation
+- `service.py`: Unified facade composing all generators
 
 **Data Storage**:
 - File system: Markdown files (.md) for presentation content
@@ -155,6 +167,25 @@ User clicks Export
 - Replaced unsafe `JSON.parse` with validated `parseDragData()`
 - Created helper functions: `createPresentationDragData()`, `createFolderDragData()`
 
+### Large Presentation Scaling (2026-01-16)
+
+**Backend AI Refactoring**:
+- Split monolithic `ai_service.py` into modular `app/services/ai/` package
+- Added batched outline generation for presentations >15 slides
+- Content generation now batched with full outline context for coherence
+- Commentary generation separated from content (on-demand, audio-aware)
+- Added viewport constraints to prevent slide content overflow
+- Streaming support added for future chat UI integration
+
+**New API Endpoints**:
+- `POST /api/ai/generate-commentary`: Audio-aware commentary in batches
+- `POST /api/ai/slide-operation`: Layout, restyle, simplify, expand, split
+
+**Frontend Enhancements**:
+- Per-slide quick operation buttons (layout, simplify, expand, split)
+- "Generate Commentary" button for on-demand audio notes
+- Commentary formatted for TTS (no markdown, expanded abbreviations)
+
 ## Security Considerations
 
 1. **API Security**:
@@ -186,6 +217,20 @@ User clicks Export
 4. **CDN**: Static asset serving
 5. **Auth**: JWT-based user authentication
 6. **Multi-tenancy**: Isolated user workspaces
+
+### Streaming-Ready Architecture
+
+The AI service is designed to support streaming responses for future chat UI:
+
+1. **AIClient.stream()**: Generator-based streaming from Anthropic API
+2. **BatchProgress model**: Tracks batch completion for progress updates
+3. **Modular generators**: Each can be extended with streaming variants
+4. **SSE-ready**: Endpoints can be converted to Server-Sent Events
+
+Future chat UI integration:
+- WebSocket or SSE endpoint for incremental slide generation
+- Thinking output exposure for transparency
+- Agentic workflow with Claude Agent SDK v2
 
 ## Deployment Architecture
 
@@ -241,6 +286,12 @@ Services:
 | POST | /api/presentations/{id}/export | Export |
 | GET | /api/themes | List themes |
 | POST | /api/themes | Upload theme |
+| POST | /api/ai/generate-outline | Generate outline (batched) |
+| POST | /api/ai/generate-content | Generate slides (no comments) |
+| POST | /api/ai/generate-commentary | Generate audio-aware comments |
+| POST | /api/ai/slide-operation | Layout/restyle/simplify/expand/split |
+| POST | /api/ai/rewrite-slide | Custom rewrite instruction |
+| GET | /api/ai/status | AI service availability |
 
 ## Testing Strategy
 

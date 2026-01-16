@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef, useTransition } from 'react'
 import Editor from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
-import type { Theme, ThemeCreatePayload } from '../api/client'
-import { rewriteSlide, regenerateComment, regenerateAllComments } from '../api/client'
+import type { Theme, ThemeCreatePayload, SlideOperation } from '../api/client'
+import { rewriteSlide, regenerateComment, regenerateAllComments, generateCommentary, performSlideOperation } from '../api/client'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { ExportButton } from './ExportButton'
@@ -12,7 +12,7 @@ import { TTSButton } from './TTSButton'
 import { SlideImageButton } from './SlideImageButton'
 import { CommandPalette } from './CommandPalette'
 import { ThemeCreatorModal } from './ThemeCreatorModal'
-import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw } from 'lucide-react'
+import { Info, LayoutTemplate, MessageSquarePlus, Sparkles, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw, LayoutGrid, PaintBucket, Minimize2, Maximize2, Scissors, Mic } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
 import type { SlideBlock } from '../lib/markdown'
@@ -96,6 +96,8 @@ export function EditorPanel({
   const [rewriteCommentLoading, setRewriteCommentLoading] = useState(false)
   const [regenerateAllLoading, setRegenerateAllLoading] = useState(false)
   const [rewriteLength, setRewriteLength] = useState<'short' | 'medium' | 'long'>('medium')
+  const [slideOperationLoading, setSlideOperationLoading] = useState<Record<number, string>>({})
+  const [generateCommentaryLoading, setGenerateCommentaryLoading] = useState(false)
 
   // Memoize parsed slides to avoid re-parsing on every render
   const parsedContent = useMemo(() => {
@@ -358,6 +360,65 @@ export function EditorPanel({
     }
   }, [slides, rewriteLength, handleSlideChange])
 
+  const handleSlideOperation = useCallback(async (index: number, operation: SlideOperation, style?: string) => {
+    setSlideOperationLoading(prev => ({ ...prev, [index]: operation }))
+    try {
+      const slide = slides[index]
+      const result = await performSlideOperation(slide.content, operation, style)
+
+      if (operation === 'split' && result.slides) {
+        // Insert new slides after current
+        const newSlides = result.slides.map((content, i) => ({
+          id: `slide-${Date.now()}-${i}`,
+          content,
+          comment: ''
+        }))
+        const nextSlides = [
+          ...slides.slice(0, index),
+          ...newSlides,
+          ...slides.slice(index + 1)
+        ]
+        setEditableSlides(nextSlides)
+        updateContent(nextSlides)
+      } else if (result.content) {
+        handleSlideChange(index, result.content)
+      }
+    } catch (error) {
+      console.error(`Slide operation ${operation} failed:`, error)
+    } finally {
+      setSlideOperationLoading(prev => {
+        const next = { ...prev }
+        delete next[index]
+        return next
+      })
+    }
+  }, [slides, handleSlideChange, updateContent])
+
+  const handleGenerateCommentary = useCallback(async () => {
+    if (!confirm('Generate audio-ready commentary for all slides? This will replace existing comments.')) return
+    setGenerateCommentaryLoading(true)
+    try {
+      const slideData = slides.map(s => ({ content: s.content }))
+      const comments = await generateCommentary(slideData, 'professional')
+      const updatedSlides = slides.map((slide, i) => ({
+        ...slide,
+        comment: comments[i] || slide.comment
+      }))
+      setEditableSlides(updatedSlides)
+      updateContent(updatedSlides, normalizedFrontmatter)
+      // Open all comment sections
+      setOpenComments(prev => {
+        const next = { ...prev }
+        updatedSlides.forEach(s => { next[s.id] = true })
+        return next
+      })
+    } catch (error) {
+      console.error('Failed to generate commentary:', error)
+    } finally {
+      setGenerateCommentaryLoading(false)
+    }
+  }, [slides, normalizedFrontmatter, updateContent])
+
   const updateThemeDraft = (section: 'colors' | 'typography' | 'spacing', key: string, value: string) => {
     setThemeDraft(prev => ({
       ...prev,
@@ -486,6 +547,16 @@ export function EditorPanel({
             <Button onClick={() => setCommandPaletteOpen(true)} size="sm" variant="outline" className="whitespace-nowrap gap-2">
               <Sparkles className="w-4 h-4" />
               AI commands
+            </Button>
+            <Button
+              onClick={handleGenerateCommentary}
+              size="sm"
+              variant="outline"
+              disabled={generateCommentaryLoading || slides.length === 0}
+              className="whitespace-nowrap gap-2"
+            >
+              {generateCommentaryLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+              Gen Commentary
             </Button>
             <Button
               onClick={handleRegenerateAllComments}
@@ -693,6 +764,49 @@ export function EditorPanel({
                           slideContent={slide.content}
                           onImageInsert={(markdown) => handleSlideChange(index, slide.content + '\n\n' + markdown)}
                         />
+                        {/* Quick slide operations */}
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSlideOperation(index, 'layout')}
+                            disabled={!!slideOperationLoading[index]}
+                            title="Change layout"
+                            className="text-xs px-2"
+                          >
+                            {slideOperationLoading[index] === 'layout' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSlideOperation(index, 'simplify')}
+                            disabled={!!slideOperationLoading[index]}
+                            title="Simplify"
+                            className="text-xs px-2"
+                          >
+                            {slideOperationLoading[index] === 'simplify' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSlideOperation(index, 'expand')}
+                            disabled={!!slideOperationLoading[index]}
+                            title="Expand"
+                            className="text-xs px-2"
+                          >
+                            {slideOperationLoading[index] === 'expand' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSlideOperation(index, 'split')}
+                            disabled={!!slideOperationLoading[index]}
+                            title="Split slide"
+                            className="text-xs px-2"
+                          >
+                            {slideOperationLoading[index] === 'split' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Scissors className="w-3.5 h-3.5" />}
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"

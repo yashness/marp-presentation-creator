@@ -1,117 +1,142 @@
 """AI-powered presentation generation API routes."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from app.services.ai_service import AIService, PresentationOutline, SlideOutline
-
+from app.services.ai_service import AIService, PresentationOutline
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 ai_service = AIService()
 
 
+# -----------------------------------------------------------------------------
+# Request/Response Models
+# -----------------------------------------------------------------------------
+
 class GenerateOutlineRequest(BaseModel):
-    """Request model for generating outline."""
-    description: str = Field(..., min_length=10, description="Description of the presentation")
-    slide_count: int | None = Field(default=None, ge=1, le=30, description="Desired slide count")
-    subtopic_count: int | None = Field(default=None, ge=1, le=20, description="Desired subtopic count")
-    audience: str | None = Field(default=None, description="Target audience")
-    flavor: str | None = Field(default=None, description="Extra flavor or angle")
-    narration_instructions: str | None = Field(default=None, description="Narration style instructions")
-    comment_max_ratio: float | None = Field(default=None, ge=0.1, le=1.0, description="Max narration length ratio")
+    """Request for outline generation."""
+    description: str = Field(..., min_length=10)
+    slide_count: int | None = Field(default=None, ge=1, le=50)
+    subtopic_count: int | None = Field(default=None, ge=1, le=20)
+    audience: str | None = None
+    flavor: str | None = None
+    narration_instructions: str | None = None
+    comment_max_ratio: float | None = Field(default=None, ge=0.1, le=1.0)
 
 
 class GenerateOutlineResponse(BaseModel):
-    """Response model for outline generation."""
+    """Response for outline generation."""
     success: bool
     outline: PresentationOutline | None = None
     message: str
 
 
 class GenerateContentRequest(BaseModel):
-    """Request model for generating full content."""
+    """Request for content generation."""
     outline: PresentationOutline
-    theme: str = Field(default="professional", description="Presentation style/theme")
+    theme: str = "professional"
 
 
 class GenerateContentResponse(BaseModel):
-    """Response model for content generation."""
+    """Response for content generation."""
     success: bool
     content: str | None = None
+    message: str
+
+
+class GenerateCommentaryRequest(BaseModel):
+    """Request for commentary generation."""
+    slides: list[dict] = Field(..., description="List of {content: str}")
+    style: str = "professional"
+
+
+class GenerateCommentaryResponse(BaseModel):
+    """Response for commentary generation."""
+    success: bool
+    comments: list[str] | None = None
     message: str
 
 
 class RewriteSlideRequest(BaseModel):
-    """Request model for rewriting a slide."""
-    current_content: str = Field(..., description="Current slide markdown")
-    instruction: str = Field(..., min_length=5, description="How to modify the slide")
-    length: str = Field(default="medium", description="Content length: short, medium, long")
+    """Request for slide rewrite."""
+    current_content: str
+    instruction: str = Field(..., min_length=5)
+    length: str = "medium"
 
 
 class RewriteSlideResponse(BaseModel):
-    """Response model for slide rewrite."""
+    """Response for slide rewrite."""
     success: bool
     content: str | None = None
     message: str
 
 
+class SlideOperationRequest(BaseModel):
+    """Request for slide operations (layout, restyle, etc.)."""
+    content: str
+    operation: str = Field(..., description="layout, restyle, simplify, expand, split")
+    style: str | None = None
+
+
+class SlideOperationResponse(BaseModel):
+    """Response for slide operations."""
+    success: bool
+    content: str | None = None
+    slides: list[str] | None = None  # For split operation
+    message: str
+
+
 class RegenerateCommentRequest(BaseModel):
-    """Request model for regenerating a single comment."""
-    slide_content: str = Field(..., description="Current slide markdown")
-    previous_comment: str | None = Field(None, description="Existing comment")
-    context_before: str | None = Field(None, description="Previous slide content")
-    context_after: str | None = Field(None, description="Next slide content")
-    style: str = Field(default="professional", description="Narration style")
+    """Request for single comment regeneration."""
+    slide_content: str
+    previous_comment: str | None = None
+    context_before: str | None = None
+    context_after: str | None = None
+    style: str = "professional"
 
 
 class RegenerateCommentResponse(BaseModel):
-    """Response model for comment regeneration."""
+    """Response for comment regeneration."""
     success: bool
     comment: str | None = None
     message: str
 
 
 class RegenerateAllCommentsRequest(BaseModel):
-    """Request model for regenerating all comments."""
-    slides: list[dict] = Field(..., description="List of slides with content and comment")
-    style: str = Field(default="professional", description="Narration style")
+    """Request for regenerating all comments."""
+    slides: list[dict]
+    style: str = "professional"
 
 
 class RegenerateAllCommentsResponse(BaseModel):
-    """Response model for regenerating all comments."""
+    """Response for regenerating all comments."""
     success: bool
     comments: list[str] | None = None
     message: str
 
 
 class GenerateImageRequest(BaseModel):
-    """Request model for generating images."""
-    prompt: str = Field(..., min_length=10, description="Description of the image")
-    size: str = Field(default="1024x1024", description="Image size")
-    quality: str = Field(default="standard", description="Image quality")
+    """Request for image generation."""
+    prompt: str = Field(..., min_length=10)
+    size: str = "1024x1024"
+    quality: str = "standard"
 
 
 class GenerateImageResponse(BaseModel):
-    """Response model for image generation."""
+    """Response for image generation."""
     success: bool
     image_data: str | None = None
     message: str
 
 
+# -----------------------------------------------------------------------------
+# Endpoints
+# -----------------------------------------------------------------------------
+
 @router.post("/generate-outline", response_model=GenerateOutlineResponse)
 async def generate_outline(request: GenerateOutlineRequest) -> GenerateOutlineResponse:
-    """Generate presentation outline from description.
-
-    Args:
-        request: Description of desired presentation
-
-    Returns:
-        Presentation outline with suggested slides
-
-    Raises:
-        HTTPException: If generation fails
-    """
+    """Generate presentation outline with batching for large requests."""
     logger.info(f"Generating outline for: {request.description[:50]}...")
 
     outline = ai_service.generate_outline(
@@ -125,92 +150,93 @@ async def generate_outline(request: GenerateOutlineRequest) -> GenerateOutlineRe
     )
 
     if not outline:
-        return GenerateOutlineResponse(
-            success=False,
-            message="Failed to generate outline. Please try again."
-        )
+        return GenerateOutlineResponse(success=False, message="Failed to generate outline")
 
-    return GenerateOutlineResponse(
-        success=True,
-        outline=outline,
-        message="Outline generated successfully"
-    )
+    return GenerateOutlineResponse(success=True, outline=outline, message="Outline generated")
 
 
 @router.post("/generate-content", response_model=GenerateContentResponse)
 async def generate_content(request: GenerateContentRequest) -> GenerateContentResponse:
-    """Generate full presentation content from outline.
-
-    Args:
-        request: Presentation outline and theme
-
-    Returns:
-        Complete Marp markdown presentation
-
-    Raises:
-        HTTPException: If generation fails
-    """
+    """Generate presentation content (without comments)."""
     logger.info(f"Generating content for: {request.outline.title}")
 
     content = ai_service.generate_full_presentation(request.outline, request.theme)
 
     if not content:
-        return GenerateContentResponse(
-            success=False,
-            message="Failed to generate content. Please try again."
-        )
+        return GenerateContentResponse(success=False, message="Failed to generate content")
 
-    return GenerateContentResponse(
+    return GenerateContentResponse(success=True, content=content, message="Content generated")
+
+
+@router.post("/generate-commentary", response_model=GenerateCommentaryResponse)
+async def generate_commentary(request: GenerateCommentaryRequest) -> GenerateCommentaryResponse:
+    """Generate audio-aware commentary for slides in batches."""
+    logger.info(f"Generating commentary for {len(request.slides)} slides...")
+
+    comments = ai_service.generate_commentary(request.slides, request.style)
+
+    return GenerateCommentaryResponse(
         success=True,
-        content=content,
-        message="Content generated successfully"
+        comments=comments,
+        message=f"Generated {len(comments)} comments"
     )
 
 
 @router.post("/rewrite-slide", response_model=RewriteSlideResponse)
 async def rewrite_slide(request: RewriteSlideRequest) -> RewriteSlideResponse:
-    """Rewrite a slide based on instruction.
+    """Rewrite slide with custom instruction."""
+    logger.info(f"Rewriting slide: {request.instruction[:50]}...")
 
-    Args:
-        request: Current content and modification instruction
+    # Add length hint to instruction
+    length_hint = {
+        "short": " Keep content brief.",
+        "long": " Add more detail.",
+        "medium": ""
+    }.get(request.length, "")
 
-    Returns:
-        Rewritten slide content
-
-    Raises:
-        HTTPException: If rewrite fails
-    """
-    logger.info(f"Rewriting slide with instruction: {request.instruction[:50]}...")
-
-    content = ai_service.rewrite_slide(request.current_content, request.instruction)
+    content = ai_service.rewrite_slide(request.current_content, request.instruction + length_hint)
 
     if not content:
-        return RewriteSlideResponse(
-            success=False,
-            message="Failed to rewrite slide. Please try again."
-        )
+        return RewriteSlideResponse(success=False, message="Failed to rewrite")
 
-    return RewriteSlideResponse(
-        success=True,
-        content=content,
-        message="Slide rewritten successfully"
-    )
+    return RewriteSlideResponse(success=True, content=content, message="Slide rewritten")
+
+
+@router.post("/slide-operation", response_model=SlideOperationResponse)
+async def slide_operation(request: SlideOperationRequest) -> SlideOperationResponse:
+    """Perform slide operation (layout, restyle, simplify, expand, split)."""
+    logger.info(f"Slide operation: {request.operation}")
+
+    op = request.operation.lower()
+
+    if op == "layout":
+        result = ai_service.rewrite_layout(request.content)
+        return SlideOperationResponse(success=True, content=result, message="Layout changed")
+
+    elif op == "restyle":
+        style = request.style or "modern"
+        result = ai_service.restyle_slide(request.content, style)
+        return SlideOperationResponse(success=True, content=result, message="Slide restyled")
+
+    elif op == "simplify":
+        result = ai_service.simplify_slide(request.content)
+        return SlideOperationResponse(success=True, content=result, message="Slide simplified")
+
+    elif op == "expand":
+        result = ai_service.expand_slide(request.content)
+        return SlideOperationResponse(success=True, content=result, message="Slide expanded")
+
+    elif op == "split":
+        slides = ai_service.split_slide(request.content)
+        return SlideOperationResponse(success=True, slides=slides, message=f"Split into {len(slides)} slides")
+
+    return SlideOperationResponse(success=False, message=f"Unknown operation: {op}")
 
 
 @router.post("/regenerate-comment", response_model=RegenerateCommentResponse)
 async def regenerate_comment(request: RegenerateCommentRequest) -> RegenerateCommentResponse:
-    """Regenerate a comment that directly explains the slide content.
-
-    Args:
-        request: Slide content and context
-
-    Returns:
-        New comment text
-
-    Raises:
-        HTTPException: If generation fails
-    """
-    logger.info("Regenerating comment for slide...")
+    """Regenerate single slide comment."""
+    logger.info("Regenerating comment...")
 
     comment = ai_service.regenerate_comment(
         request.slide_content,
@@ -220,81 +246,41 @@ async def regenerate_comment(request: RegenerateCommentRequest) -> RegenerateCom
         request.style
     )
 
-    return RegenerateCommentResponse(
-        success=True,
-        comment=comment,
-        message="Comment regenerated successfully"
-    )
+    return RegenerateCommentResponse(success=True, comment=comment, message="Comment regenerated")
 
 
 @router.post("/regenerate-all-comments", response_model=RegenerateAllCommentsResponse)
 async def regenerate_all_comments(request: RegenerateAllCommentsRequest) -> RegenerateAllCommentsResponse:
-    """Regenerate all comments with context awareness.
-
-    Args:
-        request: All slides with content
-
-    Returns:
-        List of new comments
-
-    Raises:
-        HTTPException: If generation fails
-    """
-    logger.info(f"Regenerating comments for {len(request.slides)} slides...")
+    """Regenerate all comments with batching."""
+    logger.info(f"Regenerating {len(request.slides)} comments...")
 
     comments = ai_service.regenerate_all_comments(request.slides, request.style)
 
     return RegenerateAllCommentsResponse(
         success=True,
         comments=comments,
-        message=f"Regenerated {len(comments)} comments successfully"
+        message=f"Regenerated {len(comments)} comments"
     )
 
 
 @router.post("/generate-image", response_model=GenerateImageResponse)
 async def generate_image(request: GenerateImageRequest) -> GenerateImageResponse:
-    """Generate image using DALL-E.
-
-    Args:
-        request: Image prompt and parameters
-
-    Returns:
-        Base64 encoded image data
-
-    Raises:
-        HTTPException: If generation fails
-    """
+    """Generate image using DALL-E."""
     logger.info(f"Generating image: {request.prompt[:50]}...")
 
-    image_data = ai_service.generate_image(
-        request.prompt,
-        request.size,
-        request.quality
-    )
+    image_data = ai_service.generate_image(request.prompt, request.size, request.quality)
 
     if not image_data:
-        return GenerateImageResponse(
-            success=False,
-            message="Failed to generate image. Please try again."
-        )
+        return GenerateImageResponse(success=False, message="Failed to generate image")
 
-    return GenerateImageResponse(
-        success=True,
-        image_data=image_data,
-        message="Image generated successfully"
-    )
+    return GenerateImageResponse(success=True, image_data=image_data, message="Image generated")
 
 
 @router.get("/status")
 async def get_ai_status() -> dict:
-    """Check AI service status.
-
-    Returns:
-        Service availability status
-    """
-    available = ai_service.client is not None
-
+    """Check AI service status."""
+    available = ai_service.is_available
     return {
         "available": available,
-        "message": "AI service is ready" if available else "AI service not configured. Check Azure credentials."
+        "message": "AI ready" if available else "AI not configured"
     }
