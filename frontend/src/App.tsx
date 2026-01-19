@@ -27,6 +27,7 @@ import { cn } from './lib/utils'
 import { AUTOSAVE_DEBOUNCE_MS } from './lib/constants'
 
 function App() {
+  // All hooks must be called unconditionally at the top
   const [searchQuery, setSearchQuery] = useState('')
   const [hasUserInput, setHasUserInput] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -39,25 +40,13 @@ function App() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [showFontManager, setShowFontManager] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(false)
-
-  // Check if we're on a share page
-  const shareToken = useMemo(() => {
-    const path = window.location.pathname
-    const match = path.match(/^\/share\/([^/]+)$/)
-    return match ? match[1] : null
-  }, [])
-
-  // If on share page, render the shared viewer
-  if (shareToken) {
-    return <SharedViewer token={shareToken} />
-  }
-
   const [folders, setFolders] = useState<Folder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor')
+
   const { handleApiCall } = useApiHandler()
   const { themes, createTheme, updateTheme, deleteTheme, reloadThemes } = useThemes()
   const slugPendingRef = useRef<string | null>(null)
@@ -65,6 +54,13 @@ function App() {
 
   const editor = usePresentationEditor()
   const { presentations, create, update, remove, duplicate } = usePresentations(searchQuery, editor.selectedTheme)
+
+  // Check if we're on a share page
+  const shareToken = useMemo(() => {
+    const path = window.location.pathname
+    const match = path.match(/^\/share\/([^/]+)$/)
+    return match ? match[1] : null
+  }, [])
 
   const markDirty = useCallback(() => setHasUserInput(true), [])
 
@@ -79,7 +75,7 @@ function App() {
       editor.clearSelection()
     }
     setMenuOpenId(null)
-  }, [handleApiCall, remove, editor.selectedId, editor.clearSelection])
+  }, [handleApiCall, remove, editor])
 
   const handleSelect = useCallback(async (pres: Presentation) => {
     await handleApiCall(
@@ -91,7 +87,7 @@ function App() {
     setAutosaveStatus('idle')
     setAutosaveEnabled(true)
     updateBrowserUrl(pres.title, pres.id)
-  }, [handleApiCall, editor.selectPresentation])
+  }, [handleApiCall, editor])
 
   const canAutosave = useMemo(() => editor.content.trim().length > 0, [editor.content])
 
@@ -127,7 +123,7 @@ function App() {
     editor.setPreview(html)
     setHasUserInput(false)
     setAutosaveStatus('saved')
-  }, [editor.setPreview])
+  }, [editor])
 
   const createNewPresentation = useCallback(async (title: string, content: string, themeId: string | null) => {
     const created = await handleApiCall(
@@ -141,7 +137,7 @@ function App() {
     } else {
       setAutosaveStatus('error')
     }
-  }, [handleApiCall, create, editor.setCreatedMeta, refreshPreviewAndMarkSaved])
+  }, [handleApiCall, create, editor, refreshPreviewAndMarkSaved])
 
   const updateExistingPresentation = useCallback(async (id: string, title: string, content: string, themeId: string | null) => {
     const updated = await handleApiCall(
@@ -382,6 +378,11 @@ function App() {
     }
     return list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   }, [presentations, selectedFolderId])
+
+  // Render shared viewer if on share page
+  if (shareToken) {
+    return <SharedViewer token={shareToken} />
+  }
 
   return (
     <div className="h-screen w-screen bg-secondary-50 dark:bg-secondary-900 flex overflow-hidden">
