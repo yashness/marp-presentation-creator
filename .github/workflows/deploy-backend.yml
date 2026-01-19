@@ -43,20 +43,23 @@ jobs:
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create app structure Azure expects
-          cp -r app/* . 2>/dev/null || cp -r app .
-          cp -r themes . 2>/dev/null || true
-          cp requirements.txt .
-          cp config.toml . 2>/dev/null || true
+          # Create staging directory
+          mkdir -p staging
+          # Copy app code
+          cp -r app/* staging/
+          cp -r themes staging/ 2>/dev/null || true
+          cp requirements.txt staging/
+          cp config.toml staging/ 2>/dev/null || true
           # Create startup.sh for Azure
-          echo '#!/bin/bash
+          cat > staging/startup.sh << 'EOF'
+          #!/bin/bash
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:8000
-          ' > startup.sh
-          chmod +x startup.sh
-          # Zip everything
-          zip -r ../deploy.zip . -x ".env*" -x ".venv/*" -x "__pycache__/*" -x "*.pyc" -x "tests/*" -x "htmlcov/*" -x ".pytest_cache/*"
+          EOF
+          chmod +x staging/startup.sh
+          # Zip everything from staging
+          cd staging && zip -r ../../deploy.zip .
         
       - name: Deploy to Azure App Service via Kudu
         working-directory: ./backend
