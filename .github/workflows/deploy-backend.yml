@@ -49,18 +49,22 @@ jobs:
       - name: Create deployment package
         working-directory: ./backend
         run: |
+          # Create deployment directory with app code
           mkdir -p deploy
           cp -r app deploy/
           cp -r themes deploy/ 2>/dev/null || true
           cp requirements.txt deploy/
           cp config.toml deploy/ 2>/dev/null || true
+          # Create startup.txt for Azure to know how to start
+          echo "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000" > deploy/startup.txt
           cd deploy && zip -r ../backend.zip .
 
       - name: Deploy to Azure App Service via Kudu
         working-directory: ./backend
         run: |
+          # Use SCM_DO_BUILD_DURING_DEPLOYMENT to trigger Oryx build
           curl -X POST \
             -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
             --data-binary @backend.zip \
-            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
+            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=false" \
             -H "Content-Type: application/zip"
