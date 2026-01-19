@@ -40,31 +40,29 @@ jobs:
               f.write('gunicorn>=21.0.0\n')
           "
 
-      - name: Install dependencies
-        working-directory: ./backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create deployment directory with app code
-          mkdir -p deploy
-          cp -r app deploy/
-          cp -r themes deploy/ 2>/dev/null || true
-          cp requirements.txt deploy/
-          cp config.toml deploy/ 2>/dev/null || true
-          # Create startup.txt for Azure to know how to start
-          echo "gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000" > deploy/startup.txt
-          cd deploy && zip -r ../backend.zip .
-
+          # Create app structure Azure expects
+          cp -r app/* . 2>/dev/null || cp -r app .
+          cp -r themes . 2>/dev/null || true
+          cp requirements.txt .
+          cp config.toml . 2>/dev/null || true
+          # Create startup.sh for Azure
+          echo '#!/bin/bash
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:8000
+          ' > startup.sh
+          chmod +x startup.sh
+          # Zip everything
+          zip -r ../deploy.zip . -x ".env*" -x ".venv/*" -x "__pycache__/*" -x "*.pyc" -x "tests/*" -x "htmlcov/*" -x ".pytest_cache/*"
+        
       - name: Deploy to Azure App Service via Kudu
         working-directory: ./backend
         run: |
-          # Use SCM_DO_BUILD_DURING_DEPLOYMENT to trigger Oryx build
           curl -X POST \
             -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
-            --data-binary @backend.zip \
+            --data-binary @../deploy.zip \
             "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=false" \
             -H "Content-Type: application/zip"
