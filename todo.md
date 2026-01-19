@@ -118,6 +118,7 @@
 - [x] Refactor App.tsx component (919 lines → ~555 lines)
   - Extracted AppSidebar for sidebar with presentations list
   - Extracted AppHeader for header with actions and status
+  - Fixed React hooks rules violation (early return before hooks)
 
 ### Backlog
 (All backlog items completed!)
