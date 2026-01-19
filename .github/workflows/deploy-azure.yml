@@ -1,0 +1,102 @@
+name: Deploy to Azure Container Apps
+
+on:
+  workflow_run:
+    workflows: ["Docker Build & Push"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  AZURE_RESOURCE_GROUP: marp-presentation-rg
+  AZURE_LOCATION: eastus2
+  CONTAINER_REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+
+jobs:
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'production' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set environment variables
+        run: |
+          echo "ENVIRONMENT=${{ inputs.environment || 'production' }}" >> $GITHUB_ENV
+          echo "BACKEND_APP_NAME=marp-backend-${{ inputs.environment || 'production' }}" >> $GITHUB_ENV
+          echo "FRONTEND_APP_NAME=marp-frontend-${{ inputs.environment || 'production' }}" >> $GITHUB_ENV
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }}
+
+      - name: Deploy Infrastructure
+        run: |
+          az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file .azure/infra/main.bicep \
+            --parameters environment=${{ env.ENVIRONMENT }} \
+            --parameters backendImage=${{ env.CONTAINER_REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest \
+            --parameters frontendImage=${{ env.CONTAINER_REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+
+      - name: Get Backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(az containerapp show \
+            --name ${{ env.BACKEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)
+          echo "url=https://${BACKEND_URL}" >> $GITHUB_OUTPUT
+
+      - name: Get Frontend URL
+        id: frontend-url
+        run: |
+          FRONTEND_URL=$(az containerapp show \
+            --name ${{ env.FRONTEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)
+          echo "url=https://${FRONTEND_URL}" >> $GITHUB_OUTPUT
+
+      - name: Health Check
+        run: |
+          echo "Waiting for services to be healthy..."
+          sleep 30
+          
+          # Check backend health
+          curl -f ${{ steps.backend-url.outputs.url }}/health || exit 1
+          
+          # Check frontend
+          curl -f ${{ steps.frontend-url.outputs.url }} || exit 1
+
+      - name: Deployment Summary
+        run: |
+          echo "### Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend URL:** ${{ steps.backend-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend URL:** ${{ steps.frontend-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**API Docs:** ${{ steps.backend-url.outputs.url }}/docs" >> $GITHUB_STEP_SUMMARY

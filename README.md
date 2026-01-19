@@ -91,6 +91,38 @@ bash scripts/validate-all.sh
 
 See [VALIDATION.md](./VALIDATION.md) for detailed validation steps.
 
+## Production Deployment
+
+### Azure Container Apps (Recommended)
+
+```bash
+# Quick deploy to Azure
+az login && azd auth login
+azd env new marp-prod
+azd env set AZURE_SUBSCRIPTION_ID $(az account show --query id -o tsv)
+azd env set AZURE_LOCATION eastus2
+azd up
+```
+
+**Includes:**
+- ✅ Container Apps with auto-scaling
+- ✅ Azure Key Vault for secrets
+- ✅ Application Insights monitoring
+- ✅ Storage Account for data
+- ✅ CI/CD with GitHub Actions
+
+See [.azure/DEPLOYMENT.md](.azure/DEPLOYMENT.md) for complete guide.
+
+### GitHub Actions CI/CD
+
+Automated deployment on push to `main`:
+1. Builds Docker images
+2. Pushes to GitHub Container Registry
+3. Deploys to Azure Container Apps
+4. Runs health checks
+
+Setup: Add `AZURE_CREDENTIALS` secret to GitHub repository.
+
 ## Quality Expectations
 - Validate via API calls, Docker logs, and Playwright UI flows.
 - Take screenshots for visual checks.
