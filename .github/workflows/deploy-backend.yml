@@ -54,13 +54,16 @@ jobs:
         run: |
           # Deploy to Kudu zipdeploy - Oryx will build based on requirements.txt
           # Use base64 encoding to avoid shell interpretation issues with $ in username
-          AUTH=$(echo -n "${DEPLOY_USER}:${DEPLOY_PASS}" | base64)
+          AUTH=$(printf '%s:%s' "${DEPLOY_USER}" "${DEPLOY_PASS}" | base64 -w 0)
           
+          echo "Deploying to Kudu..."
           response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Basic ${AUTH}" \
             -H "Content-Type: application/zip" \
             --data-binary @backend/deploy.zip \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy?isAsync=true")
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
+            --connect-timeout 30 \
+            --max-time 120)
           
           http_code=$(echo "$response" | tail -1)
           echo "HTTP Status: $http_code"
