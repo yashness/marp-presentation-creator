@@ -103,12 +103,18 @@
 
 ### Refactoring (2026-01-19)
 - [x] Fix backend Dockerfile uv cache permission issue
-- [x] Refactor EditorPanel component (1250 lines → modular components)
+- [x] Refactor EditorPanel component (1250 lines → ~800 lines)
   - Extracted SlideRewriteModal for AI slide rewriting UI
   - Extracted CommentGeneratorModal for AI comment generation UI
   - Extracted SelectionRewriteModal for text selection rewriting UI
   - Extracted SettingsDrawer for presentation settings panel
-  - Reduced EditorPanel complexity and improved maintainability
+- [x] Refactor AIChatPanel component (968 lines → ~750 lines)
+  - Extracted ChatMessageBubble for message rendering
+  - Extracted ChatInputArea for input controls
+- [x] Add Azure Container Apps deployment infrastructure
+  - Bicep templates for Container Apps, Key Vault, Storage
+  - GitHub Actions workflows for CI/CD
+  - azd configuration for quick deployment
 
 ### Backlog
 (All backlog items completed!)

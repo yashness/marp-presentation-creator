@@ -1,34 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button } from './ui/button'
-import { Textarea } from './ui/textarea'
 import {
   MessageSquare,
-  Send,
   Sparkles,
   X,
-  Paperclip,
   FileText,
   Link as LinkIcon,
   Loader2,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Check,
   Bot,
-  User,
   Lightbulb,
-  Plus,
   Palette,
   History,
   Trash2,
-  RotateCcw,
   Upload,
   Globe,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { API_BASE_URL } from '../lib/constants'
 import { scrapeUrl } from '../api/client'
+import { ChatMessageBubble } from './ChatMessageBubble'
+import { ChatInputArea } from './ChatInputArea'
 
 const CHAT_HISTORY_KEY = 'marp-ai-chat-history'
 const MAX_HISTORY_ITEMS = 50
@@ -167,8 +159,6 @@ export function AIChatPanel({
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Save messages to localStorage when they change
   useEffect(() => {
@@ -185,20 +175,12 @@ export function AIChatPanel({
     scrollToBottom()
   }, [messages, streamingContent, scrollToBottom])
 
-  useEffect(() => {
-    if (isOpen && textareaRef.current) {
-      textareaRef.current.focus()
-    }
-  }, [isOpen])
 
   const [isDragging, setIsDragging] = useState(false)
   const [isScrapingUrl, setIsScrapingUrl] = useState(false)
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
+  const handleFileUploadFromInput = async (files: FileList) => {
     await processFiles(Array.from(files))
-    e.target.value = ''
   }
 
   const processFiles = async (files: File[]) => {
@@ -436,13 +418,6 @@ export function AIChatPanel({
       setIsStreaming(false)
       setStreamingContent('')
       setThinkingContent('')
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
     }
   }
 
@@ -738,132 +713,19 @@ export function AIChatPanel({
           )}
 
           {messages.map((message) => (
-            <motion.div
+            <ChatMessageBubble
               key={message.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn('flex gap-3', message.role === 'user' ? 'flex-row-reverse' : '')}
-            >
-              <div className={cn(
-                'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-                message.role === 'user'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gradient-to-br from-primary-500 to-primary-700 text-white'
-              )}>
-                {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              </div>
-
-              <div className={cn(
-                'flex-1 max-w-[85%] rounded-xl px-4 py-3',
-                message.role === 'user'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-              )}>
-                {/* Thinking indicator */}
-                {message.thinking && (
-                  <button
-                    onClick={() => toggleThinking(message.id)}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-2 hover:text-slate-700 dark:hover:text-slate-300"
-                  >
-                    <Lightbulb className="w-3 h-3" />
-                    <span>Reasoning</span>
-                    {showThinking[message.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  </button>
-                )}
-
-                {showThinking[message.id] && message.thinking && (
-                  <div className="mb-3 p-2 rounded-lg bg-slate-200/50 dark:bg-slate-700/50 text-xs text-slate-600 dark:text-slate-400 italic">
-                    {message.thinking}
-                  </div>
-                )}
-
-                {/* Parsed outline display */}
-                {message.parsedOutline && (
-                  <div className="mb-3 p-3 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
-                    <h4 className="font-semibold text-sm mb-2">{message.parsedOutline.title}</h4>
-                    <div className="space-y-2">
-                      {message.parsedOutline.slides.map((slide, i) => (
-                        <div key={i} className="text-xs">
-                          <div className="font-medium text-primary-600 dark:text-primary-400">
-                            {i + 1}. {slide.title}
-                          </div>
-                          {slide.points.length > 0 && (
-                            <ul className="ml-4 mt-1 text-slate-500 dark:text-slate-400 space-y-0.5">
-                              {slide.points.slice(0, 3).map((point, j) => (
-                                <li key={j}>• {point}</li>
-                              ))}
-                              {slide.points.length > 3 && (
-                                <li className="text-slate-400">+{slide.points.length - 3} more</li>
-                              )}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Regular content */}
-                {!message.parsedOutline && (
-                  <div className="text-sm whitespace-pre-wrap break-words">
-                    {message.content}
-                  </div>
-                )}
-
-                {/* Actions for assistant messages */}
-                {message.role === 'assistant' && (
-                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <button
-                      onClick={() => handleCopy(message.id, message.content)}
-                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    >
-                      {copiedId === message.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                      {copiedId === message.id ? 'Copied!' : 'Copy'}
-                    </button>
-
-                    {message.hasSlides && onApplyToCurrentSlide && (
-                      <button
-                        onClick={() => handleApplyToSlide(message.content)}
-                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        Replace slide
-                      </button>
-                    )}
-
-                    {message.hasSlides && onInsertSlide && (
-                      <button
-                        onClick={() => handleInsertAsNewSlide(message.content)}
-                        className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 dark:text-green-400"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Insert slide
-                      </button>
-                    )}
-
-                    {message.hasSlides && onCreateNewPresentation && (
-                      <button
-                        onClick={() => handleCreatePresentation(message.content)}
-                        className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        New presentation
-                      </button>
-                    )}
-
-                    {mode === 'theme' && onCreateTheme && (
-                      <button
-                        onClick={() => handleCreateThemeFromChat(message.content)}
-                        className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 dark:text-orange-400"
-                      >
-                        <Palette className="w-3 h-3" />
-                        Create theme
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
+              message={message}
+              showThinking={showThinking[message.id] || false}
+              copiedId={copiedId}
+              mode={mode}
+              onToggleThinking={toggleThinking}
+              onCopy={handleCopy}
+              onApplyToSlide={onApplyToCurrentSlide ? handleApplyToSlide : undefined}
+              onInsertSlide={onInsertSlide ? handleInsertAsNewSlide : undefined}
+              onCreatePresentation={onCreateNewPresentation ? handleCreatePresentation : undefined}
+              onCreateTheme={onCreateTheme ? handleCreateThemeFromChat : undefined}
+            />
           ))}
 
           {/* Streaming message */}
@@ -898,70 +760,17 @@ export function AIChatPanel({
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".txt,.md,.json,.csv,.pdf"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              <Paperclip className="w-3.5 h-3.5" />
-              File
-            </button>
-            <button
-              onClick={handleAddLink}
-              disabled={isScrapingUrl}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
-            >
-              {isScrapingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LinkIcon className="w-3.5 h-3.5" />}
-              Link
-            </button>
-            <button
-              onClick={handleAddText}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Text
-            </button>
-          </div>
-
-          <div className="relative">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                mode === 'theme' ? 'Describe your theme (colors, style, mood)...' :
-                mode === 'slide' ? 'Describe what you want for this slide...' :
-                mode === 'refine' ? 'How should I refine this content?' :
-                mode === 'outline' ? 'Describe your presentation topic...' :
-                'Ask about presentations, generate content...'
-              }
-              className="min-h-[80px] max-h-[160px] pr-12 resize-none"
-              disabled={isStreaming}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-              size="icon"
-              className="absolute bottom-2 right-2 h-8 w-8 rounded-lg"
-            >
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </Button>
-          </div>
-
-          <p className="text-xs text-slate-400 mt-2 text-center">
-            Enter to send • Shift+Enter for new line
-          </p>
-        </div>
+        <ChatInputArea
+          input={input}
+          isStreaming={isStreaming}
+          isScrapingUrl={isScrapingUrl}
+          mode={mode}
+          onInputChange={setInput}
+          onSend={handleSend}
+          onFileUpload={handleFileUploadFromInput}
+          onAddLink={handleAddLink}
+          onAddText={handleAddText}
+        />
       </motion.div>
     </AnimatePresence>
   )
