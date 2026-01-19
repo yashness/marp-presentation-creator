@@ -29,44 +29,27 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Generate requirements.txt and install dependencies
+      - name: Generate requirements.txt from pyproject.toml
         working-directory: ./backend
         run: |
           uv pip compile pyproject.toml -o requirements.txt --no-header
           echo "gunicorn>=21.0.0" >> requirements.txt
           echo "uvicorn[standard]>=0.24.0" >> requirements.txt
-          # Create venv and install all deps for deployment
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
 
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create staging directory
-          mkdir -p staging
-          # Copy app code
-          cp -r app staging/
-          cp -r themes staging/ 2>/dev/null || true
-          cp requirements.txt staging/
-          cp config.toml staging/ 2>/dev/null || true
-          # Copy installed packages
-          cp -r .venv/lib/python3.11/site-packages/* staging/ 2>/dev/null || true
-          # Create application entry point
-          cat > staging/application.py << 'PYEOF'
-          import sys
-          import os
-          sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-          from app.main import app
-          application = app
-          PYEOF
+          # Create deployment with just source code + requirements
+          mkdir -p deploy_pkg
+          cp -r app deploy_pkg/
+          cp -r themes deploy_pkg/ 2>/dev/null || true
+          cp requirements.txt deploy_pkg/
+          cp config.toml deploy_pkg/ 2>/dev/null || true
+          cd deploy_pkg && zip -r ../deploy.zip .
 
-      - name: Deploy to Azure via Kudu zipdeploy
-        working-directory: ./backend
-        run: |
-          cd staging && zip -r ../deploy.zip . -x "*.pyc" -x "__pycache__/*"
-          curl -X POST \
-            -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
-            --data-binary @../deploy.zip \
-            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy" \
-            -H "Content-Type: application/zip"
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./backend/deploy.zip
