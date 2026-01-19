@@ -26,20 +26,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - name: Generate requirements.txt from pyproject.toml
         working-directory: ./backend
         run: |
-          pip install toml
-          python -c "
-          import toml
-          data = toml.load('pyproject.toml')
-          deps = data.get('project', {}).get('dependencies', [])
-          with open('requirements.txt', 'w') as f:
-              for dep in deps:
-                  f.write(dep + '\n')
-              f.write('gunicorn>=21.0.0\n')
-              f.write('uvicorn[standard]>=0.24.0\n')
-          "
+          uv pip compile pyproject.toml -o requirements.txt --no-header
+          echo "gunicorn>=21.0.0" >> requirements.txt
+          echo "uvicorn[standard]>=0.24.0" >> requirements.txt
 
       - name: Create deployment package
         working-directory: ./backend
