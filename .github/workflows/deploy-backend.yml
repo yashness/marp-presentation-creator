@@ -39,7 +39,7 @@ jobs:
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create deployment with just source code + requirements
+          # Create deployment with source code + requirements (Oryx will install deps)
           mkdir -p deploy_pkg
           cp -r app deploy_pkg/
           cp -r themes deploy_pkg/ 2>/dev/null || true
@@ -47,9 +47,22 @@ jobs:
           cp config.toml deploy_pkg/ 2>/dev/null || true
           cd deploy_pkg && zip -r ../deploy.zip .
 
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./backend/deploy.zip
+      - name: Deploy via Kudu with Oryx build
+        run: |
+          # Deploy to Kudu zipdeploy - Oryx will build based on requirements.txt
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
+            --data-binary @backend/deploy.zip \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
+            -H "Content-Type: application/zip")
+          
+          http_code=$(echo "$response" | tail -1)
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -ge 400 ]; then
+            echo "Deployment failed with status $http_code"
+            exit 1
+          fi
+          
+          echo "Deployment initiated. Waiting for Oryx build..."
+          sleep 120
