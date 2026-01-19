@@ -14,12 +14,15 @@ import { TTSButton } from './TTSButton'
 import { SlideImageButton } from './SlideImageButton'
 import { CommandPalette } from './CommandPalette'
 import { ThemeCreatorModal } from './ThemeCreatorModal'
-import { ThemeStudio } from './ThemeStudio'
 import { LayoutPicker } from './LayoutPicker'
 import { TransformMenu } from './TransformMenu'
 import { AIActionsMenu } from './AIActionsMenu'
 import { SlideActionsMenu } from './SlideActionsMenu'
-import { Info, LayoutTemplate, MessageSquarePlus, SlidersHorizontal, X, Download, Palette, Volume2, Trash2, Plus, Wand2, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { SlideRewriteModal } from './SlideRewriteModal'
+import { CommentGeneratorModal } from './CommentGeneratorModal'
+import { SelectionRewriteModal } from './SelectionRewriteModal'
+import { SettingsDrawer } from './SettingsDrawer'
+import { Info, LayoutTemplate, MessageSquarePlus, SlidersHorizontal, Trash2, Plus, Wand2, RefreshCw } from 'lucide-react'
 import { Button } from './ui/button'
 import { parseSlides, serializeSlides } from '../lib/markdown'
 import type { SlideBlock } from '../lib/markdown'
@@ -142,7 +145,6 @@ export function EditorPanel({
   const slides = editableSlides.length
     ? editableSlides
     : [{ id: 'slide-0', content: '# New Slide', comment: '' }]
-  const customThemes = useMemo(() => themes.filter(t => !t.is_builtin), [themes])
 
   const normalizedFrontmatter = useMemo(() => {
     const fm = { ...parsedFrontmatter }
@@ -226,7 +228,7 @@ export function EditorPanel({
     updateContent(slides, { title: value.trim() || DEFAULT_TITLE })
   }
 
-  const handleThemeChange = (value: string) => {
+  const handleThemeChange = (value: string | null) => {
     const normalized = value || DEFAULT_THEME
     onThemeChange(value || null)
     setParsedFrontmatter(prev => ({ ...prev, theme: normalized }))
@@ -726,80 +728,17 @@ export function EditorPanel({
                             <Wand2 className="w-3.5 h-3.5" />
                             AI Rewrite
                           </Button>
-                          <AnimatePresence>
-                            {rewriteSlideIndex === index && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                className="absolute right-0 top-full mt-2 z-50 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
-                              >
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="h-8 w-8 rounded-lg bg-primary-100 text-primary-700 grid place-items-center">
-                                    <Wand2 className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-800">AI Rewrite Slide</p>
-                                    <p className="text-xs text-slate-500">Describe how to change this slide</p>
-                                  </div>
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="e.g., make it more concise, add examples..."
-                                  value={rewriteInstruction}
-                                  onChange={(e) => setRewriteInstruction(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleAIRewriteSlide(index)}
-                                  className="w-full border border-secondary-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                  autoFocus
-                                />
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                  {['Make concise', 'Add examples', 'Simplify', 'More detail'].map((preset) => (
-                                    <button
-                                      key={preset}
-                                      onClick={() => { setRewriteInstruction(preset); handleQuickRewrite(index, preset) }}
-                                      className="px-2 py-1 text-xs bg-secondary-100 hover:bg-primary-100 text-secondary-600 hover:text-primary-700 rounded-md transition-colors"
-                                    >
-                                      {preset}
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="flex gap-2 mb-3">
-                                  <span className="text-xs text-secondary-500 self-center">Length:</span>
-                                  {(['short', 'medium', 'long'] as const).map((len) => (
-                                    <button
-                                      key={len}
-                                      onClick={() => setRewriteLength(len)}
-                                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                                        rewriteLength === len
-                                          ? 'bg-primary-600 text-white'
-                                          : 'bg-secondary-100 text-secondary-600 hover:bg-primary-100'
-                                      }`}
-                                    >
-                                      {len.charAt(0).toUpperCase() + len.slice(1)}
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => { setRewriteSlideIndex(null); setRewriteInstruction('') }}
-                                    className="flex-1"
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleAIRewriteSlide(index)}
-                                    disabled={rewriteLoading || !rewriteInstruction.trim()}
-                                    className="flex-1 bg-primary-700 hover:bg-primary-800"
-                                  >
-                                    {rewriteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Rewrite'}
-                                  </Button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                          <SlideRewriteModal
+                            isOpen={rewriteSlideIndex === index}
+                            onClose={() => { setRewriteSlideIndex(null); setRewriteInstruction('') }}
+                            onRewrite={async (instruction, length) => {
+                              setRewriteLength(length)
+                              setRewriteInstruction(instruction)
+                              await handleAIRewriteSlide(index)
+                            }}
+                            onQuickRewrite={(instruction) => handleQuickRewrite(index, instruction)}
+                            isLoading={rewriteLoading}
+                          />
                         </div>
                         <SlideImageButton
                           slideContent={slide.content}
@@ -860,64 +799,15 @@ export function EditorPanel({
                             <RefreshCw className="w-3.5 h-3.5" />
                             AI Generate
                           </Button>
-                          <AnimatePresence>
-                            {rewriteCommentIndex === index && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                className="absolute right-0 top-full mt-2 z-50 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
-                              >
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="h-8 w-8 rounded-lg bg-primary-100 text-primary-600 grid place-items-center">
-                                    <RefreshCw className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-800">Generate Comment</p>
-                                    <p className="text-xs text-slate-500">AI will create narration based on slide content</p>
-                                  </div>
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="Style: e.g., conversational, formal, enthusiastic..."
-                                  value={rewriteCommentInstruction}
-                                  onChange={(e) => setRewriteCommentInstruction(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleAIRewriteComment(index)}
-                                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                  autoFocus
-                                />
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                  {['Conversational', 'Professional', 'Enthusiastic', 'Concise'].map((preset) => (
-                                    <button
-                                      key={preset}
-                                      onClick={() => { setRewriteCommentInstruction(preset); handleAIRewriteComment(index) }}
-                                      className="px-2 py-1 text-xs bg-slate-100 hover:bg-primary-100 text-secondary-600 hover:text-primary-700 rounded-md transition-colors"
-                                    >
-                                      {preset}
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => { setRewriteCommentIndex(null); setRewriteCommentInstruction('') }}
-                                    className="flex-1"
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleAIRewriteComment(index)}
-                                    disabled={rewriteCommentLoading}
-                                    className="flex-1 bg-primary-600 hover:bg-primary-700"
-                                  >
-                                    {rewriteCommentLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate'}
-                                  </Button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                          <CommentGeneratorModal
+                            isOpen={rewriteCommentIndex === index}
+                            onClose={() => { setRewriteCommentIndex(null); setRewriteCommentInstruction('') }}
+                            onGenerate={async (style) => {
+                              setRewriteCommentInstruction(style)
+                              await handleAIRewriteComment(index)
+                            }}
+                            isLoading={rewriteCommentLoading}
+                          />
                         </div>
                       </div>
                       <textarea
@@ -955,75 +845,21 @@ export function EditorPanel({
                     </AnimatePresence>
 
                     {/* Selection Rewrite Modal */}
-                    <AnimatePresence>
-                      {selectionRewriteOpen && selectedText && selectedText.index === index && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className="absolute top-12 right-4 z-30 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 p-4"
-                        >
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="h-8 w-8 rounded-lg bg-secondary-100 text-secondary-700 grid place-items-center">
-                              <Wand2 className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-slate-800">Rewrite Selection</p>
-                              <p className="text-xs text-slate-500">Modify only the selected text</p>
-                            </div>
-                          </div>
-                          <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-xs text-slate-500 mb-1">Selected text:</p>
-                            <p className="text-sm text-slate-700 line-clamp-2 font-mono">
-                              "{selectedText.text.length > 100 ? selectedText.text.slice(0, 100) + '...' : selectedText.text}"
-                            </p>
-                          </div>
-                          <input
-                            type="text"
-                            placeholder="e.g., make it shorter, add emphasis..."
-                            value={selectionRewriteInstruction}
-                            onChange={(e) => setSelectionRewriteInstruction(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleRewriteSelectedText()}
-                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-secondary-500"
-                            autoFocus
-                          />
-                          <div className="flex flex-wrap gap-1.5 mb-3">
-                            {['Simplify', 'Expand', 'Make formal', 'Make casual'].map((preset) => (
-                              <button
-                                key={preset}
-                                onClick={() => {
-                                  setSelectionRewriteInstruction(preset)
-                                }}
-                                className="px-2 py-1 text-xs bg-slate-100 hover:bg-secondary-100 text-slate-600 hover:text-secondary-700 rounded-md transition-colors"
-                              >
-                                {preset}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSelectionRewriteOpen(false)
-                                setSelectionRewriteInstruction('')
-                              }}
-                              className="flex-1"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={handleRewriteSelectedText}
-                              disabled={selectionRewriteLoading || !selectionRewriteInstruction.trim()}
-                              className="flex-1 bg-secondary-600 hover:bg-secondary-700"
-                            >
-                              {selectionRewriteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Rewrite'}
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {selectedText && selectedText.index === index && (
+                      <SelectionRewriteModal
+                        isOpen={selectionRewriteOpen}
+                        selectedText={selectedText.text}
+                        onClose={() => {
+                          setSelectionRewriteOpen(false)
+                          setSelectionRewriteInstruction('')
+                        }}
+                        onRewrite={async (instruction) => {
+                          setSelectionRewriteInstruction(instruction)
+                          await handleRewriteSelectedText()
+                        }}
+                        isLoading={selectionRewriteLoading}
+                      />
+                    )}
 
                     <Editor
                       height="180px"
@@ -1087,155 +923,31 @@ export function EditorPanel({
         </div>
       </div>
 
-      {settingsOpen && (
-        <div className="fixed inset-0 bg-black/30 flex justify-end z-50" onClick={() => setSettingsOpen(false)}>
-          <div
-            className="w-full max-w-md h-full bg-white shadow-2xl border-l border-slate-200 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-5 h-5 text-primary-500" />
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Settings</p>
-                  <p className="text-xs text-slate-500">Meta, exports, TTS, and themes.</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="p-4 space-y-4 overflow-y-auto">
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Presentation meta</p>
-                    <p className="text-xs text-slate-500">Title, theme, pagination, footer.</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)}>
-                    <X className="w-4 h-4" />
-                    Hide
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  <Input
-                    type="text"
-                    placeholder="Presentation title"
-                    value={title}
-                    onChange={(e) => handleTitleInput(e.target.value)}
-                  />
-                  <Select value={selectedTheme || ''} onChange={(e) => handleThemeChange(e.target.value)}>
-                    <option value="">Default theme</option>
-                    {themes.map((theme) => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </option>
-                    ))}
-                  </Select>
-                  <div className="flex items-center gap-2 text-sm">
-                    <input
-                      id="paginate-drawer"
-                      type="checkbox"
-                      defaultChecked={normalizedFrontmatter.paginate === 'true'}
-                      onChange={(e) => handlePaginateChange(e.target.checked)}
-                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <label htmlFor="paginate-drawer" className="text-slate-700">Paginate slides</label>
-                  </div>
-                  <textarea
-                    placeholder="Footer text (supports spaces and new lines)"
-                    className="w-full border border-slate-200 rounded-md p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-                    rows={3}
-                    defaultValue={normalizedFrontmatter.footer}
-                    onChange={(e) => handleFooterChange(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Download className="w-4 h-4 text-primary-500" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Exports</p>
-                      <p className="text-sm text-slate-700">Download your deck</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <ExportButtonGroup selectedId={selectedId} presentationTitle={title} onExport={onExport} />
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Use structured editing to keep slides tidy, then switch to editor view for raw tweaks.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Volume2 className="w-4 h-4 text-primary-500" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">Text-to-speech</p>
-                      <p className="text-xs text-slate-500">Generate and play slide narration.</p>
-                    </div>
-                  </div>
-                </div>
-                <TTSButton
-                  presentationId={selectedId}
-                  slideIndex={currentSlideIndex}
-                  commentText={slides[currentSlideIndex]?.comment || ''}
-                />
-                <p className="text-xs text-slate-500">Uses Kokoro TTS. Voice defaults to Bella for reliability.</p>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Palette className="w-4 h-4 text-secondary-600" />
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Theme controls</p>
-                      <p className="text-sm text-slate-700">Apply or create custom themes.</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => setThemeCreatorOpen(true)} className="gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    Theme creator
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {customThemes.map(theme => (
-                    <Button
-                      key={theme.id}
-                      variant={selectedTheme === theme.id ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        handleThemeChange(theme.id)
-                        setThemeStatus(`Applied theme: ${theme.name}`)
-                      }}
-                    >
-                      {theme.name}
-                    </Button>
-                  ))}
-                </div>
-                {themeStatus && <p className="text-xs text-slate-500">{themeStatus}</p>}
-              </div>
-
-              <div className="rounded-lg border border-slate-200 p-4 shadow-sm">
-                <ThemeStudio
-                  themes={themes}
-                  selectedTheme={selectedTheme}
-                  onThemeChange={onThemeChange}
-                  onCreateTheme={onCreateTheme}
-                  onUpdateTheme={onUpdateTheme}
-                  onDeleteTheme={onDeleteTheme}
-                  onOpenAICreator={() => setThemeCreatorOpen(true)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <SettingsDrawer
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title={title}
+        selectedTheme={selectedTheme}
+        selectedId={selectedId}
+        themes={themes}
+        normalizedFrontmatter={normalizedFrontmatter}
+        currentSlideIndex={currentSlideIndex}
+        currentSlideComment={slides[currentSlideIndex]?.comment || ''}
+        themeStatus={themeStatus}
+        onTitleChange={handleTitleInput}
+        onThemeChange={handleThemeChange}
+        onPaginateChange={handlePaginateChange}
+        onFooterChange={handleFooterChange}
+        onExport={onExport}
+        onCreateTheme={onCreateTheme}
+        onUpdateTheme={onUpdateTheme}
+        onDeleteTheme={onDeleteTheme}
+        onOpenThemeCreator={() => setThemeCreatorOpen(true)}
+        onApplyTheme={(themeId, themeName) => {
+          handleThemeChange(themeId)
+          setThemeStatus(`Applied theme: ${themeName}`)
+        }}
+      />
 
       <ThemeCreatorModal
         open={themeCreatorOpen}

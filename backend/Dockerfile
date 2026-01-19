@@ -29,6 +29,19 @@ RUN uv sync --frozen
 
 COPY . .
 
+# Create non-root user and set permissions
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app && \
+    mkdir -p /app/data /app/logs /home/appuser/.cache/uv && \
+    chown -R appuser:appuser /app/data /app/logs /home/appuser/.cache
+
+USER appuser
+
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "app", "--reload-exclude", ".venv/*", "--reload-exclude", "data/*", "--reload-exclude", "logs/*"]
+# Healthcheck for container orchestration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"
+
+# Production mode by default (use docker-compose for dev with --reload)
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

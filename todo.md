@@ -101,5 +101,14 @@
   - View tracking for shared presentations
   - Export tracking in presentation editor
 
+### Refactoring (2026-01-19)
+- [x] Fix backend Dockerfile uv cache permission issue
+- [x] Refactor EditorPanel component (1250 lines → modular components)
+  - Extracted SlideRewriteModal for AI slide rewriting UI
+  - Extracted CommentGeneratorModal for AI comment generation UI
+  - Extracted SelectionRewriteModal for text selection rewriting UI
+  - Extracted SettingsDrawer for presentation settings panel
+  - Reduced EditorPanel complexity and improved maintainability
+
 ### Backlog
 (All backlog items completed!)
