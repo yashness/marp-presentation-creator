@@ -115,6 +115,9 @@
   - Bicep templates for Container Apps, Key Vault, Storage
   - GitHub Actions workflows for CI/CD
   - azd configuration for quick deployment
+- [x] Refactor App.tsx component (919 lines → ~555 lines)
+  - Extracted AppSidebar for sidebar with presentations list
+  - Extracted AppHeader for header with actions and status
 
 ### Backlog
 (All backlog items completed!)
