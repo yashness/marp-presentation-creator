@@ -29,45 +29,44 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Generate requirements.txt from pyproject.toml
+      - name: Generate requirements.txt and install dependencies
         working-directory: ./backend
         run: |
           uv pip compile pyproject.toml -o requirements.txt --no-header
           echo "gunicorn>=21.0.0" >> requirements.txt
           echo "uvicorn[standard]>=0.24.0" >> requirements.txt
+          # Create venv and install all deps for deployment
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
 
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create staging directory with proper Python structure for Oryx
+          # Create staging directory
           mkdir -p staging
-          # Copy app code as a package
+          # Copy app code
           cp -r app staging/
           cp -r themes staging/ 2>/dev/null || true
           cp requirements.txt staging/
           cp config.toml staging/ 2>/dev/null || true
-          # Create application.py as the entry point
+          # Copy installed packages
+          cp -r .venv/lib/python3.11/site-packages/* staging/ 2>/dev/null || true
+          # Create application entry point
           cat > staging/application.py << 'PYEOF'
           import sys
           import os
-          
           sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-          
           from app.main import app
-          
           application = app
           PYEOF
-          # Zip everything
-          cd staging && zip -r ../../deploy.zip .
-        
-      - name: Deploy to Azure App Service with Oryx build
+
+      - name: Deploy to Azure via Kudu zipdeploy
         working-directory: ./backend
         run: |
+          cd staging && zip -r ../deploy.zip . -x "*.pyc" -x "__pycache__/*"
           curl -X POST \
             -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
             --data-binary @../deploy.zip \
-            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
+            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy" \
             -H "Content-Type: application/zip"
-          # Wait for Oryx build to complete
-          echo "Waiting for Oryx build..."
-          sleep 180
