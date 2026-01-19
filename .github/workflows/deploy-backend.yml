@@ -48,19 +48,26 @@ jobs:
           cd deploy_pkg && zip -r ../deploy.zip .
 
       - name: Deploy via Kudu with Oryx build
+        env:
+          DEPLOY_USER: ${{ secrets.AZURE_DEPLOY_USER }}
+          DEPLOY_PASS: ${{ secrets.AZURE_DEPLOY_PASS }}
         run: |
           # Deploy to Kudu zipdeploy - Oryx will build based on requirements.txt
+          # Use base64 encoding to avoid shell interpretation issues with $ in username
+          AUTH=$(echo -n "${DEPLOY_USER}:${DEPLOY_PASS}" | base64)
+          
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
+            -H "Authorization: Basic ${AUTH}" \
+            -H "Content-Type: application/zip" \
             --data-binary @backend/deploy.zip \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
-            -H "Content-Type: application/zip")
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy?isAsync=true")
           
           http_code=$(echo "$response" | tail -1)
           echo "HTTP Status: $http_code"
           
           if [ "$http_code" -ge 400 ]; then
             echo "Deployment failed with status $http_code"
+            echo "Response: $(echo "$response" | head -n -1)"
             exit 1
           fi
           
