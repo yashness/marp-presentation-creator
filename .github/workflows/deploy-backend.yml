@@ -41,54 +41,38 @@ jobs:
               f.write('uvicorn[standard]>=0.24.0\n')
           "
 
-      - name: Install dependencies
-        working-directory: ./backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create staging directory with proper structure for Azure Python
+          # Create staging directory with proper Python structure for Oryx
           mkdir -p staging
           # Copy app code as a package
           cp -r app staging/
           cp -r themes staging/ 2>/dev/null || true
           cp requirements.txt staging/
           cp config.toml staging/ 2>/dev/null || true
-          # Create application.py as the entry point (Azure convention)
+          # Create application.py as the entry point
           cat > staging/application.py << 'PYEOF'
           import sys
           import os
           
-          # Add current directory to path
           sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
           
           from app.main import app
           
-          # This is the WSGI/ASGI application object
           application = app
           PYEOF
           # Zip everything
           cd staging && zip -r ../../deploy.zip .
         
-      - name: Deploy to Azure App Service via Kudu
+      - name: Deploy to Azure App Service with Oryx build
         working-directory: ./backend
         run: |
           curl -X POST \
             -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
             --data-binary @../deploy.zip \
-            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=false" \
+            "https://marp-presentation-api.scm.azurewebsites.net/api/zipdeploy?isAsync=true" \
             -H "Content-Type: application/zip"
-
-      - name: Configure Azure App Service startup
-        run: |
-          # Login using deployment credentials and set startup command
-          az login --service-principal -u "${{ secrets.AZURE_DEPLOY_USER }}" -p "${{ secrets.AZURE_DEPLOY_PASS }}" --tenant "${{ secrets.AZURE_TENANT_ID }}" || true
-          # Use Azure CLI to configure startup if available, otherwise use REST API
-          curl -X PATCH \
-            -u "${{ secrets.AZURE_DEPLOY_USER }}:${{ secrets.AZURE_DEPLOY_PASS }}" \
-            "https://marp-presentation-api.scm.azurewebsites.net/api/settings" \
-            -H "Content-Type: application/json" \
-            -d '{"WEBSITES_PORT":"8000"}' || true
+          # Wait for Oryx build to complete
+          echo "Waiting for Oryx build..."
+          sleep 180
