@@ -61,6 +61,8 @@ jobs:
           cp requirements.txt deploy_pkg/
           cp runtime.txt deploy_pkg/
           cp config.toml deploy_pkg/ 2>/dev/null || true
+          cp startup.sh deploy_pkg/
+          cp marp.config.js deploy_pkg/ 2>/dev/null || true
           
           cd deploy_pkg && zip -r ../deploy.zip .
           echo "=== Deployment package contents ==="
