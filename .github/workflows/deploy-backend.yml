@@ -26,10 +26,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Create minimal requirements for deployment
+      - name: Create deployment package with minimal requirements
         working-directory: ./backend
         run: |
-          # Create minimal requirements (exclude heavy ML deps)
+          # Create minimal requirements (exclude heavy ML deps for faster deployment)
           cat > requirements.txt << 'EOF'
           alembic>=1.18.0
           anthropic>=0.45.0
@@ -47,22 +47,24 @@ jobs:
           uvicorn[standard]>=0.40.0
           gunicorn>=21.0.0
           EOF
-          echo "=== Minimal requirements.txt ==="
+          
+          echo "=== requirements.txt ==="
           cat requirements.txt
-
-      - name: Create deployment package
-        working-directory: ./backend
-        run: |
-          # Create deployment package - Oryx will install dependencies
+          
+          # Create runtime.txt for Oryx to detect Python version
+          echo "python-${{ env.PYTHON_VERSION }}" > runtime.txt
+          
+          # Create deployment package
           mkdir -p deploy_pkg
           cp -r app deploy_pkg/
           cp -r themes deploy_pkg/ 2>/dev/null || true
           cp requirements.txt deploy_pkg/
+          cp runtime.txt deploy_pkg/
           cp config.toml deploy_pkg/ 2>/dev/null || true
           
           cd deploy_pkg && zip -r ../deploy.zip .
-          echo "=== Deployment package size ==="
-          ls -la ../deploy.zip
+          echo "=== Deployment package contents ==="
+          unzip -l ../deploy.zip | head -30
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
