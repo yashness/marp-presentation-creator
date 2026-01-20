@@ -36,27 +36,21 @@ jobs:
           # Add gunicorn and uvicorn if not present
           grep -q "gunicorn" requirements.txt || echo "gunicorn>=21.0.0" >> requirements.txt
           grep -q "uvicorn" requirements.txt || echo "uvicorn[standard]>=0.24.0" >> requirements.txt
+          echo "=== Generated requirements.txt ==="
+          cat requirements.txt
 
       - name: Create deployment package
         working-directory: ./backend
         run: |
-          # Create a simple deployment package
-          # Let Oryx handle installation on the server
+          # Create deployment package - Oryx will install dependencies
           mkdir -p deploy_pkg
           cp -r app deploy_pkg/
           cp -r themes deploy_pkg/ 2>/dev/null || true
           cp requirements.txt deploy_pkg/
           cp config.toml deploy_pkg/ 2>/dev/null || true
           
-          # Create a startup.sh to help with startup
-          cat > deploy_pkg/startup.sh << 'EOF'
-          #!/bin/bash
-          cd /home/site/wwwroot
-          gunicorn --bind=0.0.0.0:8000 --timeout 600 -k uvicorn.workers.UvicornWorker app.main:app
-          EOF
-          chmod +x deploy_pkg/startup.sh
-          
           cd deploy_pkg && zip -r ../deploy.zip .
+          echo "=== Deployment package size ==="
           ls -la ../deploy.zip
 
       - name: Deploy to Azure Web App
