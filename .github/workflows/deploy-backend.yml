@@ -26,17 +26,28 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Generate requirements.txt from pyproject.toml
+      - name: Create minimal requirements for deployment
         working-directory: ./backend
         run: |
-          uv pip compile pyproject.toml -o requirements.txt --no-header
-          # Add gunicorn and uvicorn if not present
-          grep -q "gunicorn" requirements.txt || echo "gunicorn>=21.0.0" >> requirements.txt
-          grep -q "uvicorn" requirements.txt || echo "uvicorn[standard]>=0.24.0" >> requirements.txt
-          echo "=== Generated requirements.txt ==="
+          # Create minimal requirements (exclude heavy ML deps)
+          cat > requirements.txt << 'EOF'
+          alembic>=1.18.0
+          anthropic>=0.45.0
+          cachetools>=6.2.4
+          fastapi>=0.128.0
+          httpx>=0.28.1
+          loguru>=0.7.3
+          numpy>=2.0.0
+          pydantic>=2.12.5
+          pydantic-settings>=2.12.0
+          python-dotenv>=1.2.1
+          python-multipart>=0.0.20
+          slowapi>=0.1.9
+          sqlalchemy>=2.0.45
+          uvicorn[standard]>=0.40.0
+          gunicorn>=21.0.0
+          EOF
+          echo "=== Minimal requirements.txt ==="
           cat requirements.txt
 
       - name: Create deployment package
