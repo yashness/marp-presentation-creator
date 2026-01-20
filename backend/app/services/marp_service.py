@@ -2,6 +2,8 @@ import os
 import subprocess
 import tempfile
 import shlex
+import shutil
+import html as html_lib
 from pathlib import Path
 from app.core.config import settings
 from app.core.logger import logger
@@ -15,6 +17,12 @@ THEME_CACHE_DIR = BASE_DIR / "data" / "theme_cache"
 MARP_CONFIG_PATH = BASE_DIR / "marp.config.js"
 
 THEME_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def is_marp_available() -> bool:
+    """Check if Marp CLI is available on the system."""
+    cmd_parts = get_marp_command_parts()
+    return shutil.which(cmd_parts[0]) is not None
 
 def get_marp_command_parts() -> list[str]:
     return shlex.split(settings.marp_cli_path)
@@ -109,6 +117,154 @@ mermaid.initialize({ startOnLoad: true, theme: 'default' });
         return html.replace("</head>", f"{mermaid_script}</head>")
     return mermaid_script + html
 
+
+def fallback_render_to_html(content: str, theme_id: str | None = None) -> str:
+    """Render Marp markdown to HTML without Marp CLI (fallback mode).
+    
+    This provides a basic HTML preview when Marp CLI is not available.
+    It parses Marp markdown syntax and generates styled HTML slides.
+    """
+    import re
+    
+    # Parse Marp front matter
+    front_matter = {}
+    content_body = content
+    if content.strip().startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            yaml_content = parts[1].strip()
+            content_body = parts[2]
+            for line in yaml_content.split("\n"):
+                if ":" in line:
+                    key, val = line.split(":", 1)
+                    front_matter[key.strip()] = val.strip()
+    
+    # Split into slides (Marp uses --- as slide separator)
+    slides = re.split(r'\n---\n', content_body)
+    
+    # Generate HTML for each slide
+    slide_html_parts = []
+    for i, slide_content in enumerate(slides):
+        if not slide_content.strip():
+            continue
+        
+        # Convert basic markdown to HTML
+        slide_html = html_lib.escape(slide_content)
+        
+        # Headers
+        slide_html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', slide_html, flags=re.MULTILINE)
+        slide_html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', slide_html, flags=re.MULTILINE)
+        slide_html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', slide_html, flags=re.MULTILINE)
+        
+        # Bold and italic
+        slide_html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', slide_html)
+        slide_html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', slide_html)
+        
+        # Lists
+        slide_html = re.sub(r'^- (.+)$', r'<li>\1</li>', slide_html, flags=re.MULTILINE)
+        slide_html = re.sub(r'(<li>.*</li>\n?)+', r'<ul>\g<0></ul>', slide_html)
+        
+        # Code blocks
+        slide_html = re.sub(r'```(\w*)\n(.*?)```', r'<pre><code class="\1">\2</code></pre>', slide_html, flags=re.DOTALL)
+        slide_html = re.sub(r'`(.+?)`', r'<code>\1</code>', slide_html)
+        
+        # Line breaks (preserve newlines)
+        slide_html = slide_html.replace('\n\n', '</p><p>')
+        
+        slide_html_parts.append(f'''
+        <section class="slide" data-slide="{i + 1}">
+            <div class="slide-content">
+                <p>{slide_html}</p>
+            </div>
+        </section>
+        ''')
+    
+    # Build full HTML document with Marp-like styling
+    theme_color = "#0366d6"  # Default blue
+    bg_color = "#ffffff"
+    
+    html = f'''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Presentation Preview</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }}
+        .slide {{
+            background: {bg_color};
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 60px;
+            min-height: 400px;
+            position: relative;
+        }}
+        .slide::after {{
+            content: attr(data-slide);
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            color: #999;
+            font-size: 14px;
+        }}
+        .slide-content {{ max-width: 900px; margin: 0 auto; }}
+        h1 {{
+            color: {theme_color};
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+            border-bottom: 3px solid {theme_color};
+            padding-bottom: 0.3em;
+        }}
+        h2 {{ color: #333; font-size: 1.8em; margin: 0.8em 0 0.4em; }}
+        h3 {{ color: #555; font-size: 1.4em; margin: 0.6em 0 0.3em; }}
+        p {{ line-height: 1.6; margin: 0.5em 0; color: #333; font-size: 1.1em; }}
+        ul {{ margin: 0.5em 0 0.5em 1.5em; }}
+        li {{ margin: 0.3em 0; line-height: 1.5; }}
+        code {{
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Consolas, monospace;
+        }}
+        pre {{
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }}
+        pre code {{ background: none; padding: 0; color: inherit; }}
+        strong {{ color: {theme_color}; }}
+        .mermaid {{ background: #fff; padding: 20px; border-radius: 4px; }}
+        .warning-banner {{
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="warning-banner">
+        ⚠️ Fallback preview mode - Marp CLI not available. For full rendering, install Marp CLI.
+    </div>
+    {"".join(slide_html_parts)}
+</body>
+</html>'''
+    
+    html = inject_mermaid_support(html)
+    return html
+
 def render_and_cache(content: str, theme_id: str | None, html_file: Path) -> str:
     html = html_file.read_text()
     html = inject_mermaid_support(html)
@@ -132,11 +288,27 @@ def render_to_html(content: str, theme_id: str | None = None) -> str:
     cached = check_cache(content, theme_id)
     if cached:
         return cached
+    
+    # Use fallback renderer if Marp CLI is not available
+    if not is_marp_available():
+        logger.warning("Marp CLI not available, using fallback HTML renderer")
+        html = fallback_render_to_html(content, theme_id)
+        cache_key = generate_cache_key(content, theme_id)
+        render_cache[cache_key] = html
+        return html
+    
     return execute_html_render(content, theme_id)
 
 def render_export(content: str, output_path: Path, format_flag: str, format_name: str, theme_id: str | None = None) -> None:
     if not validate_markdown(content):
         raise ValueError("Invalid markdown content")
+    
+    if not is_marp_available():
+        raise RuntimeError(
+            f"{format_name} export requires Marp CLI which is not installed. "
+            "Please install @marp-team/marp-cli or use Docker deployment."
+        )
+    
     temp_file = create_temp_file(content)
     cmd = build_marp_cmd(temp_file, format_flag, str(output_path), theme_id)
     run_marp_command(cmd, temp_file, f"{format_name} export")
